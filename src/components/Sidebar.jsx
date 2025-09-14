@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   Users, 
@@ -7,11 +8,12 @@ import {
   Bell, 
   Gift, 
   Settings,
-  User
+  User,
+  Wifi
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const [activeItem, setActiveItem] = useState('Trang chủ');
+  const location = useLocation();
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
@@ -28,13 +30,14 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const menuItems = [
-    { icon: Home, label: 'Trang chủ', badge: null },
-    { icon: Calendar, label: 'Sự kiện', badge: 8 },
-    { icon: Users, label: 'Nhóm', badge: 6 },
-    { icon: MessageCircle, label: 'Tin nhắn', badge: 6 },
-    { icon: Gift, label: 'Điểm thưởng', badge: null },
-    { icon: Bell, label: 'Thông báo', badge: 6 },
-    { icon: Settings, label: 'Cài đặt', badge: null }
+    { icon: Home, label: 'Trang chủ', badge: null, path: '/' },
+    { icon: Calendar, label: 'Sự kiện', badge: 8, path: '/events' },
+    { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
+    { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' },
+    { icon: Wifi, label: 'Nostr Relay', badge: null, path: '/nostr' },
+    { icon: Gift, label: 'Điểm thưởng', badge: null, path: '/rewards' },
+    { icon: Bell, label: 'Thông báo', badge: 6, path: '/notifications' },
+    { icon: Settings, label: 'Cài đặt', badge: null, path: '/settings' }
   ];
 
   return (
@@ -46,10 +49,10 @@ const Sidebar = ({ isOpen, onClose }) => {
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.label}>
-                <button
-                  onClick={() => setActiveItem(item.label)}
+                <Link
+                  to={item.path}
                   className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                    activeItem === item.label 
+                    location.pathname === item.path 
                       ? 'bg-blue-500 text-white shadow-lg transform scale-105' 
                       : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
                   }`}
@@ -61,7 +64,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                       {item.badge}
                     </span>
                   )}
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
@@ -97,13 +100,11 @@ const Sidebar = ({ isOpen, onClose }) => {
               <ul className="space-y-1">
                 {menuItems.map((item) => (
                   <li key={item.label}>
-                    <button
-                      onClick={() => {
-                        setActiveItem(item.label);
-                        handleClose();
-                      }}
+                    <Link
+                      to={item.path}
+                      onClick={handleClose}
                       className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        activeItem === item.label 
+                        location.pathname === item.path 
                           ? 'bg-blue-500 text-white shadow-lg transform scale-105' 
                           : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
                       }`}
@@ -115,7 +116,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                           {item.badge}
                         </span>
                       )}
-                    </button>
+                    </Link>
                   </li>
                 ))}
               </ul>

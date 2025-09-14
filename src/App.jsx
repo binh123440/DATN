@@ -8,6 +8,7 @@ import Groups from './components/Groups'
 import Events from './components/Events'
 import Chat from './components/Chat'
 import Profile from './components/Profile'
+import NostrRelay from './components/NostrRelay'
 
 function App() {
   const [currentUser, setCurrentUser] = useState({
@@ -50,6 +51,7 @@ function App() {
               <Route path="/events" element={<Events currentUser={currentUser} />} />
               <Route path="/chat" element={<Chat currentUser={currentUser} />} />
               <Route path="/profile" element={<Profile currentUser={currentUser} />} />
+              <Route path="/nostr" element={<NostrRelay />} />
             </Routes>
           </main>
         </div>
