@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Home, Calendar, MapPin, Users, Gift, QrCode, Heart, MessageCircle, Share, ImagePlus, SmilePlus } from 'lucide-react';
+import {QRCode} from 'react-qr-code';
+import { Home, Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, Heart, MessageCircle, Share, ImagePlus, SmilePlus, X } from 'lucide-react';
 
 const PostComposer = ({ onCreatePost }) => {
   const [activeType, setActiveType] = useState(null);
@@ -147,54 +148,101 @@ const PostComposer = ({ onCreatePost }) => {
 };
 
 const EventCard = ({ event }) => {
+  // State để quản lý việc hiển thị modal QR code
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  // Dữ liệu để mã hóa vào QR code.
+  // Trong thực tế, đây nên là một chuỗi JSON chứa ID sự kiện và một mã bí mật duy nhất từ backend.
+  const qrValue = JSON.stringify({ 
+    eventId: event.id || "workshop-ai-2025", // Dùng event.id nếu có, nếu không thì dùng placeholder
+    secret: "a-very-secret-code-from-backend-for-this-specific-event" // Mã này phải là duy nhất cho mỗi sự kiện
+  });
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          {event.title}
-        </h3>
-        <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
-          ✓ Đã đăng ký
-        </span>
+    <>
+      <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            {event.title}
+          </h3>
+          <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
+            ✓ Đã đăng ký
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex items-center text-gray-600">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+              <Calendar size={16} className="text-blue-600" />
+            </div>
+            <span className="text-sm">{event.date}</span>
+          </div>
+          <div className="flex items-center text-gray-600">
+            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+              <MapPin size={16} className="text-purple-600" />
+            </div>
+            <span className="text-sm">{event.location}</span>
+          </div>
+          <div className="flex items-center text-gray-600">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+              <Users size={16} className="text-green-600" />
+            </div>
+            <span className="text-sm">{event.participants}</span>
+          </div>
+          <div className="flex items-center text-orange-600">
+            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+              <Gift size={16} className="text-orange-600" />
+            </div>
+            <span className="text-sm font-medium">{event.points}</span>
+          </div>
+        </div>
+        
+        <div className="flex space-x-3">
+          {/* Nút bấm để mở Modal QR */}
+          <button 
+            onClick={() => setShowQrModal(true)}
+            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium"
+          >
+            <QrCodeIcon size={18} />
+            <span>Xem mã QR điểm danh</span>
+          </button>
+          <button className="px-4 py-3 border-2 border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-medium">
+            33 chỗ còn lại
+          </button>
+        </div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="flex items-center text-gray-600">
-          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-            <Calendar size={16} className="text-blue-600" />
+
+      {/* Modal hiển thị QR Code */}
+      {showQrModal && (
+        // Lớp phủ nền mờ, khi click sẽ đóng modal
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+          onClick={() => setShowQrModal(false)}
+        >
+          {/* Hộp thoại modal, ngăn sự kiện click lan ra lớp phủ */}
+          <div 
+            className="bg-white rounded-2xl p-8 shadow-2xl text-center relative transform transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Nút đóng modal */}
+            <button 
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Mã QR Điểm Danh</h2>
+            <p className="text-gray-500 mb-6">Sinh viên vui lòng quét mã này để ghi danh.</p>
+            
+            {/* Vùng hiển thị QR Code */}
+            <div className="p-4 bg-white border-4 border-gray-200 rounded-lg inline-block">
+              <QRCode value={qrValue} size={256} level={"H"} includeMargin={true} />
+            </div>
+            <p className="mt-4 text-sm text-gray-600 font-mono break-all">{event.title}</p>
           </div>
-          <span className="text-sm">{event.date}</span>
         </div>
-        <div className="flex items-center text-gray-600">
-          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-            <MapPin size={16} className="text-purple-600" />
-          </div>
-          <span className="text-sm">{event.location}</span>
-        </div>
-        <div className="flex items-center text-gray-600">
-          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-            <Users size={16} className="text-green-600" />
-          </div>
-          <span className="text-sm">{event.participants}</span>
-        </div>
-        <div className="flex items-center text-orange-600">
-          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-            <Gift size={16} className="text-orange-600" />
-          </div>
-          <span className="text-sm font-medium">{event.points}</span>
-        </div>
-      </div>
-      
-      <div className="flex space-x-3">
-        <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium">
-          <QrCode size={18} />
-          <span>Xem mã QR</span>
-        </button>
-        <button className="px-4 py-3 border-2 border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-medium">
-          33 chỗ còn lại
-        </button>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
