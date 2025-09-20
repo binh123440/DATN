@@ -237,7 +237,7 @@ const EventCard = ({ event }) => {
                 {/* Placeholder cho ảnh thẻ sinh viên */}
                 {/* Trong thực tế, src sẽ là dữ liệu động từ thông tin người dùng */}
                 <img 
-                    src="https://i.pravatar.cc/150?u=lehabinh" // Placeholder image
+                    src="https://i.pravatar.cc/120?img=59" // Placeholder image
                     alt="Ảnh đại diện"
                     className="w-24 h-24 rounded-full border-4 border-white absolute -bottom-12 left-1/2 -translate-x-1/2 shadow-lg"
                 />
