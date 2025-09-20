@@ -212,33 +212,53 @@ const EventCard = ({ event }) => {
         </div>
       </div>
 
-      {/* Modal hiển thị QR Code */}
+      {/* Modal hiển thị QR Code - Thiết kế lại theo dạng "Thẻ Sinh Viên Kỹ Thuật Số" */}
       {showQrModal && (
         // Lớp phủ nền mờ, khi click sẽ đóng modal
         <div 
-          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
           onClick={() => setShowQrModal(false)}
         >
           {/* Hộp thoại modal, ngăn sự kiện click lan ra lớp phủ */}
           <div 
-            className="bg-white rounded-2xl p-8 shadow-2xl text-center relative transform transition-all"
+            className="bg-gray-50 rounded-2xl w-full max-w-sm mx-auto shadow-2xl relative transform transition-all"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Nút đóng modal */}
+            {/* Nút đóng modal được thiết kế lại */}
             <button 
               onClick={() => setShowQrModal(false)}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              className="absolute -top-3 -right-3 bg-white rounded-full p-1.5 shadow-lg text-gray-600 hover:text-red-500 hover:scale-110 transition-transform z-10"
             >
               <X size={24} />
             </button>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Mã QR Điểm Danh</h2>
-            <p className="text-gray-500 mb-6">Sinh viên vui lòng quét mã này để ghi danh.</p>
-            
-            {/* Vùng hiển thị QR Code */}
-            <div className="p-4 bg-white border-4 border-gray-200 rounded-lg inline-block">
-              <QRCode value={qrValue} size={256} level={"H"} includeMargin={true} />
+
+            {/* Phần header của thẻ */}
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-24 rounded-t-2xl relative">
+                {/* Placeholder cho ảnh thẻ sinh viên */}
+                {/* Trong thực tế, src sẽ là dữ liệu động từ thông tin người dùng */}
+                <img 
+                    src="https://i.pravatar.cc/150?u=lehabinh" // Placeholder image
+                    alt="Ảnh đại diện"
+                    className="w-24 h-24 rounded-full border-4 border-white absolute -bottom-12 left-1/2 -translate-x-1/2 shadow-lg"
+                />
             </div>
-            <p className="mt-4 text-sm text-gray-600 font-mono break-all">{event.title}</p>
+
+            {/* Phần thân thẻ chứa thông tin */}
+            <div className="pt-16 pb-8 px-6 text-center">
+                {/* Thông tin sinh viên - Dữ liệu này sẽ được lấy từ state hoặc props */}
+                <h2 className="text-2xl font-bold text-gray-800">Lê Hà Bình</h2>
+                <p className="text-gray-500 font-mono">21115053120105</p>
+
+                <div className="mt-6 mb-6">
+                    {/* Vùng hiển thị QR Code */}
+                    <div className="p-2 bg-white border-2 border-gray-200 rounded-lg inline-block shadow-inner">
+                        <QRCode value={qrValue} size={220} />
+                    </div>
+                </div>
+                
+                <p className="text-sm text-gray-600">Đưa mã này cho người tổ chức để điểm danh sự kiện:</p>
+                <p className="mt-1 text-sm font-semibold text-blue-600 break-all">{event.title}</p>
+            </div>
           </div>
         </div>
       )}
