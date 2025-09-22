@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {QRCode} from 'react-qr-code';
-import { Home, Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, Heart, MessageCircle, Share, ImagePlus, SmilePlus, X } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Home, Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, Heart, MessageCircle, Share, ImagePlus, SmilePlus, X, ScanLine } from 'lucide-react';
 
 const PostComposer = ({ onCreatePost }) => {
   const [activeType, setActiveType] = useState(null);
@@ -147,9 +148,38 @@ const PostComposer = ({ onCreatePost }) => {
   );
 };
 
-const EventCard = ({ event }) => {
-  // State để quản lý việc hiển thị modal QR code
+const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
+  const scannerRef = useRef(null);
+
+  useEffect(() => {
+    if (!scannerRef.current) return;
+
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", // ID của div element
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      /* verbose= */ false
+    );
+
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+
+    // Cleanup function để dừng scanner khi component unmount
+    return () => {
+      html5QrcodeScanner.clear().catch(error => {
+        console.error("Failed to clear html5QrcodeScanner.", error);
+      });
+    };
+  }, [onScanSuccess, onScanFailure]);
+
+  return <div id="reader" ref={scannerRef} className="w-full h-full"></div>;
+};
+
+const EventCard = ({ event, userRole }) => {
+  // State để quản lý việc hiển thị modal QR code của sinh viên
   const [showQrModal, setShowQrModal] = useState(false);
+  // State để quản lý việc hiển thị modal quét mã của người tổ chức
+  const [showScanner, setShowScanner] = useState(false);
+  // State để lưu kết quả quét
+  const [scanResult, setScanResult] = useState('');
 
   // Dữ liệu để mã hóa vào QR code.
   // Trong thực tế, đây nên là một chuỗi JSON chứa ID sự kiện và một mã bí mật duy nhất từ backend.
@@ -158,6 +188,20 @@ const EventCard = ({ event }) => {
     secret: "a-very-secret-code-from-backend-for-this-specific-event" // Mã này phải là duy nhất cho mỗi sự kiện
   });
 
+  // Hàm xử lý khi quét thành công
+  const handleScanSuccess = useCallback((decodedText, decodedResult) => {
+    setScanResult(decodedText);
+    // Ở đây, bạn sẽ gọi API gửi decodedText lên backend để xác thực
+    console.log("Đã quét được:", decodedText);
+    setShowScanner(false); // Đóng modal sau khi quét
+    alert(`Đã quét thành công!\nNội dung: ${decodedText}`);
+  }, []);
+
+  // Hàm xử lý khi quét thất bại (có thể bỏ qua)
+  const handleScanFailure = useCallback((error) => {
+    // console.warn(`Code scan error = ${error}`);
+  }, []);
+
   return (
     <>
       <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-4 shadow-sm">
@@ -165,9 +209,11 @@ const EventCard = ({ event }) => {
           <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             {event.title}
           </h3>
-          <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
-            ✓ Đã đăng ký
-          </span>
+          {userRole === 'student' && (
+            <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
+              ✓ Đã đăng ký
+            </span>
+          )}
         </div>
         
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -198,14 +244,23 @@ const EventCard = ({ event }) => {
         </div>
         
         <div className="flex space-x-3">
-          {/* Nút bấm để mở Modal QR */}
-          <button 
-            onClick={() => setShowQrModal(true)}
-            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium"
-          >
-            <QrCodeIcon size={18} />
-            <span>Xem mã QR điểm danh</span>
-          </button>
+          {userRole === 'student' ? (
+            <button 
+              onClick={() => setShowQrModal(true)}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium"
+            >
+              <QrCodeIcon size={18} />
+              <span>Lấy mã điểm danh</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"
+            >
+              <ScanLine size={18} />
+              <span>Quét mã điểm danh</span>
+            </button>
+          )}
           <button className="px-4 py-3 border-2 border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-medium">
             33 chỗ còn lại
           </button>
@@ -259,6 +314,34 @@ const EventCard = ({ event }) => {
                 <p className="text-sm text-gray-600">Đưa mã này cho người tổ chức để điểm danh sự kiện:</p>
                 <p className="mt-1 text-sm font-semibold text-blue-600 break-all">{event.title}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quét Mã QR cho Người tổ chức */}
+      {showScanner && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowScanner(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-md mx-auto shadow-2xl relative transform transition-all p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowScanner(false)}
+              className="absolute top-4 right-4 bg-gray-800 bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-75"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-xl font-bold text-center text-gray-800 mb-4">Quét Mã Điểm Danh</h2>
+            <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden border-4 border-gray-300">
+              <QrCodeScanner
+                onScanSuccess={handleScanSuccess}
+                onScanFailure={handleScanFailure}
+              />
+            </div>
+            <p className="text-center text-gray-500 mt-4 text-sm">Di chuyển camera đến mã QR của sinh viên</p>
           </div>
         </div>
       )}
@@ -356,6 +439,8 @@ const Feed = () => {
     setPosts([{ ...newPost, id: Date.now(), likes: 0, comments: 0, shares: 0 }, ...posts]);
   };
 
+  const [currentUserRole, setCurrentUserRole] = useState('student'); // 'student' hoặc 'organizer'
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* Welcome Message */}
@@ -380,6 +465,16 @@ const Feed = () => {
       {/* Post Composer */}
       <PostComposer onCreatePost={handleCreatePost} />
 
+      {/* Thêm một nút để chuyển đổi vai trò mô phỏng */}
+      <div className="text-center mb-4">
+        <button 
+          onClick={() => setCurrentUserRole(currentUserRole === 'student' ? 'organizer' : 'student')}
+          className="bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium"
+        >
+          Chuyển vai trò sang: {currentUserRole === 'student' ? 'Người tổ chức' : 'Sinh viên'}
+        </button>
+      </div>
+
       {/* Sample Event */}
       <div className="mb-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
@@ -398,7 +493,7 @@ const Feed = () => {
             Rất mong được gặp các bạn tại đây! 😊
           </p>
           
-          <EventCard event={sampleEvent} />
+          <EventCard event={sampleEvent} userRole={currentUserRole} />
         </div>
       </div>
 
