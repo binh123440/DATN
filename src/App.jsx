@@ -44,7 +44,7 @@ function App() {
 
         {/* Main Content */}
         <div className="xl:ml-64 xl:mr-80 pt-16">
-          <main className="max-w-2xl mx-auto px-4 py-6">
+          <main className="max-w-2xl mx-auto px-0 py-6">
             <Routes>
               <Route path="/" element={<Feed currentUser={currentUser} />} />
               <Route path="/groups" element={<Groups currentUser={currentUser} />} />

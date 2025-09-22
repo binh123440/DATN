@@ -36,12 +36,12 @@ const Header = ({ onToggleSidebar, isSidebarOpen }) => {
               <div className="w-8 h-8 bg-white text-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
                 U
               </div>
-              <h1 className="text-xl font-bold sm:block">UTE Social</h1>
+              <h1 className="text-xl font-bold hidden md:block">UTE Social</h1>
             </div>
           </div>
 
           {/* Center Section: Search Bar (for md and up) */}
-          <div className="w-full max-w-2xl mx-auto hidden md:block px-4">
+          <div className="w-full max-w-2xl mx-auto md:block px-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -67,7 +67,7 @@ const Header = ({ onToggleSidebar, isSidebarOpen }) => {
         </div>
         
         {/* Search bar for small screens (md:hidden) */}
-        <div className="md:hidden pb-3 px-2">
+        {/* <div className="md:hidden pb-3 px-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -76,7 +76,7 @@ const Header = ({ onToggleSidebar, isSidebarOpen }) => {
               className="w-full bg-white text-gray-900 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
-        </div>
+        </div> */}
       </div>
     </header>
   );
