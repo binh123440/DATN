@@ -54,7 +54,9 @@ const Header = ({ onToggleSidebar, isSidebarOpen }) => {
 
           {/* Right Section: Icons */}
           <div className="flex items-center justify-end space-x-1 sm:space-x-4">
-            <button className="relative p-2 hover:bg-blue-700 rounded-full transition-colors">
+            <button className="relative p-2 hover
+            
+            :bg-blue-700 rounded-full transition-colors">
               <Bell size={20} />
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
             </button>

@@ -38,13 +38,13 @@ function App() {
         <Sidebar isOpen={isMobileSidebarOpen} onClose={closeMobileSidebar} />
         
         {/* Right Sidebar - Fixed on desktop */}
-        <aside className="w-80 fixed top-0 right-0 h-screen pt-16 pb-6 pr-4 pl-2 hidden xl:block">
+        <aside className="w-80 fixed top-0 right-0 h-screen pt-22 pb-6 pr-4 pl-2 hidden xl:block">
           <RightSidebar currentUser={currentUser} />
         </aside>
 
         {/* Main Content */}
         <div className="xl:ml-64 xl:mr-80 pt-16">
-          <main className="max-w-2xl mx-auto px-0 py-6">
+          <main className="max-w-4xl mx-auto px-0 py-6">
             <Routes>
               <Route path="/" element={<Feed currentUser={currentUser} />} />
               <Route path="/groups" element={<Groups currentUser={currentUser} />} />

@@ -442,7 +442,7 @@ const Feed = () => {
   const [currentUserRole, setCurrentUserRole] = useState('student'); // 'student' hoặc 'organizer'
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* Welcome Message */}
       <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
         <div className="flex items-start space-x-4">
