@@ -1,6 +1,6 @@
 # UTE Social - Mạng xã hội sinh viên
 
-Một nền tảng mạng xã hội được thiết kế đặc biệt cho sinh viên Đại học Sư phạm Kỹ thuật TP. Hồ Chí Minh (UTE) với các tính năng:
+Một nền tảng mạng xã hội được thiết kế đặc biệt cho sinh viên Đại học Sư phạm Kỹ thuật TP. Đà Nẵng (UTE) với các tính năng:
 
 ## 🚀 Tính năng chính
 
