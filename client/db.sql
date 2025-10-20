@@ -21,6 +21,18 @@ CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 
 -- === TẠO CÁC BẢNG BẰNG TIẾNG VIỆT ===
 
+-- Bảng để lưu danh sách các khoa
+CREATE TABLE "Khoa" (
+    "id" SERIAL PRIMARY KEY,
+    "ten_khoa" VARCHAR(255) UNIQUE NOT NULL
+);
+
+-- Bảng để lưu danh sách các ngành, mỗi ngành thuộc về một khoa
+CREATE TABLE "Nganh" (
+    "id" SERIAL PRIMARY KEY,
+    "ten_nganh" VARCHAR(255) UNIQUE NOT NULL,
+    "id_khoa" INT NOT NULL REFERENCES "Khoa"("id") ON DELETE RESTRICT -- Ngăn việc xóa một khoa nếu vẫn còn ngành thuộc về nó
+);
 CREATE TABLE "NguoiDung" (
     "id" SERIAL PRIMARY KEY,
     "ho_ten" VARCHAR(255) NOT NULL,
@@ -41,18 +53,7 @@ CREATE TABLE "NguoiDung" (
     "tong_diem" INT NOT NULL DEFAULT 0,
     "ngay_tao" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- Bảng để lưu danh sách các khoa
-CREATE TABLE "Khoa" (
-    "id" SERIAL PRIMARY KEY,
-    "ten_khoa" VARCHAR(255) UNIQUE NOT NULL
-);
 
--- Bảng để lưu danh sách các ngành, mỗi ngành thuộc về một khoa
-CREATE TABLE "Nganh" (
-    "id" SERIAL PRIMARY KEY,
-    "ten_nganh" VARCHAR(255) UNIQUE NOT NULL,
-    "id_khoa" INT NOT NULL REFERENCES "Khoa"("id") ON DELETE RESTRICT -- Ngăn việc xóa một khoa nếu vẫn còn ngành thuộc về nó
-);
 
 CREATE TABLE "CuocHoiThoai" (
     "id" SERIAL PRIMARY KEY,
@@ -66,7 +67,7 @@ CREATE TABLE "ThanhVienHoiThoai" (
     "id_nguoi_dung" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
     "id_cuoc_hoi_thoai" INT NOT NULL REFERENCES "CuocHoiThoai"("id") ON DELETE CASCADE,
     "vai_tro" vai_tro_thanh_vien_enum NOT NULL DEFAULT 'thanh_vien',
-    "ngay_tham_gia" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "ngay_gio_tham_gia" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY ("id_nguoi_dung", "id_cuoc_hoi_thoai")
 );
 
@@ -136,7 +137,7 @@ CREATE TABLE "DangKySuKien" (
     "id_nguoi_dung" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
     "id_su_kien" INT NOT NULL REFERENCES "SuKien"("id") ON DELETE CASCADE,
     "trang_thai" trang_thai_dang_ky_enum NOT NULL DEFAULT 'da_dang_ky',
-    "ngay_dang_ky" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "ngay_gio_dang_ky" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE("id_nguoi_dung", "id_su_kien")
 );
 
@@ -144,7 +145,7 @@ CREATE TABLE "DiemDanhSuKien" (
     "id" SERIAL PRIMARY KEY,
     "id_dang_ky" INT UNIQUE NOT NULL REFERENCES "DangKySuKien"("id") ON DELETE CASCADE,
     "id_nguoi_quet" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
-    "thoi_gian_diem_danh" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "ngay_gio_diem_danh" TIMESTAMPTZ,
     "diem_da_nhan" INT NOT NULL
 );
 
