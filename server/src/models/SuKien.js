@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database.js';
+import sequelize from '../config/database.js';
 
 const SuKien = sequelize.define('SuKien', {
   id: {
@@ -9,19 +9,35 @@ const SuKien = sequelize.define('SuKien', {
   },
   id_nguoi_tao: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'NguoiDung',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
   },
   id_bai_viet: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true
+    unique: true,
+    references: {
+      model: 'BaiViet',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
   },
   ten_su_kien: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
-  mo_ta: DataTypes.TEXT,
-  dia_diem: DataTypes.STRING(255),
+  mo_ta: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  dia_diem: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
   thoi_gian_bat_dau: {
     type: DataTypes.DATE,
     allowNull: false
@@ -38,10 +54,17 @@ const SuKien = sequelize.define('SuKien', {
     type: DataTypes.ENUM,
     values: ['cho_duyet', 'da_duyet', 'da_tu_choi'],
     allowNull: false,
-    defaultValue: 'cho_duyet',
-    field: 'trang_thai'
+    defaultValue: 'cho_duyet'
   },
-  id_nguoi_duyet: DataTypes.INTEGER
+  id_nguoi_duyet: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'NguoiDung',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  }
 }, {
   tableName: 'SuKien',
   timestamps: false

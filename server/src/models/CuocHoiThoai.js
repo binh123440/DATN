@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database.js';
+import sequelize from '../config/database.js';
 
 const CuocHoiThoai = sequelize.define('CuocHoiThoai', {
   id: {
@@ -7,14 +7,24 @@ const CuocHoiThoai = sequelize.define('CuocHoiThoai', {
     primaryKey: true,
     autoIncrement: true
   },
-  ten_hoi_thoai: DataTypes.STRING(255),
+  ten_hoi_thoai: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
   loai: {
     type: DataTypes.ENUM,
     values: ['rieng_tu', 'nhom'],
-    allowNull: false,
-    field: 'loai'
+    allowNull: false
   },
-  id_nguoi_tao: DataTypes.INTEGER,
+  id_nguoi_tao: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'NguoiDung',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
   ngay_tao: {
     type: DataTypes.DATE,
     allowNull: false,

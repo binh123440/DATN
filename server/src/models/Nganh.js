@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database.js';
+import sequelize from '../config/database.js';
 
 const Nganh = sequelize.define('Nganh', {
   id: {
@@ -14,12 +14,21 @@ const Nganh = sequelize.define('Nganh', {
   },
   id_khoa: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'Khoa',
+      key: 'id'
+    },
+    onDelete: 'RESTRICT'
   }
 }, {
   tableName: 'Nganh',
   timestamps: false,
-  indexes: [{ fields: ['id_khoa'] }]
+  indexes: [
+    {
+      fields: ['id_khoa']
+    }
+  ]
 });
 
 export default Nganh;

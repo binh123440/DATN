@@ -1,9 +1,7 @@
-import { sequelize } from '../config/database.js';
-
-// Import models
-import NguoiDung from './NguoiDung.js';
+import sequelize from '../config/database.js';
 import Khoa from './Khoa.js';
 import Nganh from './Nganh.js';
+import NguoiDung from './NguoiDung.js';
 import CuocHoiThoai from './CuocHoiThoai.js';
 import ThanhVienHoiThoai from './ThanhVienHoiThoai.js';
 import TinNhan from './TinNhan.js';
@@ -15,84 +13,123 @@ import SuKien from './SuKien.js';
 import DangKySuKien from './DangKySuKien.js';
 import ThongBao from './ThongBao.js';
 
-// Định nghĩa relationships
-const setupAssociations = () => {
-  // Khoa - Nganh
-  Khoa.hasMany(Nganh, { foreignKey: 'id_khoa', onDelete: 'RESTRICT' });
-  Nganh.belongsTo(Khoa, { foreignKey: 'id_khoa' });
+// === ĐỊNH NGHĨA RELATIONSHIPS ===
 
-  // Nganh - NguoiDung
-  Nganh.hasMany(NguoiDung, { foreignKey: 'id_nganh', onDelete: 'SET NULL' });
-  NguoiDung.belongsTo(Nganh, { foreignKey: 'id_nganh' });
+// Khoa - Nganh (1-N)
+Khoa.hasMany(Nganh, { foreignKey: 'id_khoa', as: 'cac_nganh' });
+Nganh.belongsTo(Khoa, { foreignKey: 'id_khoa', as: 'khoa' });
 
-  // CuocHoiThoai - NguoiDung (creator)
-  NguoiDung.hasMany(CuocHoiThoai, { foreignKey: 'id_nguoi_tao', onDelete: 'SET NULL' });
-  CuocHoiThoai.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_tao', as: 'nguoi_tao' });
+// Nganh - NguoiDung (1-N)
+Nganh.hasMany(NguoiDung, { foreignKey: 'id_nganh', as: 'sinh_vien' });
+NguoiDung.belongsTo(Nganh, { foreignKey: 'id_nganh', as: 'nganh' });
 
-  // ThanhVienHoiThoai (many-to-many)
-  NguoiDung.belongsToMany(CuocHoiThoai, { through: ThanhVienHoiThoai, foreignKey: 'id_nguoi_dung', onDelete: 'CASCADE' });
-  CuocHoiThoai.belongsToMany(NguoiDung, { through: ThanhVienHoiThoai, foreignKey: 'id_cuoc_hoi_thoai', onDelete: 'CASCADE' });
+// NguoiDung - CuocHoiThoai (1-N) - người tạo
+NguoiDung.hasMany(CuocHoiThoai, { foreignKey: 'id_nguoi_tao', as: 'cuoc_hoi_thoai_tao' });
+CuocHoiThoai.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_tao', as: 'nguoi_tao' });
 
-  // TinNhan
-  CuocHoiThoai.hasMany(TinNhan, { foreignKey: 'id_cuoc_hoi_thoai', onDelete: 'CASCADE' });
-  TinNhan.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai' });
-  NguoiDung.hasMany(TinNhan, { foreignKey: 'id_nguoi_gui', onDelete: 'CASCADE' });
-  TinNhan.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_gui', as: 'nguoi_gui' });
+// CuocHoiThoai - ThanhVienHoiThoai - NguoiDung (M-N)
+CuocHoiThoai.belongsToMany(NguoiDung, {
+  through: ThanhVienHoiThoai,
+  foreignKey: 'id_cuoc_hoi_thoai',
+  otherKey: 'id_nguoi_dung',
+  as: 'thanh_vien'
+});
+NguoiDung.belongsToMany(CuocHoiThoai, {
+  through: ThanhVienHoiThoai,
+  foreignKey: 'id_nguoi_dung',
+  otherKey: 'id_cuoc_hoi_thoai',
+  as: 'cuoc_hoi_thoai'
+});
 
-  // CuocGoi
-  CuocHoiThoai.hasMany(CuocGoi, { foreignKey: 'id_cuoc_hoi_thoai', onDelete: 'CASCADE' });
-  CuocGoi.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai' });
-  NguoiDung.hasMany(CuocGoi, { foreignKey: 'id_nguoi_goi', onDelete: 'CASCADE' });
-  CuocGoi.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_goi', as: 'nguoi_goi' });
+// CuocHoiThoai - TinNhan (1-N)
+CuocHoiThoai.hasMany(TinNhan, { foreignKey: 'id_cuoc_hoi_thoai', as: 'tin_nhan' });
+TinNhan.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai', as: 'cuoc_hoi_thoai' });
 
-  // BaiViet
-  NguoiDung.hasMany(BaiViet, { foreignKey: 'id_tac_gia', onDelete: 'CASCADE' });
-  BaiViet.belongsTo(NguoiDung, { foreignKey: 'id_tac_gia', as: 'tac_gia' });
-  BaiViet.hasOne(BaiViet, { foreignKey: 'id_bai_viet_goc', onDelete: 'CASCADE', as: 'bai_viet_goc' });
-  CuocHoiThoai.hasMany(BaiViet, { foreignKey: 'id_cuoc_hoi_thoai', onDelete: 'CASCADE' });
-  BaiViet.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai' });
-  NguoiDung.hasMany(BaiViet, { foreignKey: 'id_nguoi_duyet', onDelete: 'SET NULL', as: 'bai_viet_da_duyet' });
-  BaiViet.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_duyet', as: 'nguoi_duyet' });
+// NguoiDung - TinNhan (1-N)
+NguoiDung.hasMany(TinNhan, { foreignKey: 'id_nguoi_gui', as: 'tin_nhan_gui' });
+TinNhan.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_gui', as: 'nguoi_gui' });
 
-  // BinhLuan
-  BaiViet.hasMany(BinhLuan, { foreignKey: 'id_bai_viet', onDelete: 'CASCADE' });
-  BinhLuan.belongsTo(BaiViet, { foreignKey: 'id_bai_viet' });
-  NguoiDung.hasMany(BinhLuan, { foreignKey: 'id_tac_gia', onDelete: 'CASCADE' });
-  BinhLuan.belongsTo(NguoiDung, { foreignKey: 'id_tac_gia', as: 'tac_gia' });
-  BinhLuan.hasOne(BinhLuan, { foreignKey: 'id_binh_luan_cha', onDelete: 'CASCADE', as: 'binh_luan_cha' });
+// CuocHoiThoai - CuocGoi (1-N)
+CuocHoiThoai.hasMany(CuocGoi, { foreignKey: 'id_cuoc_hoi_thoai', as: 'cuoc_goi' });
+CuocGoi.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai', as: 'cuoc_hoi_thoai' });
 
-  // LuotThich
-  NguoiDung.hasMany(LuotThich, { foreignKey: 'id_nguoi_dung', onDelete: 'CASCADE' });
-  LuotThich.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_dung' });
+// NguoiDung - CuocGoi (1-N)
+NguoiDung.hasMany(CuocGoi, { foreignKey: 'id_nguoi_goi', as: 'cuoc_goi' });
+CuocGoi.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_goi', as: 'nguoi_goi' });
 
-  // SuKien
-  NguoiDung.hasMany(SuKien, { foreignKey: 'id_nguoi_tao', onDelete: 'CASCADE' });
-  SuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_tao', as: 'nguoi_tao' });
-  BaiViet.hasOne(SuKien, { foreignKey: 'id_bai_viet', onDelete: 'CASCADE' });
-  SuKien.belongsTo(BaiViet, { foreignKey: 'id_bai_viet' });
-  NguoiDung.hasMany(SuKien, { foreignKey: 'id_nguoi_duyet', onDelete: 'SET NULL', as: 'su_kien_da_duyet' });
-  SuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_duyet', as: 'nguoi_duyet' });
+// NguoiDung - BaiViet (1-N) - tác giả
+NguoiDung.hasMany(BaiViet, { foreignKey: 'id_tac_gia', as: 'bai_viet' });
+BaiViet.belongsTo(NguoiDung, { foreignKey: 'id_tac_gia', as: 'tac_gia' });
 
-  // DangKySuKien
-  NguoiDung.hasMany(DangKySuKien, { foreignKey: 'id_nguoi_dung', onDelete: 'CASCADE' });
-  DangKySuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_dung' });
-  SuKien.hasMany(DangKySuKien, { foreignKey: 'id_su_kien', onDelete: 'CASCADE' });
-  DangKySuKien.belongsTo(SuKien, { foreignKey: 'id_su_kien' });
+// NguoiDung - BaiViet (1-N) - người duyệt
+NguoiDung.hasMany(BaiViet, { foreignKey: 'id_nguoi_duyet', as: 'bai_viet_duyet' });
+BaiViet.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_duyet', as: 'nguoi_duyet' });
 
-  // ThongBao
-  NguoiDung.hasMany(ThongBao, { foreignKey: 'id_nguoi_nhan', onDelete: 'CASCADE', as: 'thong_bao_nhan' });
-  ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_nhan', as: 'nguoi_nhan' });
-  NguoiDung.hasMany(ThongBao, { foreignKey: 'id_nguoi_hanh_dong', onDelete: 'CASCADE', as: 'thong_bao_gui' });
-  ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_hanh_dong', as: 'nguoi_hanh_dong' });
+// BaiViet - BaiViet (self-reference) - chia sẻ
+BaiViet.hasMany(BaiViet, { foreignKey: 'id_bai_viet_goc', as: 'bai_viet_chia_se' });
+BaiViet.belongsTo(BaiViet, { foreignKey: 'id_bai_viet_goc', as: 'bai_viet_goc' });
 
-  console.log('✅ Thiết lập associations thành công!');
-};
+// CuocHoiThoai - BaiViet (1-N) - bài viết trong nhóm
+CuocHoiThoai.hasMany(BaiViet, { foreignKey: 'id_cuoc_hoi_thoai', as: 'bai_viet' });
+BaiViet.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai', as: 'cuoc_hoi_thoai' });
 
-export {
+// BaiViet - BinhLuan (1-N)
+BaiViet.hasMany(BinhLuan, { foreignKey: 'id_bai_viet', as: 'binh_luan' });
+BinhLuan.belongsTo(BaiViet, { foreignKey: 'id_bai_viet', as: 'bai_viet' });
+
+// NguoiDung - BinhLuan (1-N)
+NguoiDung.hasMany(BinhLuan, { foreignKey: 'id_tac_gia', as: 'binh_luan' });
+BinhLuan.belongsTo(NguoiDung, { foreignKey: 'id_tac_gia', as: 'tac_gia' });
+
+// BinhLuan - BinhLuan (self-reference) - trả lời
+BinhLuan.hasMany(BinhLuan, { foreignKey: 'id_binh_luan_cha', as: 'binh_luan_tra_loi' });
+BinhLuan.belongsTo(BinhLuan, { foreignKey: 'id_binh_luan_cha', as: 'binh_luan_cha' });
+
+// NguoiDung - LuotThich (1-N)
+NguoiDung.hasMany(LuotThich, { foreignKey: 'id_nguoi_dung', as: 'luot_thich' });
+LuotThich.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_dung', as: 'nguoi_dung' });
+
+// NguoiDung - SuKien (1-N) - người tạo
+NguoiDung.hasMany(SuKien, { foreignKey: 'id_nguoi_tao', as: 'su_kien_tao' });
+SuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_tao', as: 'nguoi_tao' });
+
+// NguoiDung - SuKien (1-N) - người duyệt
+NguoiDung.hasMany(SuKien, { foreignKey: 'id_nguoi_duyet', as: 'su_kien_duyet' });
+SuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_duyet', as: 'nguoi_duyet' });
+
+// BaiViet - SuKien (1-1)
+BaiViet.hasOne(SuKien, { foreignKey: 'id_bai_viet', as: 'su_kien' });
+SuKien.belongsTo(BaiViet, { foreignKey: 'id_bai_viet', as: 'bai_viet' });
+
+// NguoiDung - DangKySuKien - SuKien (M-N)
+NguoiDung.belongsToMany(SuKien, {
+  through: DangKySuKien,
+  foreignKey: 'id_nguoi_dung',
+  otherKey: 'id_su_kien',
+  as: 'su_kien_dang_ky'
+});
+SuKien.belongsToMany(NguoiDung, {
+  through: DangKySuKien,
+  foreignKey: 'id_su_kien',
+  otherKey: 'id_nguoi_dung',
+  as: 'nguoi_dang_ky'
+});
+
+// NguoiDung - ThongBao (1-N) - người nhận
+NguoiDung.hasMany(ThongBao, { foreignKey: 'id_nguoi_nhan', as: 'thong_bao_nhan' });
+ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_nhan', as: 'nguoi_nhan' });
+
+// NguoiDung - ThongBao (1-N) - người hành động
+NguoiDung.hasMany(ThongBao, { foreignKey: 'id_nguoi_hanh_dong', as: 'thong_bao_hanh_dong' });
+ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_hanh_dong', as: 'nguoi_hanh_dong' });
+
+// === EXPORT TẤT CẢ MODELS ===
+
+const db = {
   sequelize,
-  NguoiDung,
   Khoa,
   Nganh,
+  NguoiDung,
   CuocHoiThoai,
   ThanhVienHoiThoai,
   TinNhan,
@@ -102,6 +139,7 @@ export {
   LuotThich,
   SuKien,
   DangKySuKien,
-  ThongBao,
-  setupAssociations
+  ThongBao
 };
+
+export default db;

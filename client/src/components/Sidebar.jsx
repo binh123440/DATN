@@ -33,11 +33,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Home, label: 'Trang chủ', badge: null, path: '/' },
     { icon: Calendar, label: 'Sự kiện', badge: 8, path: '/events' },
     { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
-    { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' },
-    // { icon: Wifi, label: 'Nostr Relay', badge: null, path: '/nostr' },
-    { icon: Gift, label: 'Điểm thưởng', badge: null, path: '/rewards' },
-    { icon: Bell, label: 'Thông báo', badge: 6, path: '/notifications' },
-    { icon: Settings, label: 'Cài đặt', badge: null, path: '/settings' }
+    { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' }
   ];
 
   return (

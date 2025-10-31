@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/database.js';
+import sequelize from '../config/database.js';
 
 const NguoiDung = sequelize.define('NguoiDung', {
   id: {
@@ -15,30 +15,60 @@ const NguoiDung = sequelize.define('NguoiDung', {
     type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
-    validate: { isEmail: true }
+    validate: {
+      isEmail: true
+    }
   },
   mat_khau_bam: {
     type: DataTypes.STRING(255),
     allowNull: false
   },
   vai_tro: {
+    // ✅ SỬA: Chỉ định rõ ENUM type đã tồn tại trong database
     type: DataTypes.ENUM,
     values: ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'],
-    allowNull: false,
-    // Sử dụng ENUM đã tạo sẵn trong database
-    field: 'vai_tro'
+    allowNull: false
   },
-  dong_gioi_thieu: DataTypes.TEXT,
-  ngay_sinh: DataTypes.DATEONLY,
+  // Thông tin cá nhân
+  dong_gioi_thieu: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  ngay_sinh: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
   so_dien_thoai: {
     type: DataTypes.STRING(20),
+    allowNull: true,
     unique: true
   },
-  anh_dai_dien_url: DataTypes.TEXT,
-  anh_bia_url: DataTypes.TEXT,
-  anh_nhan_dien_url: DataTypes.TEXT,
-  id_nganh: DataTypes.INTEGER,
-  lop: DataTypes.STRING(100),
+  anh_dai_dien_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  anh_bia_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  anh_nhan_dien_url: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  // Thông tin sinh viên
+  id_nganh: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Nganh',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  lop: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
   tong_diem: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -51,7 +81,12 @@ const NguoiDung = sequelize.define('NguoiDung', {
   }
 }, {
   tableName: 'NguoiDung',
-  timestamps: false
+  timestamps: false,
+  indexes: [
+    {
+      fields: ['id_nganh']
+    }
+  ]
 });
 
 export default NguoiDung;
