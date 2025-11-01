@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {QRCode} from 'react-qr-code';
+import { QRCode } from 'react-qr-code';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Home, Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, Heart, MessageCircle, Share, ImagePlus, SmilePlus, X, ScanLine } from 'lucide-react';
+import { layDanhSachBaiViet, taoBaiViet, taoSuKien, thichBaiViet, dangKySuKien, kiemTraDangKySuKien } from '../services/apiService';
 
-const PostComposer = ({ onCreatePost }) => {
+const PostComposer = ({ onCreatePost, currentUserId }) => {
   const [activeType, setActiveType] = useState(null);
   const [content, setContent] = useState('');
   const [eventDetails, setEventDetails] = useState({
@@ -14,30 +15,60 @@ const PostComposer = ({ onCreatePost }) => {
     maxParticipants: '',
     points: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
     setEventDetails(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (activeType === 'event') {
-      // Logic to handle event creation
-      console.log({ type: 'event', content, ...eventDetails });
-      // onCreatePost({ type: 'event', content, ...eventDetails, author: 'Lê Hà Bình', timestamp: new Date().toLocaleString('vi-VN') });
-    } else if (content.trim()) {
-      // Logic to handle regular post creation
-      onCreatePost({
-        type: activeType || 'post',
-        content,
-        author: 'Lê Hà Bình',
-        timestamp: new Date().toLocaleString('vi-VN')
-      });
+    setIsSubmitting(true);
+
+    try {
+      if (activeType === 'event') {
+        // Tạo sự kiện
+        const eventData = {
+          id_nguoi_tao: currentUserId,
+          ten_su_kien: eventDetails.name,
+          mo_ta: eventDetails.name,
+          dia_diem: eventDetails.location,
+          thoi_gian_bat_dau: `${eventDetails.date} ${eventDetails.time}`,
+          so_luong_toi_da: parseInt(eventDetails.maxParticipants),
+          diem_thuong: parseInt(eventDetails.points),
+          noi_dung_bai_viet: content
+        };
+
+        const response = await taoSuKien(eventData);
+        
+        if (response.success) {
+          alert('Tạo sự kiện thành công! Đang chờ duyệt.');
+          onCreatePost(); // Refresh feed
+        }
+      } else if (content.trim()) {
+        // Tạo bài viết thường
+        const postData = {
+          id_tac_gia: currentUserId,
+          noi_dung: content
+        };
+
+        const response = await taoBaiViet(postData);
+        
+        if (response.success) {
+          onCreatePost(); // Refresh feed
+        }
+      }
+
+      // Reset form
+      setContent('');
+      setActiveType(null);
+      setEventDetails({ name: '', location: '', date: '', time: '', maxParticipants: '', points: '' });
+    } catch (error) {
+      alert('Có lỗi xảy ra: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setContent('');
-    setActiveType(null);
-    setEventDetails({ name: '', location: '', date: '', time: '', maxParticipants: '', points: '' });
   };
 
   const actionButtons = [
@@ -64,9 +95,9 @@ const PostComposer = ({ onCreatePost }) => {
     }
   ];
 
-  const isSubmitDisabled = activeType === 'event' 
+  const isSubmitDisabled = isSubmitting || (activeType === 'event' 
     ? !eventDetails.name || !eventDetails.location || !eventDetails.date
-    : !content.trim();
+    : !content.trim());
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -76,7 +107,7 @@ const PostComposer = ({ onCreatePost }) => {
         </div>
         <input
           type="text"
-          placeholder={activeType === 'event' ? "Mô tả về sự kiện của bạn..." : "Bạn đang nghĩ gì ?"}
+          placeholder={activeType === 'event' ? "Mô tả về sự kiện của bạn..." : "Bạn đang nghĩ gì?"}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           className="flex-1 bg-gray-100 rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300 transition-all"
@@ -100,11 +131,11 @@ const PostComposer = ({ onCreatePost }) => {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Ngày</label>
-              <input type="text" name="date" value={eventDetails.date} onChange={handleEventDetailChange} placeholder="mm/dd/yyyy" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" />
+              <input type="date" name="date" value={eventDetails.date} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Giờ</label>
-              <input type="text" name="time" value={eventDetails.time} onChange={handleEventDetailChange} placeholder="--:-- --" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" />
+              <input type="time" name="time" value={eventDetails.time} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Số người tối đa</label>
@@ -131,7 +162,7 @@ const PostComposer = ({ onCreatePost }) => {
               }`}
             >
               <button.Icon size={20} />
-              <span>{button.label}</span>
+              <span className="hidden sm:inline">{button.label}</span>
             </button>
           ))}
         </div>
@@ -141,7 +172,7 @@ const PostComposer = ({ onCreatePost }) => {
           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isSubmitDisabled}
         >
-          {activeType === 'event' ? 'Tạo sự kiện' : 'Đăng bài'}
+          {isSubmitting ? 'Đang tạo...' : (activeType === 'event' ? 'Tạo sự kiện' : 'Đăng bài')}
         </button>
       </div>
     </div>
@@ -407,39 +438,34 @@ const PostCard = ({ post }) => {
 };
 
 const Feed = () => {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      type: 'post',
-      author: 'Lê Hà Bình',
-      content: 'addldf',
-      timestamp: 'Vừa xong',
-      likes: 0,
-      comments: 0,
-      shares: 0
-    },
-    {
-      id: 2,
-      type: 'post',  
-      author: 'tyhhfghfgdfgdf',
-      content: 'Chưa có bình luận nào.',
-      timestamp: '2 giờ trước'
+  const [posts, setPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Mock current user ID - trong thực tế sẽ lấy từ authentication
+  const currentUserId = 1;
+
+  const fetchPosts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await layDanhSachBaiViet(currentPage, 10);
+      if (response.success) {
+        setPosts(response.data.bai_viets);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải bài viết:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
-
-  const sampleEvent = {
-    title: 'Workshop: AI trong giáo dục hiện đại',
-    date: '25/08/2025 - 14:00',
-    location: 'Hội trường - Khu B',
-    participants: '67/100 Người',
-    points: '80 điểm thưởng'
   };
 
-  const handleCreatePost = (newPost) => {
-    setPosts([{ ...newPost, id: Date.now(), likes: 0, comments: 0, shares: 0 }, ...posts]);
-  };
+  useEffect(() => {
+    fetchPosts();
+  }, [currentPage]);
 
-  const [currentUserRole, setCurrentUserRole] = useState('student'); // 'student' hoặc 'organizer'
+  const handleCreatePost = () => {
+    fetchPosts(); // Refresh danh sách bài viết
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -447,60 +473,101 @@ const Feed = () => {
       <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
         <div className="flex items-start space-x-4">
           <div className="w-12 h-12 bg-blue-400 bg-opacity-20 rounded-xl flex items-center justify-center shadow-lg">
-             <Home className="w-7 h-7 text-white" />
+            <Home className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1 pt-1">
-            <h2 className="text-2xl font-bold">Chào mừng !</h2>
+            <h2 className="text-2xl font-bold">Chào mừng!</h2>
             <p className="text-cyan-100 text-sm">Kết nối và chia sẻ với cộng đồng của UTE</p>
           </div>
-        </div>
-        <div className="mt-5 flex items-center text-cyan-100 text-sm">
-          <svg className="w-4 h-4 mr-2.5" fill="currentColor" viewBox="0 0 20 20">
-             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-          </svg>
-          <span>Hôm nay: 3 sự kiện mới - 12 bài viết từ bạn bè</span>
         </div>
       </div>
 
       {/* Post Composer */}
-      <PostComposer onCreatePost={handleCreatePost} />
+      <PostComposer onCreatePost={handleCreatePost} currentUserId={currentUserId} />
 
-      {/* Thêm một nút để chuyển đổi vai trò mô phỏng */}
-      <div className="text-center mb-4">
-        <button 
-          onClick={() => setCurrentUserRole(currentUserRole === 'student' ? 'organizer' : 'student')}
-          className="bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          Chuyển vai trò sang: {currentUserRole === 'student' ? 'Người tổ chức' : 'Sinh viên'}
-        </button>
-      </div>
-
-      {/* Sample Event */}
-      <div className="mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-              LH
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-900">Lê Hà Bình</h4>
-              <p className="text-sm text-gray-500">2 giờ trước</p>
-            </div>
-          </div>
-          
-          <p className="text-gray-800 mb-4">
-            Chào mọi người! Hôm nay mình muốn chia sẻ một workshop thú vị về AI trong giáo dục. 
-            Rất mong được gặp các bạn tại đây! 😊
-          </p>
-          
-          <EventCard event={sampleEvent} userRole={currentUserRole} />
+      {/* Posts Loading */}
+      {isLoading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-500 mt-4">Đang tải bài viết...</p>
         </div>
-      </div>
-
-      {/* Posts */}
-      {posts.map(post => (
-        <PostCard key={post.id} post={post} />
-      ))}
+      ) : posts.length === 0 ? (
+        <div className="text-center py-8 bg-white rounded-xl">
+          <p className="text-gray-500">Chưa có bài viết nào</p>
+        </div>
+      ) : (
+        posts.map(post => (
+          post.su_kien ? (
+            // Render EventCard nếu có sự kiện
+            <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
+                  <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-800 mb-4">{post.noi_dung}</p>
+              
+              {/* EventCard component */}
+              <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-blue-600 mb-4">{post.su_kien.ten_su_kien}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center text-gray-600">
+                    <Calendar size={16} className="mr-2" />
+                    <span className="text-sm">{new Date(post.su_kien.thoi_gian_bat_dau).toLocaleString('vi-VN')}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin size={16} className="mr-2" />
+                    <span className="text-sm">{post.su_kien.dia_diem}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Users size={16} className="mr-2" />
+                    <span className="text-sm">{post.su_kien.so_da_dang_ky}/{post.su_kien.so_luong_toi_da} người</span>
+                  </div>
+                  <div className="flex items-center text-orange-600">
+                    <Gift size={16} className="mr-2" />
+                    <span className="text-sm font-medium">+{post.su_kien.diem_thuong} điểm</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Render PostCard cho bài viết thường
+            <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                  {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
+                  <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>
+              
+              <div className="flex items-center space-x-2 pt-4 border-t border-gray-100">
+                <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors duration-200">
+                  <Heart size={18} />
+                  <span>{post.so_luot_thich} Thích</span>
+                </button>
+                <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
+                  <MessageCircle size={18} />
+                  <span>{post.so_binh_luan} Bình luận</span>
+                </button>
+                <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+                  <Share size={18} />
+                  <span>Chia sẻ</span>
+                </button>
+              </div>
+            </div>
+          )
+        ))
+      )}
     </div>
   );
 };

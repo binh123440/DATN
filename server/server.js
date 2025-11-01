@@ -4,13 +4,17 @@ import dotenv from 'dotenv';
 import { testConnection } from './src/config/database.js';
 import db from './src/models/index.js';
 
+// Import routes
+import baiVietRoutes from './src/routes/baiVietRoutes.js';
+import suKienRoutes from './src/routes/suKienRoutes.js';
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL }));
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -23,27 +27,46 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// API Routes
+app.use('/api/bai-viet', baiVietRoutes);
+app.use('/api/su-kien', suKienRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'API endpoint không tồn tại'
+  });
+});
+
+// Error Handler
+app.use((err, req, res, next) => {
+  console.error('Lỗi server:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Lỗi server',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
 // Khởi động server
 const startServer = async () => {
   try {
-    // Kiểm tra kết nối database
     const isConnected = await testConnection();
     
     if (!isConnected) {
-      console.error('❌ Không thể kết nối database. Server không khởi động.');
+      console.error('❌ Không thể kết nối database');
       process.exit(1);
     }
 
-    // ✅ CHỈ xác thực models, KHÔNG sync vì schema đã được tạo bằng SQL
-    // Database schema đã được tạo sẵn bởi SQL script
     await db.sequelize.authenticate();
     console.log('✅ Models đã được xác thực với database');
 
-    // Khởi động server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server đang chạy tại: http://localhost:${PORT}`);
+      console.log(`\n🚀 Server UTE Social: http://localhost:${PORT}`);
       console.log(`📝 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}\n`);
+      console.log(`📄 Bài viết: http://localhost:${PORT}/api/bai-viet`);
+      console.log(`🎉 Sự kiện: http://localhost:${PORT}/api/su-kien\n`);
     });
 
   } catch (error) {
