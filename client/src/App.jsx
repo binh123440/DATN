@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import RightSidebar from './components/RightSidebar'
@@ -8,17 +8,68 @@ import Groups from './components/Groups'
 import Events from './components/Events'
 import Chat from './components/Chat'
 import Profile from './components/Profile'
-// import NostrRelay from './components/NostrRelay'
+import Login from './components/Login'
+
+// Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
+const ProtectedRoute = ({ children }) => {
+  const user = localStorage.getItem('user');
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+// Component Layout chính (có Header và Sidebar)
+const MainLayout = ({ children, currentUser, isMobileSidebarOpen, toggleMobileSidebar, closeMobileSidebar }) => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <Header onToggleSidebar={toggleMobileSidebar} isSidebarOpen={isMobileSidebarOpen} />
+      
+      {/* Left Sidebar - Fixed */}
+      <Sidebar isOpen={isMobileSidebarOpen} onClose={closeMobileSidebar} />
+      
+      {/* Right Sidebar - Fixed on desktop */}
+      <aside className="w-80 fixed top-0 right-0 h-screen pt-22 pb-6 pr-4 pl-2 hidden xl:block">
+        <RightSidebar currentUser={currentUser} />
+      </aside>
+
+      {/* Main Content */}
+      <div className="xl:ml-64 xl:mr-80 pt-16">
+        <main className="max-w-4xl mx-auto px-0 py-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
 
 function App() {
-  const [currentUser, setCurrentUser] = useState({
-    id: 1,
-    name: 'Lê Hà Bình',
-    avatar: 'LH',
-    points: 1250
-  })
-
+  const [currentUser, setCurrentUser] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Lấy thông tin user từ localStorage khi component mount
+  useEffect(() => {
+    const userJson = localStorage.getItem('user');
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        setCurrentUser({
+          id: user.id,
+          name: user.ho_ten || 'Người dùng',
+          avatar: user.ho_ten ? user.ho_ten.substring(0, 2).toUpperCase() : 'ND',
+          points: user.tong_diem || 0,
+          email: user.email,
+          vai_tro: user.vai_tro
+        });
+      } catch (error) {
+        console.error('Lỗi khi parse user từ localStorage:', error);
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -30,31 +81,36 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <Header onToggleSidebar={toggleMobileSidebar} isSidebarOpen={isMobileSidebarOpen} />
-        
-        {/* Left Sidebar - Fixed */}
-        <Sidebar isOpen={isMobileSidebarOpen} onClose={closeMobileSidebar} />
-        
-        {/* Right Sidebar - Fixed on desktop */}
-        <aside className="w-80 fixed top-0 right-0 h-screen pt-22 pb-6 pr-4 pl-2 hidden xl:block">
-          <RightSidebar currentUser={currentUser} />
-        </aside>
+      <Routes>
+        {/* Route đăng nhập - không cần layout */}
+        <Route path="/login" element={<Login />} />
 
-        {/* Main Content */}
-        <div className="xl:ml-64 xl:mr-80 pt-16">
-          <main className="max-w-4xl mx-auto px-0 py-6">
-            <Routes>
-              <Route path="/" element={<Feed currentUser={currentUser} />} />
-              <Route path="/groups" element={<Groups currentUser={currentUser} />} />
-              <Route path="/events" element={<Events currentUser={currentUser} />} />
-              <Route path="/chat" element={<Chat currentUser={currentUser} />} />
-              <Route path="/profile" element={<Profile currentUser={currentUser} />} />
-            </Routes>
-          </main>
-        </div>
-      </div>
+        {/* Routes được bảo vệ - có layout đầy đủ */}
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <MainLayout
+                currentUser={currentUser}
+                isMobileSidebarOpen={isMobileSidebarOpen}
+                toggleMobileSidebar={toggleMobileSidebar}
+                closeMobileSidebar={closeMobileSidebar}
+              >
+                <Routes>
+                  <Route path="/" element={<Feed currentUser={currentUser} />} />
+                  <Route path="/groups" element={<Groups currentUser={currentUser} />} />
+                  <Route path="/events" element={<Events currentUser={currentUser} />} />
+                  <Route path="/chat" element={<Chat currentUser={currentUser} />} />
+                  <Route path="/profile" element={<Profile currentUser={currentUser} />} />
+                  
+                  {/* Redirect về trang chủ nếu route không tồn tại */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </Router>
   )
 }

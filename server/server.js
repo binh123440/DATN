@@ -7,6 +7,7 @@ import db from './src/models/index.js';
 // Import routes
 import baiVietRoutes from './src/routes/baiVietRoutes.js';
 import suKienRoutes from './src/routes/suKienRoutes.js';
+import dangNhapRoutes from './src/routes/dangNhapRoutes.js';  
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', dangNhapRoutes);
 app.use('/api/bai-viet', baiVietRoutes);
 app.use('/api/su-kien', suKienRoutes);
 

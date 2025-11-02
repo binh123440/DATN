@@ -204,16 +204,16 @@ INSERT INTO "NguoiDung" (
     "ho_ten", "email", "mat_khau_bam", "vai_tro", 
     "id_nganh", "lop_sh", "tong_diem"
 ) VALUES
-    ('Phạm Minh Tuấn', 'tuanpm@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD1', 850),
-    ('Nguyễn Thị Hương', 'huongnt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21ATTT1', 920),
+    ('Phạm Minh Tuấn', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 1, '21DTHD1', 850),
+    ('Nguyễn Thị Hương', 'huongnt@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '21ATTT1', 920),
     ('Trần Văn Đức', 'ductv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD2', 780),
     ('Lê Thị Mai', 'mailt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 3, '21TDHH1', 1100),
     ('Hoàng Văn Nam', 'namhv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD1', 950),
-    ('Vũ Thị Lan', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21ATTT1', 870),
-    ('Đỗ Minh Khoa', 'khoadm@ute.edu.vn', '$2a$10$hashed_password', 'dieu_phoi_vien', NULL, NULL, 0),
-	('Lê Kim Nam', 'namlk@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21T1', 950),
-	('Lê Ngọc Hào', 'haoln@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21T1', 950),
-	('Lê Hà Bình', 'binhlh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21T1', 950);
+    ('Vũ Thị Lan', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
+	('Lê Hà Bình', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '22T1', 870),
+	('Lê Kìm Nam', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21T1', 870),
+	('Lê Ngọc Hào', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
+    ('Đỗ Minh Khoa', 'khoadm@ute.edu.vn', '$2a$10$hashed_password', 'dieu_phoi_vien', NULL, NULL, 0);
 
 -- === THÊM 10 BÀI VIẾT MẪU ===
 

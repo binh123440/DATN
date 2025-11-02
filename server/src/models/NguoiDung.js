@@ -65,7 +65,7 @@ const NguoiDung = sequelize.define('NguoiDung', {
     },
     onDelete: 'SET NULL'
   },
-  lop: {
+  lop_sh: {
     type: DataTypes.STRING(100),
     allowNull: true
   },
