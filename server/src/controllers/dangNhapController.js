@@ -74,13 +74,11 @@ export const dangNhap = async (req, res) => {
       so_dien_thoai: nguoiDung.so_dien_thoai
     };
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: 'Đăng nhập thành công',
-      data: {
-        nguoi_dung: userData,
-        token
-      }
+      nguoi_dung: userData,
+      token
     });
 
   } catch (error) {

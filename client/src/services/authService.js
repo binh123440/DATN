@@ -1,4 +1,4 @@
-import api from './apiService';
+import apiClient from './apiService';
 
 export const authService = {
   /**
@@ -8,17 +8,36 @@ export const authService = {
    */
   dangNhap: async (email, mat_khau) => {
     try {
-      const response = await api.post('/auth/dang-nhap', { email, mat_khau });
+      console.log('📤 Gửi request đăng nhập:', { email }); // Debug
       
-      if (response.success) {
-        // Lưu token vào localStorage
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.nguoi_dung));
+      const response = await apiClient.post('/auth/dang-nhap', { email, mat_khau });
+      
+      console.log('📥 Response từ server:', response); // Debug
+      
+      // Kiểm tra response có success = true
+      if (response && response.data.success) {
+        const { token, nguoi_dung } = response.data;
+        
+        console.log('💾 Đang lưu token...', { token: token?.substring(0, 20) + '...' }); // Debug
+        
+        // Lưu token và user vào localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(nguoi_dung));
+        
+        console.log('✅ Đã lưu token vào localStorage'); // Debug
+        console.log('✅ Đã lưu user vào localStorage'); // Debug
+        
+        // Verify đã lưu thành công
+        const savedToken = localStorage.getItem('token');
+        console.log('🔍 Verify token đã lưu:', savedToken ? 'Có' : 'Không có'); // Debug
+      } else {
+        console.warn('⚠️ Response không có success = true'); // Debug
       }
       
       return response;
     } catch (error) {
-      console.error('Lỗi khi đăng nhập:', error);
+      console.error('❌ Lỗi khi đăng nhập:', error);
+      console.error('❌ Chi tiết lỗi:', error.response?.data); // Debug
       throw error;
     }
   },
@@ -28,7 +47,7 @@ export const authService = {
    */
   layThongTinNguoiDung: async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await apiClient.get('/auth/me');
       return response;
     } catch (error) {
       console.error('Lỗi khi lấy thông tin người dùng:', error);
@@ -41,7 +60,8 @@ export const authService = {
    */
   doiMatKhau: async (mat_khau_cu, mat_khau_moi) => {
     try {
-      const response = await api.put('/auth/doi-mat-khau', { 
+      const response = await apiClient
+.put('/auth/doi-mat-khau', { 
         mat_khau_cu, 
         mat_khau_moi 
       });
@@ -58,13 +78,16 @@ export const authService = {
   dangXuat: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    console.log('🚪 Đã đăng xuất và xóa token'); // Debug
   },
 
   /**
    * Kiểm tra đã đăng nhập chưa
    */
   kiemTraDangNhap: () => {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    console.log('🔐 Kiểm tra token:', token ? 'Có' : 'Không có'); // Debug
+    return !!token;
   },
 
   /**

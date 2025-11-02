@@ -37,15 +37,24 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      console.log('🔐 Đang gửi request đăng nhập...'); // ← Thêm log
       const response = await authService.dangNhap(formData.email, formData.mat_khau);
       
-      if (response.success) {
-        // Chuyển hướng đến trang chủ
+      console.log('✅ Response từ API:', response); // ← Thêm log
+      
+      if (response.data.success) {
+        console.log('🎉 Đăng nhập thành công, chuyển trang...'); // ← Thêm log
         navigate('/');
+        window.location.reload(); // ← Thêm reload để cập nhật user
+      } else {
+        setError(response.message || 'Đăng nhập thất bại');
       }
     } catch (error) {
+      console.error('❌ Lỗi đăng nhập:', error); // ← Thêm log
       if (error.response?.status === 401) {
         setError('Email hoặc mật khẩu không đúng');
+      } else if (error.response?.data?.message) {
+        setError(error.response.data.message);
       } else {
         setError('Có lỗi xảy ra, vui lòng thử lại sau');
       }
