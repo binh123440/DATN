@@ -259,35 +259,46 @@ const PostComposer = ({ onCreatePost, currentUserId }) => {
 };
 
 /**
- * Component QrCodeScanner - Quét mã QR từ camera
- * @param {Function} onScanSuccess - Callback khi quét thành công
- * @param {Function} onScanFailure - Callback khi quét thất bại
+ * Component QrCodeScanner - Quét mã QR từ camera (STABLE & SIMPLIFIED)
  */
 const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
-  const scannerRef = useRef(null); // Ref để tham chiếu đến div chứa scanner
+  const scannerRef = useRef(null); // Ref để giữ instance của scanner
 
   useEffect(() => {
-    if (!scannerRef.current) return; // Nếu chưa có ref thì bỏ qua
+    // Chỉ khởi tạo scanner một lần
+    if (scannerRef.current) {
+      return;
+    }
 
-    // Khởi tạo scanner từ thư viện html5-qrcode
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", // ID của element chứa scanner
-      { fps: 10, qrbox: { width: 250, height: 250 } }, // Cấu hình: 10 frame/giây, khung quét 250x250px
-      false // Không hiển thị verbose logs
-    );
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      rememberLastUsedCamera: true,
+    };
 
-    // Render scanner lên UI
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+    
+    // Lưu instance vào ref
+    scannerRef.current = html5QrcodeScanner;
+
+    // Render scanner
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 
-    // Cleanup: Xóa scanner khi component unmount
+    // Cleanup function
     return () => {
-      html5QrcodeScanner.clear().catch(error => {
-        console.error("Failed to clear html5QrcodeScanner.", error);
-      });
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(error => {
+          // Bỏ qua lỗi "NotFoundError" vì nó thường xảy ra khi unmount nhanh
+          if (error.name !== 'NotFoundError') {
+            console.error("Lỗi khi dọn dẹp scanner:", error);
+          }
+        });
+        scannerRef.current = null; // Reset ref
+      }
     };
-  }, [onScanSuccess, onScanFailure]);
+  }, []); // ✅ QUAN TRỌNG: Bỏ dependencies để useEffect chỉ chạy 1 lần duy nhất
 
-  return <div id="reader" ref={scannerRef} className="w-full h-full"></div>;
+  return <div id="reader" className="w-full min-h-[300px]"></div>;
 };
 
 /**
@@ -303,7 +314,16 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   
   // State quản lý hiển thị modal quét QR
   const [showScanner, setShowScanner] = useState(false);
-  
+  const [scannerKey, setScannerKey] = useState(0);
+
+  // ✅ THÊM: State quản lý kết quả quét và trạng thái tạm dừng
+  const [scanResult, setScanResult] = useState(null); // Lưu kết quả quét { success, message }
+  const [isPaused, setIsPaused] = useState(false);     // Trạng thái tạm dừng camera
+
+  // ✅ THÊM: Sử dụng ref để kiểm tra trạng thái tạm dừng ngay lập tức
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
+
   // State kiểm tra đã đăng ký sự kiện chưa
   const [isRegistered, setIsRegistered] = useState(false);
   
@@ -313,11 +333,31 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   // State quản lý trạng thái đang kiểm tra đăng ký
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
+  // ✅ THÊM: Kiểm tra người dùng hiện tại có phải là người tạo sự kiện không
+  const isEventOrganizer = event.id_nguoi_tao === currentUserId;
+
+  /**
+   * ✅ THÊM: Hàm mở modal và cập nhật key
+   */
+  const handleOpenScanner = () => {
+    setScannerKey(prevKey => prevKey + 1);
+    setShowScanner(true);
+    // ✅ THÊM: Reset trạng thái khi mở modal
+    setScanResult(null);
+    setIsPaused(false);
+  };
+
   /**
    * Effect: Kiểm tra trạng thái đăng ký khi component mount
    */
   useEffect(() => {
     const checkRegistrationStatus = async () => {
+      // ✅ THÊM: Nếu là người tạo sự kiện thì không cần kiểm tra đăng ký
+      if (isEventOrganizer) {
+        setCheckingRegistration(false);
+        return;
+      }
+
       // Validate input
       if (!event.id || !currentUserId) {
         setCheckingRegistration(false);
@@ -336,7 +376,7 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
     };
 
     checkRegistrationStatus();
-  }, [event.id, currentUserId]); // Chạy lại khi event.id hoặc currentUserId thay đổi
+  }, [event.id, currentUserId, isEventOrganizer]); // ✅ THÊM isEventOrganizer vào dependencies
 
   /**
    * Xử lý đăng ký sự kiện
@@ -378,28 +418,40 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   /**
    * Xử lý khi quét QR thành công (dành cho người tổ chức)
    */
-  const handleScanSuccess = useCallback((decodedText) => {
-    try {
-      const data = JSON.parse(decodedText); // Parse JSON từ QR code
-      console.log("Đã quét được:", data);
-      
-      // TODO: Gọi API để xác thực và điểm danh
-      // await xacThucDiemDanh(event.id, data.userId);
-      
-      setShowScanner(false);
-      alert(`Điểm danh thành công cho user ID: ${data.userId}`);
-    } catch (error) {
-      alert('Mã QR không hợp lệ');
+  const handleScanSuccess = (decodedText) => {
+    // ✅ SỬA: Sử dụng ref để kiểm tra, đảm bảo giá trị luôn mới nhất
+    if (isPausedRef.current) {
+      return;
     }
-  }, [event.id]);
+
+    // Tạm dừng ngay lập tức
+    setIsPaused(true);
+
+    try {
+      const data = JSON.parse(decodedText);
+      console.log("Đã quét được (chỉ 1 lần):", data);
+      
+      // ✅ SỬA: Lưu kết quả thành công để hiển thị modal
+      setScanResult({ success: true, message: `Điểm danh thành công cho User ID: ${data.userId}` });
+
+    } catch (error) {
+      // ✅ SỬA: Lưu kết quả thất bại để hiển thị modal
+      setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc đã xảy ra lỗi.' });
+    }
+  };
 
   /**
-   * Xử lý khi quét QR thất bại
-   * Không cần làm gì đặc biệt, chỉ log nếu cần debug
+   * ✅ THÊM: Hàm đóng modal kết quả và cho phép quét lại
    */
-  const handleScanFailure = useCallback((error) => {
-    // Có thể log lỗi nếu cần
-  }, []);
+  const handleCloseResultModal = () => {
+    setScanResult(null); // Xóa kết quả
+    setIsPaused(false);  // Cho phép camera quét trở lại
+  };
+
+  const handleScanFailure = (error) => {
+    // Bỏ qua lỗi này vì thư viện sẽ gọi nó liên tục khi không tìm thấy mã QR.
+    // console.log(`Lỗi quét mã QR: ${error}`);
+  };
 
   // Tính số chỗ còn lại
   const slotsRemaining = event.so_luong_toi_da - (event.so_da_dang_ky || 0);
@@ -415,7 +467,12 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
             {event.ten_su_kien}
           </h3>
           {/* Badge hiển thị trạng thái đăng ký */}
-          {checkingRegistration ? (
+          {/* ✅ SỬA: Thêm badge "Người tổ chức" */}
+          {isEventOrganizer ? (
+            <span className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium border border-purple-200">
+              👤 Người tổ chức
+            </span>
+          ) : checkingRegistration ? (
             <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm">
               Đang kiểm tra...
             </span>
@@ -461,12 +518,12 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
           </div>
         </div>
         
-        {/* Nút action */}
+        {/* ✅ SỬA: Logic hiển thị nút action */}
         <div className="flex space-x-3">
-          {/* Nếu là người tổ chức/giảng viên/admin → Hiển thị nút Quét mã */}
-          {userRole === 'organizer' || userRole === 'giang_vien' || userRole === 'quan_tri_vien' ? (
+          {/* Nếu là người tổ chức → Hiển thị nút Quét mã */}
+          {isEventOrganizer ? (
             <button 
-              onClick={() => setShowScanner(true)}
+              onClick={handleOpenScanner} // ✅ SỬA: Sử dụng handler mới
               className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"
             >
               <ScanLine size={18} />
@@ -557,35 +614,112 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
         </div>
       )}
 
+      {/* Modal quét mã QR cho người tổ chức - RESPONSIVE OPTIMIZED */}
       {/* Modal quét mã QR cho người tổ chức */}
       {showScanner && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowScanner(false)} // Click backdrop để đóng
+          onClick={() => setShowScanner(false)}
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-md mx-auto shadow-2xl relative transform transition-all p-6"
-            onClick={(e) => e.stopPropagation()} // Ngăn đóng khi click vào content
+            className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative" // ✅ THÊM: relative
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Nút đóng */}
-            <button 
-              onClick={() => setShowScanner(false)}
-              className="absolute top-4 right-4 bg-gray-800 bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-75 transition-opacity"
-            >
-              <X size={24} />
-            </button>
-            
-            <h2 className="text-xl font-bold text-center text-gray-800 mb-4">Quét Mã Điểm Danh</h2>
-            
-            {/* Khung chứa scanner */}
-            <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden border-4 border-gray-300">
-              <QrCodeScanner
-                onScanSuccess={handleScanSuccess}
-                onScanFailure={handleScanFailure}
-              />
+            {/* ✅ THÊM: Modal hiển thị kết quả quét */}
+            {scanResult && (
+              <div className="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-8 text-center">
+                {scanResult.success ? (
+                  <>
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                      <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">Thành công!</h3>
+                    <p className="text-gray-600 mt-2">{scanResult.message}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                       <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800">Thất bại!</h3>
+                    <p className="text-gray-600 mt-2">{scanResult.message}</p>
+                  </>
+                )}
+                <button
+                  onClick={handleCloseResultModal}
+                  className="mt-6 bg-blue-500 text-white px-8 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  Quét lại
+                </button>
+              </div>
+            )}
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 relative">
+              <button 
+                onClick={() => setShowScanner(false)}
+                className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-all"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="pr-8">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <ScanLine size={20} />
+                  Quét Mã Điểm Danh
+                </h2>
+                <p className="text-green-50 text-sm mt-1 truncate">
+                  {event.ten_su_kien}
+                </p>
+              </div>
             </div>
-            
-            <p className="text-center text-gray-500 mt-4 text-sm">Di chuyển camera đến mã QR của sinh viên</p>
+
+            {/* Scanner Area */}
+            <div className="p-6">
+              <div className="bg-gray-100 rounded-xl overflow-hidden mb-4">
+                <QrCodeScanner
+                  key={scannerKey}
+                  onScanSuccess={handleScanSuccess}
+                  onScanFailure={handleScanFailure}
+                />
+              </div>
+
+              {/* Hướng dẫn */}
+              <div className="text-center">
+                <p className="text-gray-600 text-sm mb-4">
+                  📱 Di chuyển camera đến mã QR của sinh viên
+                </p>
+                
+                {/* Thống kê */}
+                <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users size={18} className="text-blue-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs text-gray-500">Đã điểm danh</p>
+                      <p className="text-base font-bold text-gray-800">
+                        {event.so_da_dang_ky || 0}/{event.so_luong_toi_da}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="w-px h-10 bg-gray-300"></div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <Gift size={18} className="text-green-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs text-gray-500">Điểm thưởng</p>
+                      <p className="text-base font-bold text-green-600">
+                        +{event.diem_thuong}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

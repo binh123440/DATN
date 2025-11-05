@@ -20,7 +20,7 @@ export const layDanhSachBaiViet = async (req, res) => {
           as: 'su_kien',
           required: false, // LEFT JOIN để lấy cả bài viết thường
           attributes: [
-            'id', 'ten_su_kien', 'mo_ta', 'dia_diem', 
+            'id', 'id_nguoi_tao', 'ten_su_kien', 'mo_ta', 'dia_diem', 
             'thoi_gian_bat_dau', 'so_luong_toi_da', 'diem_thuong', 'trang_thai'
           ]
         }
