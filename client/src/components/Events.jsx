@@ -1,63 +1,50 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Calendar, MapPin, Users, Gift, Plus, Filter } from 'lucide-react'
+// import { layDanhSachSuKien } from '../services/apiService';
+import EventCard from './EventCard'; // Sử dụng lại EventCard đã được tối ưu
 
 const Events = ({ currentUser }) => {
-  const [events] = useState([
-    {
-      id: 1,
-      title: 'Workshop: AI trong giáo dục hiện đại',
-      date: '25/08/2025 - 14:00',
-      location: 'Hội trường - Khu B',
-      organizer: 'Khoa CNTT',
-      attendees: 67,
-      maxAttendees: 100,
-      points: 80,
-      status: 'registered',
-      category: 'workshop',
-      image: '🤖'
-    },
-    {
-      id: 2,
-      title: 'Hội thảo định hướng nghề nghiệp',
-      date: '28/08/2025 - 09:00',
-      location: 'Phòng 101 - Khu A',
-      organizer: 'Phòng Đào tạo',
-      attendees: 45,
-      maxAttendees: 80,
-      points: 60,
-      status: 'available',
-      category: 'seminar',
-      image: '💼'
-    },
-    {
-      id: 3,
-      title: 'Cuộc thi lập trình ACM',
-      date: '30/08/2025 - 13:00',
-      location: 'Phòng Lab 1 - Khu B',
-      organizer: 'CLB Lập trình',
-      attendees: 24,
-      maxAttendees: 40,
-      points: 100,
-      status: 'available',
-      category: 'competition',
-      image: '💻'
-    }
-  ])
-
+  const [events, setEvents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState('all')
 
-  const filteredEvents = events.filter(event => {
-    if (filter === 'all') return true
-    if (filter === 'registered') return event.status === 'registered'
-    if (filter === 'available') return event.status === 'available'
-    return true
-  })
+  const currentUserId = currentUser?.id || 1
+  const userRole = currentUser?.vai_tro || 'sinh_vien'
+
+  const fetchEvents = async () => {
+    setIsLoading(true)
+    try {
+      // TODO: Thay thế bằng API lấy danh sách sự kiện thật
+      // const response = await layDanhSachSuKien();
+      // setEvents(response.data.su_kiens || []);
+      
+      // Dữ liệu giả để test giao diện
+      const mockEvents = [
+        { id: 1, id_nguoi_tao: 99, ten_su_kien: 'Workshop: AI trong giáo dục hiện đại', thoi_gian_bat_dau: '2025-08-25T14:00:00', dia_diem: 'Hội trường - Khu B', so_da_dang_ky: 67, so_luong_toi_da: 100, diem_thuong: 80 },
+        { id: 2, id_nguoi_tao: 99, ten_su_kien: 'Hội thảo định hướng nghề nghiệp', thoi_gian_bat_dau: '2025-08-28T09:00:00', dia_diem: 'Phòng 101 - Khu A', so_da_dang_ky: 45, so_luong_toi_da: 80, diem_thuong: 60 },
+        { id: 3, id_nguoi_tao: 1, ten_su_kien: 'Cuộc thi lập trình ACM', thoi_gian_bat_dau: '2025-08-30T13:00:00', dia_diem: 'Phòng Lab 1 - Khu B', so_da_dang_ky: 24, so_luong_toi_da: 40, diem_thuong: 100 },
+      ]
+      setEvents(mockEvents)
+
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách sự kiện:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
+
+  // TODO: Logic filter cần được hoàn thiện khi có API
+  const filteredEvents = events
 
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Sự kiện</h1>
-        <button className="btn-primary flex items-center space-x-2">
+        <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium">
           <Plus size={18} />
           <span>Tạo sự kiện</span>
         </button>
@@ -65,87 +52,35 @@ const Events = ({ currentUser }) => {
 
       {/* Filters */}
       <div className="flex space-x-4 mb-6">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Tất cả
-        </button>
-        <button
-          onClick={() => setFilter('registered')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'registered' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Đã đăng ký
-        </button>
-        <button
-          onClick={() => setFilter('available')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            filter === 'available' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Có thể tham gia
-        </button>
+        {['all', 'registered', 'available'].map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+              filter === f ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {f === 'all' ? 'Tất cả' : f === 'registered' ? 'Đã đăng ký' : 'Có thể tham gia'}
+          </button>
+        ))}
       </div>
 
       {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredEvents.map(event => (
-          <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="text-3xl">{event.image}</div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-lg">{event.title}</h3>
-                    <p className="text-sm text-gray-500">bởi {event.organizer}</p>
-                  </div>
-                </div>
-                {event.status === 'registered' && (
-                  <span className="text-green-600 text-sm font-medium">✅</span>
-                )}
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Calendar size={16} />
-                  <span>{event.date}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <MapPin size={16} />
-                  <span>{event.location}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Users size={16} />
-                  <span>{event.attendees}/{event.maxAttendees} người</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <Gift size={16} className="text-yellow-600" />
-                  <span className="font-semibold text-yellow-600">{event.points} điểm thưởng</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                {event.status === 'registered' ? (
-                  <button className="flex-1 bg-green-50 text-green-600 border border-green-200 py-2 rounded-lg font-medium">
-                    Đã đăng ký
-                  </button>
-                ) : (
-                  <button className="flex-1 btn-primary mr-2">
-                    Đăng ký tham gia
-                  </button>
-                )}
-                <div className="text-xs text-gray-500">
-                  {event.maxAttendees - event.attendees} chỗ trống
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-8">Đang tải sự kiện...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredEvents.map(event => (
+            <EventCard 
+              key={event.id}
+              event={event}
+              currentUserId={currentUserId}
+              userRole={userRole}
+              onRefresh={fetchEvents}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

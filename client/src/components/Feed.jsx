@@ -1,256 +1,99 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { QRCode } from 'react-qr-code'; // Thư viện tạo mã QR code
-import { Html5QrcodeScanner } from 'html5-qrcode'; // Thư viện quét mã QR từ camera
-import { Home, Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, Heart, MessageCircle, Share, ImagePlus, SmilePlus, X, ScanLine } from 'lucide-react'; // Import các icon từ Lucide
-import { layDanhSachBaiViet, taoBaiViet, taoSuKien, thichBaiViet, dangKySuKien, kiemTraDangKySuKien } from '../services/apiService'; // Import các hàm gọi API
+import React, { useState, useEffect } from 'react';
+import { Home, Calendar, ImagePlus, SmilePlus, Heart, MessageCircle, Share } from 'lucide-react';
+import { layDanhSachBaiViet, taoBaiViet, taoSuKien, thichBaiViet } from '../services/apiService';
+import EventCard from './EventCard'; // ✅ IMPORT EventCard từ file riêng biệt
 
 /**
  * Component PostComposer - Khung soạn bài viết và tạo sự kiện
- * @param {Function} onCreatePost - Callback khi tạo bài viết/sự kiện thành công
- * @param {Number} currentUserId - ID của người dùng hiện tại
  */
 const PostComposer = ({ onCreatePost, currentUserId }) => {
-  // State quản lý loại bài viết đang tạo (null, 'image', 'event', 'feeling')
   const [activeType, setActiveType] = useState(null);
-  
-  // State lưu nội dung bài viết
   const [content, setContent] = useState('');
-  
-  // State lưu chi tiết sự kiện khi tạo sự kiện
-  const [eventDetails, setEventDetails] = useState({
-    name: '',           // Tên sự kiện
-    location: '',       // Địa điểm
-    date: '',          // Ngày
-    time: '',          // Giờ
-    maxParticipants: '', // Số người tối đa
-    points: ''         // Điểm thưởng
+  const [eventDetails, setEventDetails] = useState({ 
+    name: '', location: '', date: '', time: '', maxParticipants: '', points: '' 
   });
-  
-  // State quản lý trạng thái đang submit
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /**
-   * Xử lý khi thay đổi thông tin sự kiện
-   */
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
-    // Cập nhật state eventDetails, giữ nguyên các field khác
     setEventDetails(prev => ({ ...prev, [name]: value }));
   };
 
-  /**
-   * Xử lý khi submit form (tạo bài viết hoặc sự kiện)
-   */
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Ngăn reload trang
-    setIsSubmitting(true); // Bật trạng thái đang submit
-
+    e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (activeType === 'event') {
-        // TẠO SỰ KIỆN
         const eventData = {
           id_nguoi_tao: currentUserId,
           ten_su_kien: eventDetails.name,
           mo_ta: content || eventDetails.name,
           dia_diem: eventDetails.location,
-          thoi_gian_bat_dau: `${eventDetails.date} ${eventDetails.time}`, // Ghép ngày và giờ
+          thoi_gian_bat_dau: `${eventDetails.date} ${eventDetails.time}`,
           so_luong_toi_da: parseInt(eventDetails.maxParticipants),
           diem_thuong: parseInt(eventDetails.points),
           noi_dung_bai_viet: content
         };
-
         const response = await taoSuKien(eventData);
-        
         if (response.success) {
           alert('Tạo sự kiện thành công! Đang chờ duyệt.');
-          onCreatePost(); // Gọi callback để refresh danh sách bài viết
+          onCreatePost();
         }
       } else if (content.trim()) {
-        // TẠO BÀI VIẾT THƯỜNG
-        const postData = {
-          id_tac_gia: currentUserId,
-          noi_dung: content
-        };
-
+        const postData = { id_tac_gia: currentUserId, noi_dung: content };
         const response = await taoBaiViet(postData);
-        
-        if (response.success) {
-          onCreatePost(); // Refresh danh sách bài viết
-        }
+        if (response.success) onCreatePost();
       }
-
-      // Reset form về trạng thái ban đầu
       setContent('');
       setActiveType(null);
       setEventDetails({ name: '', location: '', date: '', time: '', maxParticipants: '', points: '' });
     } catch (error) {
       alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
     } finally {
-      setIsSubmitting(false); // Tắt trạng thái đang submit
+      setIsSubmitting(false);
     }
   };
 
-  // Danh sách các nút action (Ảnh/Video, Sự kiện, Cảm xúc)
   const actionButtons = [
-    {
-      type: 'image',
-      label: 'Ảnh/Video',
-      Icon: ImagePlus,
-      activeClasses: 'text-purple-600 bg-purple-100', // Style khi active
-      hoverClasses: 'hover:bg-purple-50' // Style khi hover
-    },
-    {
-      type: 'event',
-      label: 'Sự kiện',
-      Icon: Calendar,
-      activeClasses: 'text-cyan-600 bg-cyan-100',
-      hoverClasses: 'hover:bg-cyan-50'
-    },
-    {
-      type: 'feeling',
-      label: 'Cảm xúc',
-      Icon: SmilePlus,
-      activeClasses: 'text-yellow-600 bg-yellow-100',
-      hoverClasses: 'hover:bg-yellow-50'
-    }
+    { type: 'image', label: 'Ảnh/Video', Icon: ImagePlus, activeClasses: 'text-purple-600 bg-purple-100', hoverClasses: 'hover:bg-purple-50' },
+    { type: 'event', label: 'Sự kiện', Icon: Calendar, activeClasses: 'text-cyan-600 bg-cyan-100', hoverClasses: 'hover:bg-cyan-50' },
+    { type: 'feeling', label: 'Cảm xúc', Icon: SmilePlus, activeClasses: 'text-yellow-600 bg-yellow-100', hoverClasses: 'hover:bg-yellow-50' }
   ];
 
-  // Kiểm tra điều kiện disable nút submit
   const isSubmitDisabled = isSubmitting || (activeType === 'event' 
-    ? !eventDetails.name || !eventDetails.location || !eventDetails.date // Nếu là sự kiện: phải có tên, địa điểm, ngày
-    : !content.trim()); // Nếu là bài viết: phải có nội dung
+    ? !eventDetails.name || !eventDetails.location || !eventDetails.date 
+    : !content.trim());
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-      {/* Ô nhập nội dung */}
       <div className="flex items-center space-x-3 mb-4">
-        {/* Avatar người dùng */}
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-          SV
-        </div>
-        {/* Input nhập nội dung */}
-        <input
-          type="text"
-          placeholder={activeType === 'event' ? "Mô tả về sự kiện của bạn..." : "Bạn đang nghĩ gì?"}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="flex-1 bg-gray-100 rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300 transition-all"
-        />
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">SV</div>
+        <input type="text" placeholder={activeType === 'event' ? "Mô tả về sự kiện của bạn..." : "Bạn đang nghĩ gì?"} value={content} onChange={(e) => setContent(e.target.value)} className="flex-1 bg-gray-100 rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300 transition-all" />
       </div>
-
-      {/* Form tạo sự kiện - Chỉ hiện khi activeType === 'event' */}
+      
       {activeType === 'event' && (
-        <div className="mt-4 p-5 bg-cyan-50/50 border border-cyan-200 rounded-lg transition-all duration-300 ease-in-out">
-          <h3 className="text-md font-semibold text-cyan-800 flex items-center mb-4">
-            <Calendar size={18} className="mr-2" />
-            Tạo sự kiện
-          </h3>
+        <div className="mt-4 p-5 bg-cyan-50/50 border border-cyan-200 rounded-lg">
+          <h3 className="text-md font-semibold text-cyan-800 flex items-center mb-4"><Calendar size={18} className="mr-2" />Tạo sự kiện</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
-            {/* Tên sự kiện */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Tên sự kiện</label>
-              <input 
-                type="text" 
-                name="name" 
-                value={eventDetails.name} 
-                onChange={handleEventDetailChange} 
-                placeholder="Ví dụ: Hội thảo AI trong giáo dục" 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
-            
-            {/* Địa điểm */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Địa điểm</label>
-              <input 
-                type="text" 
-                name="location" 
-                value={eventDetails.location} 
-                onChange={handleEventDetailChange} 
-                placeholder="Ví dụ: Hội trường A, Tòa nhà B" 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
-            
-            {/* Ngày */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Ngày</label>
-              <input 
-                type="date" 
-                name="date" 
-                value={eventDetails.date} 
-                onChange={handleEventDetailChange} 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
-            
-            {/* Giờ */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Giờ</label>
-              <input 
-                type="time" 
-                name="time" 
-                value={eventDetails.time} 
-                onChange={handleEventDetailChange} 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
-            
-            {/* Số người tối đa */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Số người tối đa</label>
-              <input 
-                type="number" 
-                name="maxParticipants" 
-                value={eventDetails.maxParticipants} 
-                onChange={handleEventDetailChange} 
-                placeholder="100" 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
-            
-            {/* Điểm thưởng */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Điểm thưởng</label>
-              <input 
-                type="number" 
-                name="points" 
-                value={eventDetails.points} 
-                onChange={handleEventDetailChange} 
-                placeholder="50" 
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" 
-              />
-            </div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Tên sự kiện</label><input type="text" name="name" value={eventDetails.name} onChange={handleEventDetailChange} placeholder="Ví dụ: Hội thảo AI" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Địa điểm</label><input type="text" name="location" value={eventDetails.location} onChange={handleEventDetailChange} placeholder="Ví dụ: Hội trường A" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Ngày</label><input type="date" name="date" value={eventDetails.date} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Giờ</label><input type="time" name="time" value={eventDetails.time} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Số người tối đa</label><input type="number" name="maxParticipants" value={eventDetails.maxParticipants} onChange={handleEventDetailChange} placeholder="100" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
+            <div><label className="text-sm font-medium text-gray-700 mb-1 block">Điểm thưởng</label><input type="number" name="points" value={eventDetails.points} onChange={handleEventDetailChange} placeholder="50" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none" /></div>
           </div>
         </div>
       )}
       
-      {/* Action buttons và nút submit */}
       <div className="flex items-center justify-between mt-4">
-        {/* Các nút Ảnh/Video, Sự kiện, Cảm xúc */}
         <div className="flex space-x-2">
           {actionButtons.map((button) => (
-            <button
-              key={button.type}
-              onClick={() => setActiveType(activeType === button.type ? null : button.type)} // Toggle active type
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium ${
-                activeType === button.type
-                  ? button.activeClasses // Style khi active
-                  : `text-gray-600 ${button.hoverClasses}` // Style khi không active
-              }`}
-            >
-              <button.Icon size={20} />
-              <span className="hidden sm:inline">{button.label}</span>
+            <button key={button.type} onClick={() => setActiveType(activeType === button.type ? null : button.type)} className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium ${activeType === button.type ? button.activeClasses : `text-gray-600 ${button.hoverClasses}`}`}>
+              <button.Icon size={20} /><span className="hidden sm:inline">{button.label}</span>
             </button>
           ))}
         </div>
-        
-        {/* Nút Đăng bài / Tạo sự kiện */}
-        <button 
-          onClick={handleSubmit}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isSubmitDisabled}
-        >
+        <button onClick={handleSubmit} className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSubmitDisabled}>
           {isSubmitting ? 'Đang tạo...' : (activeType === 'event' ? 'Tạo sự kiện' : 'Đăng bài')}
         </button>
       </div>
@@ -259,511 +102,23 @@ const PostComposer = ({ onCreatePost, currentUserId }) => {
 };
 
 /**
- * Component QrCodeScanner - Quét mã QR từ camera (STABLE & SIMPLIFIED)
- */
-const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
-  const scannerRef = useRef(null); // Ref để giữ instance của scanner
-
-  useEffect(() => {
-    // Chỉ khởi tạo scanner một lần
-    if (scannerRef.current) {
-      return;
-    }
-
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-      rememberLastUsedCamera: true,
-    };
-
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
-    
-    // Lưu instance vào ref
-    scannerRef.current = html5QrcodeScanner;
-
-    // Render scanner
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-
-    // Cleanup function
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(error => {
-          // Bỏ qua lỗi "NotFoundError" vì nó thường xảy ra khi unmount nhanh
-          if (error.name !== 'NotFoundError') {
-            console.error("Lỗi khi dọn dẹp scanner:", error);
-          }
-        });
-        scannerRef.current = null; // Reset ref
-      }
-    };
-  }, []); // ✅ QUAN TRỌNG: Bỏ dependencies để useEffect chỉ chạy 1 lần duy nhất
-
-  return <div id="reader" className="w-full min-h-[300px]"></div>;
-};
-
-/**
- * Component EventCard - Thẻ hiển thị sự kiện
- * @param {Object} event - Thông tin sự kiện
- * @param {Number} currentUserId - ID người dùng hiện tại
- * @param {String} userRole - Vai trò người dùng (sinh_vien, giang_vien, quan_tri_vien)
- * @param {Function} onRefresh - Callback để refresh danh sách bài viết
- */
-const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
-  // State quản lý hiển thị modal QR code
-  const [showQrModal, setShowQrModal] = useState(false);
-  
-  // State quản lý hiển thị modal quét QR
-  const [showScanner, setShowScanner] = useState(false);
-  const [scannerKey, setScannerKey] = useState(0);
-
-  // ✅ THÊM: State quản lý kết quả quét và trạng thái tạm dừng
-  const [scanResult, setScanResult] = useState(null); // Lưu kết quả quét { success, message }
-  const [isPaused, setIsPaused] = useState(false);     // Trạng thái tạm dừng camera
-
-  // ✅ THÊM: Sử dụng ref để kiểm tra trạng thái tạm dừng ngay lập tức
-  const isPausedRef = useRef(isPaused);
-  isPausedRef.current = isPaused;
-
-  // State kiểm tra đã đăng ký sự kiện chưa
-  const [isRegistered, setIsRegistered] = useState(false);
-  
-  // State quản lý trạng thái đang đăng ký
-  const [isRegistering, setIsRegistering] = useState(false);
-  
-  // State quản lý trạng thái đang kiểm tra đăng ký
-  const [checkingRegistration, setCheckingRegistration] = useState(true);
-
-  // ✅ THÊM: Kiểm tra người dùng hiện tại có phải là người tạo sự kiện không
-  const isEventOrganizer = event.id_nguoi_tao === currentUserId;
-
-  /**
-   * ✅ THÊM: Hàm mở modal và cập nhật key
-   */
-  const handleOpenScanner = () => {
-    setScannerKey(prevKey => prevKey + 1);
-    setShowScanner(true);
-    // ✅ THÊM: Reset trạng thái khi mở modal
-    setScanResult(null);
-    setIsPaused(false);
-  };
-
-  /**
-   * Effect: Kiểm tra trạng thái đăng ký khi component mount
-   */
-  useEffect(() => {
-    const checkRegistrationStatus = async () => {
-      // ✅ THÊM: Nếu là người tạo sự kiện thì không cần kiểm tra đăng ký
-      if (isEventOrganizer) {
-        setCheckingRegistration(false);
-        return;
-      }
-
-      // Validate input
-      if (!event.id || !currentUserId) {
-        setCheckingRegistration(false);
-        return;
-      }
-
-      try {
-        // Gọi API kiểm tra đã đăng ký chưa
-        const response = await kiemTraDangKySuKien(event.id, currentUserId);
-        setIsRegistered(response.data?.da_dang_ky || false);
-      } catch (error) {
-        console.error('Lỗi khi kiểm tra đăng ký:', error);
-      } finally {
-        setCheckingRegistration(false);
-      }
-    };
-
-    checkRegistrationStatus();
-  }, [event.id, currentUserId, isEventOrganizer]); // ✅ THÊM isEventOrganizer vào dependencies
-
-  /**
-   * Xử lý đăng ký sự kiện
-   */
-  const handleRegisterEvent = async () => {
-    // Validate input
-    if (!event.id || !currentUserId) {
-      alert('Thông tin không đầy đủ để đăng ký');
-      return;
-    }
-
-    setIsRegistering(true);
-    try {
-      // Gọi API đăng ký sự kiện
-      const response = await dangKySuKien(event.id, currentUserId);
-      
-      if (response.success) {
-        setIsRegistered(true); // Cập nhật trạng thái đã đăng ký
-        alert('Đăng ký sự kiện thành công!');
-        if (onRefresh) onRefresh(); // Refresh danh sách để cập nhật số người đã đăng ký
-      }
-    } catch (error) {
-      alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setIsRegistering(false);
-    }
-  };
-
-  /**
-   * Dữ liệu mã QR - Chứa thông tin để điểm danh
-   * Format JSON: { eventId, userId, timestamp }
-   */
-  const qrValue = JSON.stringify({ 
-    eventId: event.id,
-    userId: currentUserId,
-    timestamp: Date.now() // Thời gian tạo QR để tránh duplicate
-  });
-
-  /**
-   * Xử lý khi quét QR thành công (dành cho người tổ chức)
-   */
-  const handleScanSuccess = (decodedText) => {
-    // ✅ SỬA: Sử dụng ref để kiểm tra, đảm bảo giá trị luôn mới nhất
-    if (isPausedRef.current) {
-      return;
-    }
-
-    // Tạm dừng ngay lập tức
-    setIsPaused(true);
-
-    try {
-      const data = JSON.parse(decodedText);
-      console.log("Đã quét được (chỉ 1 lần):", data);
-      
-      // ✅ SỬA: Lưu kết quả thành công để hiển thị modal
-      setScanResult({ success: true, message: `Điểm danh thành công cho User ID: ${data.userId}` });
-
-    } catch (error) {
-      // ✅ SỬA: Lưu kết quả thất bại để hiển thị modal
-      setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc đã xảy ra lỗi.' });
-    }
-  };
-
-  /**
-   * ✅ THÊM: Hàm đóng modal kết quả và cho phép quét lại
-   */
-  const handleCloseResultModal = () => {
-    setScanResult(null); // Xóa kết quả
-    setIsPaused(false);  // Cho phép camera quét trở lại
-  };
-
-  const handleScanFailure = (error) => {
-    // Bỏ qua lỗi này vì thư viện sẽ gọi nó liên tục khi không tìm thấy mã QR.
-    // console.log(`Lỗi quét mã QR: ${error}`);
-  };
-
-  // Tính số chỗ còn lại
-  const slotsRemaining = event.so_luong_toi_da - (event.so_da_dang_ky || 0);
-  const isFull = slotsRemaining <= 0; // Kiểm tra đã hết chỗ chưa
-
-  return (
-    <>
-      {/* Card hiển thị thông tin sự kiện */}
-      <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-4 shadow-sm">
-        {/* Tiêu đề và badge trạng thái */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            {event.ten_su_kien}
-          </h3>
-          {/* Badge hiển thị trạng thái đăng ký */}
-          {/* ✅ SỬA: Thêm badge "Người tổ chức" */}
-          {isEventOrganizer ? (
-            <span className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium border border-purple-200">
-              👤 Người tổ chức
-            </span>
-          ) : checkingRegistration ? (
-            <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm">
-              Đang kiểm tra...
-            </span>
-          ) : isRegistered ? (
-            <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
-              ✓ Đã đăng ký
-            </span>
-          ) : null}
-        </div>
-        
-        {/* Grid hiển thị thông tin sự kiện */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Thời gian */}
-          <div className="flex items-center text-gray-600">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-              <Calendar size={16} className="text-blue-600" />
-            </div>
-            <span className="text-sm">{new Date(event.thoi_gian_bat_dau).toLocaleString('vi-VN')}</span>
-          </div>
-          
-          {/* Địa điểm */}
-          <div className="flex items-center text-gray-600">
-            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-              <MapPin size={16} className="text-purple-600" />
-            </div>
-            <span className="text-sm">{event.dia_diem}</span>
-          </div>
-          
-          {/* Số người tham gia */}
-          <div className="flex items-center text-gray-600">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-              <Users size={16} className="text-green-600" />
-            </div>
-            <span className="text-sm">{event.so_da_dang_ky || 0}/{event.so_luong_toi_da} người</span>
-          </div>
-          
-          {/* Điểm thưởng */}
-          <div className="flex items-center text-orange-600">
-            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-              <Gift size={16} className="text-orange-600" />
-            </div>
-            <span className="text-sm font-medium">+{event.diem_thuong} điểm</span>
-          </div>
-        </div>
-        
-        {/* ✅ SỬA: Logic hiển thị nút action */}
-        <div className="flex space-x-3">
-          {/* Nếu là người tổ chức → Hiển thị nút Quét mã */}
-          {isEventOrganizer ? (
-            <button 
-              onClick={handleOpenScanner} // ✅ SỬA: Sử dụng handler mới
-              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"
-            >
-              <ScanLine size={18} />
-              <span>Quét mã điểm danh</span>
-            </button>
-          ) : (
-            /* Nếu là sinh viên → Hiển thị nút Đăng ký hoặc Lấy mã điểm danh */
-            <>
-              {isRegistered ? (
-                /* Đã đăng ký → Hiển thị nút Lấy mã điểm danh */
-                <button 
-                  onClick={() => setShowQrModal(true)}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium"
-                >
-                  <QrCodeIcon size={18} />
-                  <span>Lấy mã điểm danh</span>
-                </button>
-              ) : (
-                /* Chưa đăng ký → Hiển thị nút Đăng ký tham gia */
-                <button 
-                  onClick={handleRegisterEvent}
-                  disabled={isRegistering || isFull || checkingRegistration}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isRegistering ? 'Đang đăng ký...' : isFull ? 'Đã hết chỗ' : 'Đăng ký tham gia'}
-                </button>
-              )}
-            </>
-          )}
-          
-          {/* Hiển thị số chỗ còn lại */}
-          <button className={`px-4 py-3 border-2 rounded-lg transition-all font-medium ${
-            isFull 
-              ? 'border-red-300 text-red-600 bg-red-50' // Style khi hết chỗ
-              : 'border-blue-300 text-blue-600 hover:bg-blue-50' // Style bình thường
-          }`}>
-            {slotsRemaining} chỗ còn lại
-          </button>
-        </div>
-      </div>
-
-      {/* Modal hiển thị QR Code cho sinh viên */}
-      {showQrModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowQrModal(false)} // Click vào backdrop để đóng modal
-        >
-          <div 
-            className="bg-gray-50 rounded-2xl w-full max-w-sm mx-auto shadow-2xl relative transform transition-all"
-            onClick={(e) => e.stopPropagation()} // Ngăn đóng modal khi click vào content
-          >
-            {/* Nút đóng modal */}
-            <button 
-              onClick={() => setShowQrModal(false)}
-              className="absolute -top-3 -right-3 bg-white rounded-full p-1.5 shadow-lg text-gray-600 hover:text-red-500 hover:scale-110 transition-transform z-10"
-            >
-              <X size={24} />
-            </button>
-
-            {/* Header thẻ sinh viên - Phần màu xanh phía trên */}
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-24 rounded-t-2xl relative">
-              {/* Avatar sinh viên */}
-              <img 
-                src="https://i.pravatar.cc/120?img=59" // TODO: Thay bằng ảnh thật từ currentUser
-                alt="Ảnh đại diện"
-                className="w-24 h-24 rounded-full border-4 border-white absolute -bottom-12 left-1/2 -translate-x-1/2 shadow-lg"
-              />
-            </div>
-
-            {/* Body thẻ - Chứa thông tin và QR code */}
-            <div className="pt-16 pb-8 px-6 text-center">
-              {/* Thông tin sinh viên */}
-              <h2 className="text-2xl font-bold text-gray-800">Lê Hà Bình</h2> {/* TODO: Lấy từ currentUser */}
-              <p className="text-gray-500 font-mono">21115053120105</p> {/* TODO: Lấy MSSV từ currentUser */}
-
-              {/* Mã QR code */}
-              <div className="mt-6 mb-6">
-                <div className="p-4 bg-white border-2 border-gray-200 rounded-lg inline-block shadow-inner">
-                  <QRCode value={qrValue} size={200} /> {/* Tạo QR code với dữ liệu qrValue */}
-                </div>
-              </div>
-              
-              {/* Hướng dẫn sử dụng */}
-              <p className="text-sm text-gray-600">Đưa mã này cho người tổ chức để điểm danh sự kiện:</p>
-              <p className="mt-1 text-sm font-semibold text-blue-600 break-all">{event.ten_su_kien}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal quét mã QR cho người tổ chức - RESPONSIVE OPTIMIZED */}
-      {/* Modal quét mã QR cho người tổ chức */}
-      {showScanner && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowScanner(false)}
-        >
-          <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative" // ✅ THÊM: relative
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* ✅ THÊM: Modal hiển thị kết quả quét */}
-            {scanResult && (
-              <div className="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-8 text-center">
-                {scanResult.success ? (
-                  <>
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-800">Thành công!</h3>
-                    <p className="text-gray-600 mt-2">{scanResult.message}</p>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                       <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-800">Thất bại!</h3>
-                    <p className="text-gray-600 mt-2">{scanResult.message}</p>
-                  </>
-                )}
-                <button
-                  onClick={handleCloseResultModal}
-                  className="mt-6 bg-blue-500 text-white px-8 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Quét lại
-                </button>
-              </div>
-            )}
-
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 relative">
-              <button 
-                onClick={() => setShowScanner(false)}
-                className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-all"
-              >
-                <X size={20} />
-              </button>
-              
-              <div className="pr-8">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <ScanLine size={20} />
-                  Quét Mã Điểm Danh
-                </h2>
-                <p className="text-green-50 text-sm mt-1 truncate">
-                  {event.ten_su_kien}
-                </p>
-              </div>
-            </div>
-
-            {/* Scanner Area */}
-            <div className="p-6">
-              <div className="bg-gray-100 rounded-xl overflow-hidden mb-4">
-                <QrCodeScanner
-                  key={scannerKey}
-                  onScanSuccess={handleScanSuccess}
-                  onScanFailure={handleScanFailure}
-                />
-              </div>
-
-              {/* Hướng dẫn */}
-              <div className="text-center">
-                <p className="text-gray-600 text-sm mb-4">
-                  📱 Di chuyển camera đến mã QR của sinh viên
-                </p>
-                
-                {/* Thống kê */}
-                <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users size={18} className="text-blue-600" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs text-gray-500">Đã điểm danh</p>
-                      <p className="text-base font-bold text-gray-800">
-                        {event.so_da_dang_ky || 0}/{event.so_luong_toi_da}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="w-px h-10 bg-gray-300"></div>
-                  
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <Gift size={18} className="text-green-600" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs text-gray-500">Điểm thưởng</p>
-                      <p className="text-base font-bold text-green-600">
-                        +{event.diem_thuong}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-/**
  * Component PostCard - Thẻ hiển thị bài viết thường
- * @param {Object} post - Thông tin bài viết
- * @param {Number} currentUserId - ID người dùng hiện tại
  */
 const PostCard = ({ post, currentUserId }) => {
-  // State quản lý trạng thái đã thích bài viết
   const [liked, setLiked] = useState(false);
-  
-  // State lưu số lượt thích
   const [likes, setLikes] = useState(post.so_luot_thich || 0);
-  
-  // State quản lý trạng thái đang xử lý like
   const [isLiking, setIsLiking] = useState(false);
 
-  /**
-   * Xử lý khi click nút thích
-   * Sử dụng Optimistic Update: Cập nhật UI trước, gọi API sau
-   */
   const handleLike = async () => {
-    if (isLiking) return; // Ngăn spam click
-
+    if (isLiking) return;
     setIsLiking(true);
-    
-    // Tính trạng thái mới
     const newLiked = !liked;
     const newLikes = newLiked ? likes + 1 : likes - 1;
-
-    // Cập nhật UI ngay lập tức (Optimistic Update)
     setLiked(newLiked);
     setLikes(newLikes);
-
     try {
-      // Gọi API like bài viết
       await thichBaiViet(post.id, currentUserId);
     } catch (error) {
-      // Nếu API fail → Rollback lại trạng thái cũ
       setLiked(!newLiked);
       setLikes(likes);
       console.error('Lỗi khi thích bài viết:', error);
@@ -774,55 +129,24 @@ const PostCard = ({ post, currentUserId }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4 hover:shadow-md transition-shadow">
-      {/* Header bài viết: Avatar + Tên + Thời gian */}
       <div className="flex items-center space-x-3 mb-4">
-        {/* Avatar tác giả - Lấy 2 chữ cái đầu của tên */}
         <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
           {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
         </div>
-        
         <div className="flex-1">
           <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
           <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
         </div>
-        
-        {/* Menu 3 chấm (chưa implement) */}
-        <button className="text-gray-400 hover:text-gray-600 p-2">
-          <span className="text-lg">⋯</span>
-        </button>
+        <button className="text-gray-400 hover:text-gray-600 p-2"><span className="text-lg">⋯</span></button>
       </div>
-      
-      {/* Nội dung bài viết */}
       <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>
-      
-      {/* Action buttons: Thích, Bình luận, Chia sẻ */}
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
         <div className="flex space-x-2">
-          {/* Nút Thích */}
-          <button 
-            onClick={handleLike}
-            disabled={isLiking}
-            className={`flex items-center space-x-2 px-3 py-1 rounded-lg font-medium transition-colors duration-200 ${
-              liked 
-                ? 'text-red-600 bg-red-50' // Style khi đã thích
-                : 'text-gray-500 hover:bg-red-50 hover:text-red-600' // Style khi chưa thích
-            } disabled:opacity-50`}
-          >
-            <Heart size={18} fill={liked ? 'currentColor' : 'none'} />
-            <span>{likes} Thích</span>
+          <button onClick={handleLike} disabled={isLiking} className={`flex items-center space-x-2 px-3 py-1 rounded-lg font-medium transition-colors duration-200 ${liked ? 'text-red-600 bg-red-50' : 'text-gray-500 hover:bg-red-50 hover:text-red-600'} disabled:opacity-50`}>
+            <Heart size={18} fill={liked ? 'currentColor' : 'none'} /><span>{likes} Thích</span>
           </button>
-          
-          {/* Nút Bình luận (chưa implement) */}
-          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
-            <MessageCircle size={18} />
-            <span>{post.so_binh_luan || 0} Bình luận</span>
-          </button>
-          
-          {/* Nút Chia sẻ (chưa implement) */}
-          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
-            <Share size={18} />
-            <span>Chia sẻ</span>
-          </button>
+          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"><MessageCircle size={18} /><span>{post.so_binh_luan || 0} Bình luận</span></button>
+          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200"><Share size={18} /><span>Chia sẻ</span></button>
         </div>
       </div>
     </div>
@@ -831,95 +155,53 @@ const PostCard = ({ post, currentUserId }) => {
 
 /**
  * Component Feed - Component chính hiển thị trang chủ
- * @param {Object} currentUser - Thông tin người dùng hiện tại
  */
 const Feed = ({ currentUser }) => {
-  // State lưu danh sách bài viết
   const [posts, setPosts] = useState([]);
-  
-  // State quản lý trạng thái loading
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State quản lý trang hiện tại (cho phân trang)
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Lấy thông tin user hiện tại với giá trị mặc định
   const currentUserId = currentUser?.id || 1;
   const userRole = currentUser?.vai_tro || 'sinh_vien';
 
-  /**
-   * Hàm fetch danh sách bài viết từ API
-   */
   const fetchPosts = async () => {
     setIsLoading(true);
     try {
-      // Gọi API lấy danh sách bài viết
-      // Params: page (trang hiện tại), limit (số bài viết mỗi trang)
       const response = await layDanhSachBaiViet(currentPage, 10);
-      
       if (response.success) {
-        setPosts(response.data.bai_viets || []); // Cập nhật state posts
+        setPosts(response.data.bai_viets || []);
       }
     } catch (error) {
       console.error('Lỗi khi tải bài viết:', error);
     } finally {
-      setIsLoading(false); // Tắt loading sau khi xong
+      setIsLoading(false);
     }
   };
 
-  /**
-   * Effect: Fetch bài viết khi component mount hoặc currentPage thay đổi
-   */
   useEffect(() => {
     fetchPosts();
-  }, [currentPage]); // Dependencies: chạy lại khi currentPage thay đổi
-
-  /**
-   * Callback khi tạo bài viết/sự kiện thành công
-   * Gọi lại fetchPosts để refresh danh sách
-   */
-  const handleCreatePost = () => {
-    fetchPosts();
-  };
+  }, [currentPage]);
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Banner chào mừng */}
       <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
         <div className="flex items-start space-x-4">
-          <div className="w-12 h-12 bg-blue-400 bg-opacity-20 rounded-xl flex items-center justify-center shadow-lg">
-            <Home className="w-7 h-7 text-white" />
-          </div>
-          <div className="flex-1 pt-1">
-            <h2 className="text-2xl font-bold">Chào mừng, {currentUser?.name || 'bạn'}!</h2>
-            <p className="text-cyan-100 text-sm">Kết nối và chia sẻ với cộng đồng UTE</p>
-          </div>
+          <div className="w-12 h-12 bg-blue-400 bg-opacity-20 rounded-xl flex items-center justify-center shadow-lg"><Home className="w-7 h-7 text-white" /></div>
+          <div className="flex-1 pt-1"><h2 className="text-2xl font-bold">Chào mừng, {currentUser?.name || 'bạn'}!</h2><p className="text-cyan-100 text-sm">Kết nối và chia sẻ với cộng đồng UTE</p></div>
         </div>
       </div>
 
-      {/* Khung soạn bài viết */}
-      <PostComposer onCreatePost={handleCreatePost} currentUserId={currentUserId} />
+      <PostComposer onCreatePost={fetchPosts} currentUserId={currentUserId} />
 
-      {/* Danh sách bài viết */}
       {isLoading ? (
-        /* Loading state */
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-500 mt-4">Đang tải bài viết...</p>
-        </div>
+        <div className="text-center py-8"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div><p className="text-gray-500 mt-4">Đang tải bài viết...</p></div>
       ) : posts.length === 0 ? (
-        /* Empty state */
-        <div className="text-center py-8 bg-white rounded-xl">
-          <p className="text-gray-500">Chưa có bài viết nào</p>
-        </div>
+        <div className="text-center py-8 bg-white rounded-xl"><p className="text-gray-500">Chưa có bài viết nào</p></div>
       ) : (
-        /* Render danh sách bài viết */
         posts.map(post => (
           <div key={post.id}>
             {post.su_kien ? (
-              /* Nếu bài viết có sự kiện → Hiển thị EventCard */
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
-                {/* Header bài viết */}
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
                     {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -929,20 +211,16 @@ const Feed = ({ currentUser }) => {
                     <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
                   </div>
                 </div>
-                
-                {/* Nội dung bài viết (nếu có) */}
                 {post.noi_dung && <p className="text-gray-800 mb-4">{post.noi_dung}</p>}
-                
-                {/* Thẻ sự kiện */}
+                {/* ✅ SỬ DỤNG EventCard từ file riêng */}
                 <EventCard 
                   event={post.su_kien} 
                   currentUserId={currentUserId}
                   userRole={userRole}
-                  onRefresh={fetchPosts} // Callback để refresh sau khi đăng ký
+                  onRefresh={fetchPosts}
                 />
               </div>
             ) : (
-              /* Nếu là bài viết thường → Hiển thị PostCard */
               <PostCard post={post} currentUserId={currentUserId} />
             )}
           </div>
