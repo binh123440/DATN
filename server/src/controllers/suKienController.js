@@ -1,6 +1,52 @@
 import db from '../models/index.js';
 const { SuKien, BaiViet, NguoiDung, DangKySuKien } = db;
 
+// Lấy danh sách sự kiện
+export const layDanhSachSuKien = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await SuKien.findAndCountAll({
+      where: { trang_thai: 'da_duyet' },
+      include: [
+        {
+          model: NguoiDung,
+          as: 'nguoi_tao',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        },
+        {
+          model: DangKySuKien,
+          as: 'luot_dang_ky',
+          attributes: ['id_nguoi_dung']
+        }
+      ],
+      order: [['thoi_gian_bat_dau', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      distinct: true,
+    });
+
+    res.json({
+      success: true,
+      message: 'Lấy danh sách sự kiện thành công',
+      data: {
+        su_kiens: rows,
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: parseInt(page),
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách sự kiện:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
+  }
+};
+
 // Tạo sự kiện (với bài viết)
 export const taoSuKien = async (req, res) => {
   const transaction = await db.sequelize.transaction();

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine } from 'lucide-react';
-import { dangKySuKien, kiemTraDangKySuKien } from '../services/apiService'; // ✅ SỬA: Import API functions
+import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine, Check } from 'lucide-react';
+import { dangKySuKien, kiemTraDangKySuKien } from '../services/apiService';
+import * as geolib from 'geolib';
 
 // --- Component con: QrCodeScanner ---
 const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
@@ -33,6 +34,8 @@ const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
 // --- Component chính: EventCard ---
 const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   const [showQrModal, setShowQrModal] = useState(false);
+  const [qrValue, setQrValue] = useState('');
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerKey, setScannerKey] = useState(0);
   const [scanResult, setScanResult] = useState(null);
@@ -45,6 +48,20 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   const isEventOrganizer = event.id_nguoi_tao === currentUserId;
+
+  // Sử dụng useEffect để quản lý timer đóng modal
+  useEffect(() => {
+    let timer;
+    if (showQrModal) {
+      // Tự động đóng modal sau 30 giây
+      timer = setTimeout(() => {
+        setShowQrModal(false);
+        alert("Mã QR đã hết hạn. Vui lòng tạo mã mới.");
+      }, 30000); 
+    }
+    // Dọn dẹp timer khi component unmount hoặc modal bị đóng
+    return () => clearTimeout(timer);
+  }, [showQrModal]);
 
   /**
    * Effect: Kiểm tra trạng thái đăng ký khi component mount
@@ -103,6 +120,41 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
     }
   };
 
+  /**
+   * Lấy vị trí và tạo mã QR
+   */
+  const handleGenerateQrCode = async () => {
+    setIsGeneratingQr(true);
+    if (!navigator.geolocation) {
+      alert("Trình duyệt của bạn không hỗ trợ định vị.");
+      setIsGeneratingQr(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const qrData = {
+          eventId: event.id,
+          userId: currentUserId,
+          timestamp: Date.now(),
+          coords: {
+            lat: latitude,
+            lng: longitude,
+          },
+        };
+        setQrValue(JSON.stringify(qrData));
+        setShowQrModal(true);
+        setIsGeneratingQr(false);
+      },
+      (error) => {
+        console.error("Lỗi lấy vị trí:", error);
+        alert("Không thể lấy được vị trí của bạn. Vui lòng bật quyền truy cập vị trí trong trình duyệt và thử lại.");
+        setIsGeneratingQr(false);
+      }
+    );
+  };
+
   const handleOpenScanner = () => {
     setScannerKey(prevKey => prevKey + 1);
     setShowScanner(true);
@@ -110,15 +162,70 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
     setIsPaused(false);
   };
 
-  const handleScanSuccess = (decodedText) => {
+  const handleScanSuccess = async (decodedText) => {
     if (isPausedRef.current) return;
     setIsPaused(true);
+
     try {
-      const data = JSON.parse(decodedText);
-      console.log("Đã quét được (chỉ 1 lần):", data);
-      setScanResult({ success: true, message: `Điểm danh thành công cho User ID: ${data.userId}` });
+      const qrData = JSON.parse(decodedText);
+
+      // --- BẮT ĐẦU LOGIC XÁC THỰC ---
+
+      // 1. Kiểm tra cấu trúc dữ liệu QR
+      if (!qrData.eventId || !qrData.userId || !qrData.timestamp || !qrData.coords?.lat || !qrData.coords?.lng) {
+        setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc thiếu dữ liệu.' });
+        return;
+      }
+      
+      // 2. Kiểm tra mã QR có đúng cho sự kiện này không
+      if (qrData.eventId !== event.id) {
+        setScanResult({ success: false, message: `Mã QR không thuộc sự kiện "${event.ten_su_kien}".` });
+        return;
+      }
+
+      // 3. Kiểm tra thời gian hiệu lực của mã QR (30 giây)
+      const timeElapsed = Date.now() - qrData.timestamp;
+      if (timeElapsed > 30000) {
+        setScanResult({ success: false, message: 'Mã QR đã hết hạn. Vui lòng yêu cầu sinh viên tạo lại mã mới.' });
+        return;
+      }
+
+      // 4. Lấy vị trí của người quét và so sánh
+      if (!navigator.geolocation) {
+        setScanResult({ success: false, message: 'Trình duyệt không hỗ trợ định vị để xác thực.' });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (scannerPosition) => {
+          const scannerCoords = {
+            latitude: scannerPosition.coords.latitude,
+            longitude: scannerPosition.coords.longitude,
+          };
+
+          const attendeeCoords = {
+            latitude: qrData.coords.lat,
+            longitude: qrData.coords.lng,
+          };
+
+          const distance = geolib.getDistance(scannerCoords, attendeeCoords);
+
+          if (distance <= 100) {
+            // TODO: Gọi API để ghi nhận điểm danh trên server
+            console.log("Điểm danh thành công cho:", qrData, "Khoảng cách:", distance, "m");
+            setScanResult({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}. Khoảng cách: ${distance}m.` });
+          } else {
+            setScanResult({ success: false, message: `Điểm danh thất bại. Khoảng cách quá xa (${distance}m > 100m).` });
+          }
+        },
+        (error) => {
+          console.error("Lỗi lấy vị trí người quét:", error);
+          setScanResult({ success: false, message: 'Không thể lấy được vị trí của bạn để xác thực. Vui lòng cấp quyền truy cập vị trí.' });
+        }
+      );
+
     } catch (error) {
-      setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc đã xảy ra lỗi.' });
+      setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc đã xảy ra lỗi khi đọc.' });
     }
   };
   
@@ -129,7 +236,6 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
 
   const handleScanFailure = (error) => { /* Bỏ qua lỗi khi không tìm thấy QR */ };
 
-  const qrValue = JSON.stringify({ eventId: event.id, userId: currentUserId, timestamp: Date.now() });
   const slotsRemaining = event.so_luong_toi_da - (event.so_da_dang_ky || 0);
   const isFull = slotsRemaining <= 0;
 
@@ -137,15 +243,19 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
     <>
       {/* Card hiển thị thông tin sự kiện */}
       <div className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-2 border-blue-200 rounded-xl p-6 mb-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{event.ten_su_kien}</h3>
-          {isEventOrganizer ? (
-            <span className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium border border-purple-200">👤 Người tổ chức</span>
-          ) : checkingRegistration ? (
-            <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm">Đang kiểm tra...</span>
-          ) : isRegistered ? (
-            <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">✓ Đã đăng ký</span>
-          ) : null}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-2">
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent order-2 sm:order-1 min-h-[3.5rem] flex items-top">
+            {event.ten_su_kien}
+          </h3>
+          <div className="flex-shrink-0 order-1 sm:order-2 self-end sm:self-start">
+            {isEventOrganizer ? (
+              <span className="flex-shrink-0 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium border border-purple-200">👤 Người tổ chức</span>
+            ) : checkingRegistration ? (
+              <span className="flex-shrink-0 bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm">Đang kiểm tra...</span>
+            ) : isRegistered ? (
+              <span className="flex-shrink-0 inline-flex items-center gap-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium border border-green-200"><Check size={14} /> Đã đăng ký</span>
+            ) : <span className="flex-shrink-0 inline-flex items-center gap-1 bg-gradient-to-r from-red-100 to-pink-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium border border-red-200"><X size={14} /> Chưa đăng ký</span>}
+          </div>
         </div>
         
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -161,7 +271,10 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
           ) : (
             <>
               {isRegistered ? (
-                <button onClick={() => setShowQrModal(true)} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium"><QrCodeIcon size={18} /><span>Lấy mã điểm danh</span></button>
+                <button onClick={handleGenerateQrCode} disabled={isGeneratingQr} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-60">
+                  <QrCodeIcon size={18} />
+                  <span>{isGeneratingQr ? 'Đang tạo mã...' : 'Lấy mã điểm danh'}</span>
+                </button>
               ) : (
                 <button onClick={handleRegisterEvent} disabled={isRegistering || isFull || checkingRegistration} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isRegistering ? 'Đang đăng ký...' : isFull ? 'Đã hết chỗ' : 'Đăng ký tham gia'}</button>
               )}
@@ -181,9 +294,12 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
             <div className="pt-16 pb-8 px-6 text-center">
               <h2 className="text-2xl font-bold text-gray-800">Lê Hà Bình</h2>
               <p className="text-gray-500 font-mono">21115053120105</p>
-              <div className="mt-6 mb-6"><div className="p-4 bg-white border-2 border-gray-200 rounded-lg inline-block shadow-inner"><QRCode value={qrValue} size={200} /></div></div>
+              <div className="mt-6 mb-6"><div className="p-4 bg-white border-2 border-gray-200 rounded-lg inline-block shadow-inner">
+                {qrValue ? <QRCode value={qrValue} size={200} /> : <p>Đang tạo mã QR...</p>}
+              </div></div>
               <p className="text-sm text-gray-600">Đưa mã này cho người tổ chức để điểm danh sự kiện:</p>
               <p className="mt-1 text-sm font-semibold text-blue-600 break-all">{event.ten_su_kien}</p>
+              <p className="mt-2 text-xs text-red-500 font-mono animate-pulse">Mã sẽ hết hạn sau 30 giây</p>
             </div>
           </div>
         </div>

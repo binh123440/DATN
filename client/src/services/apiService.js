@@ -23,6 +23,18 @@ export const layDanhSachBaiViet = async (page = 1, limit = 10) => {
   }
 };
 
+export const layDanhSachSuKien = async (page = 1, limit = 10) => {
+  try {
+    const response = await apiClient.get('/su-kien', {
+      params: { page, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách sự kiện:', error);
+    throw error;
+  }
+};
+
 export const taoBaiViet = async (data) => {
   try {
     const response = await apiClient.post('/bai-viet', data);

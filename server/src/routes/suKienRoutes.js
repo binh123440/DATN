@@ -2,10 +2,14 @@ import express from 'express';
 import {
   taoSuKien,
   dangKySuKien,
-  kiemTraDangKy
+  kiemTraDangKy,
+  layDanhSachSuKien
 } from '../controllers/suKienController.js';
 
 const router = express.Router();
+
+// GET /api/su-kien - Lấy danh sách sự kiện
+router.get('/', layDanhSachSuKien);
 
 // POST /api/su-kien - Tạo sự kiện mới
 router.post('/', taoSuKien);

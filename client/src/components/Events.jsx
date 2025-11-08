@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Calendar, MapPin, Users, Gift, Plus, Filter } from 'lucide-react'
-// import { layDanhSachSuKien } from '../services/apiService';
+import { layDanhSachSuKien } from '../services/apiService';
 import EventCard from './EventCard'; // Sử dụng lại EventCard đã được tối ưu
 
 const Events = ({ currentUser }) => {
@@ -14,20 +14,12 @@ const Events = ({ currentUser }) => {
   const fetchEvents = async () => {
     setIsLoading(true)
     try {
-      // TODO: Thay thế bằng API lấy danh sách sự kiện thật
-      // const response = await layDanhSachSuKien();
-      // setEvents(response.data.su_kiens || []);
-      
-      // Dữ liệu giả để test giao diện
-      const mockEvents = [
-        { id: 1, id_nguoi_tao: 99, ten_su_kien: 'Workshop: AI trong giáo dục hiện đại', thoi_gian_bat_dau: '2025-08-25T14:00:00', dia_diem: 'Hội trường - Khu B', so_da_dang_ky: 67, so_luong_toi_da: 100, diem_thuong: 80 },
-        { id: 2, id_nguoi_tao: 99, ten_su_kien: 'Hội thảo định hướng nghề nghiệp', thoi_gian_bat_dau: '2025-08-28T09:00:00', dia_diem: 'Phòng 101 - Khu A', so_da_dang_ky: 45, so_luong_toi_da: 80, diem_thuong: 60 },
-        { id: 3, id_nguoi_tao: 1, ten_su_kien: 'Cuộc thi lập trình ACM', thoi_gian_bat_dau: '2025-08-30T13:00:00', dia_diem: 'Phòng Lab 1 - Khu B', so_da_dang_ky: 24, so_luong_toi_da: 40, diem_thuong: 100 },
-      ]
-      setEvents(mockEvents)
-
+      const response = await layDanhSachSuKien();
+      // Giả sử API trả về dữ liệu trong response.data.su_kiens
+      setEvents(response.data.su_kiens || []);
     } catch (error) {
       console.error("Lỗi khi tải danh sách sự kiện:", error)
+      setEvents([]); // Đặt lại danh sách sự kiện thành mảng rỗng khi có lỗi
     } finally {
       setIsLoading(false)
     }
