@@ -9,6 +9,20 @@ const apiClient = axios.create({
   },
 });
 
+// Thêm Interceptor để đính kèm token vào mỗi request
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // ===== BÀI VIẾT =====
 
 export const layDanhSachBaiViet = async (page = 1, limit = 10) => {
