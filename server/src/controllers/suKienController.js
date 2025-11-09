@@ -1,5 +1,6 @@
 import db from '../models/index.js';
-const { SuKien, BaiViet, NguoiDung, DangKySuKien } = db;
+import * as geolib from 'geolib';
+const { SuKien, BaiViet, NguoiDung, DangKySuKien, sequelize } = db;
 
 // Lấy danh sách sự kiện
 export const layDanhSachSuKien = async (req, res) => {
@@ -201,36 +202,85 @@ export const dangKySuKien = async (req, res) => {
 // Kiểm tra trạng thái đăng ký
 export const kiemTraDangKy = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id: id_su_kien } = req.params;
     const { id_nguoi_dung } = req.query;
 
-    if (!id_nguoi_dung) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu id_nguoi_dung'
-      });
-    }
-
     const dangKy = await DangKySuKien.findOne({
-      where: {
-        id_nguoi_dung,
-        id_su_kien: id
-      }
+      where: { id_su_kien, id_nguoi_dung }
     });
 
     res.json({
       success: true,
       data: {
         da_dang_ky: !!dangKy,
-        thong_tin: dangKy || null
+        da_diem_danh: !!dangKy?.ngay_gio_diem_danh // Trả về trạng thái đã điểm danh
       }
     });
   } catch (error) {
     console.error('Lỗi khi kiểm tra đăng ký:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// Điểm danh sự kiện
+export const diemDanhSuKien = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id: id_su_kien_param } = req.params;
+    const { qrDataString, scannerCoords } = req.body;
+    const id_nguoi_quet = req.user.id; // Lấy từ token
+
+    // 1. Parse và xác thực dữ liệu QR
+    const qrData = JSON.parse(qrDataString);
+    if (!qrData.eventId || !qrData.userId || !qrData.timestamp || !qrData.coords?.lat) {
+      return res.status(400).json({ success: false, message: 'Mã QR không hợp lệ.' });
+    }
+    
+    // 2. Kiểm tra sự kiện và quyền của người quét
+    const suKien = await SuKien.findByPk(qrData.eventId);
+    if (!suKien || suKien.id.toString() !== id_su_kien_param) {
+      return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại hoặc mã QR không khớp.' });
+    }
+    if (suKien.id_nguoi_tao !== id_nguoi_quet) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền điểm danh cho sự kiện này.' });
+    }
+
+    // 3. Kiểm tra thời gian hiệu lực (30 giây)
+    if (Date.now() - qrData.timestamp > 30000) {
+      return res.status(400).json({ success: false, message: 'Mã QR đã hết hạn.' });
+    }
+
+    // 4. Kiểm tra khoảng cách (100m)
+    const distance = geolib.getDistance(scannerCoords, { latitude: qrData.coords.lat, longitude: qrData.coords.lng });
+    if (distance > 100) {
+      return res.status(400).json({ success: false, message: `Khoảng cách quá xa (${distance}m > 100m).` });
+    }
+
+    // 5. Cập nhật điểm danh và cộng điểm
+    const dangKy = await DangKySuKien.findOne({ where: { id_su_kien: suKien.id, id_nguoi_dung: qrData.userId } });
+    if (!dangKy) {
+      return res.status(404).json({ success: false, message: 'Sinh viên này chưa đăng ký sự kiện.' });
+    }
+    if (dangKy.ngay_gio_diem_danh) {
+      return res.status(400).json({ success: false, message: 'Sinh viên này đã được điểm danh trước đó.' });
+    }
+
+    // Cập nhật thời gian điểm danh
+    dangKy.ngay_gio_diem_danh = new Date();
+    await dangKy.save({ transaction });
+
+    // Cộng điểm cho người dùng
+    await NguoiDung.increment('diem_tich_luy', { by: suKien.diem_thuong, where: { id: qrData.userId }, transaction });
+
+    await transaction.commit();
+    res.json({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}.` });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Lỗi khi điểm danh:', error);
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ success: false, message: 'Mã QR có định dạng không đúng.' });
+    }
+    res.status(500).json({ success: false, message: 'Lỗi server khi điểm danh.' });
   }
 };

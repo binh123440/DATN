@@ -93,4 +93,17 @@ export const kiemTraDangKySuKien = async (idSuKien, idNguoiDung) => {
   }
 };
 
+export const diemDanhSuKien = async (idSuKien, qrDataString, scannerCoords) => {
+  try {
+    const response = await apiClient.post(`/su-kien/${idSuKien}/diem-danh`, {
+      qrDataString,
+      scannerCoords
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi điểm danh sự kiện:', error);
+    throw error;
+  }
+};
+
 export default apiClient;

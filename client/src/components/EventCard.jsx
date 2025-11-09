@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine, Check } from 'lucide-react';
-import { dangKySuKien, kiemTraDangKySuKien } from '../services/apiService';
+// Thêm hàm diemDanhSuKien vào import
+import { dangKySuKien, kiemTraDangKySuKien, diemDanhSuKien } from '../services/apiService';
 import * as geolib from 'geolib';
 
 // --- Component con: QrCodeScanner ---
@@ -44,6 +45,7 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   isPausedRef.current = isPaused;
 
   const [isRegistered, setIsRegistered] = useState(false);
+  const [hasAttended, setHasAttended] = useState(false); // State mới để theo dõi điểm danh
   const [isRegistering, setIsRegistering] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
@@ -64,34 +66,25 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
   }, [showQrModal]);
 
   /**
-   * Effect: Kiểm tra trạng thái đăng ký khi component mount
+   * Effect: Kiểm tra trạng thái đăng ký và điểm danh
    */
   useEffect(() => {
-    const checkRegistrationStatus = async () => {
-      // Nếu là người tạo sự kiện thì không cần kiểm tra đăng ký
-      if (isEventOrganizer) {
+    const checkStatus = async () => {
+      if (isEventOrganizer || !event.id || !currentUserId) {
         setCheckingRegistration(false);
         return;
       }
-
-      // Validate input
-      if (!event.id || !currentUserId) {
-        setCheckingRegistration(false);
-        return;
-      }
-
       try {
-        // ✅ SỬA: Gọi API thật thay vì hardcode
         const response = await kiemTraDangKySuKien(event.id, currentUserId);
         setIsRegistered(response.data?.da_dang_ky || false);
+        setHasAttended(response.data?.da_diem_danh || false); // Cập nhật trạng thái điểm danh
       } catch (error) {
-        console.error('Lỗi khi kiểm tra đăng ký:', error);
+        console.error('Lỗi khi kiểm tra trạng thái:', error);
       } finally {
         setCheckingRegistration(false);
       }
     };
-
-    checkRegistrationStatus();
+    checkStatus();
   }, [event.id, currentUserId, isEventOrganizer]);
 
   /**
@@ -166,67 +159,34 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
     if (isPausedRef.current) return;
     setIsPaused(true);
 
-    try {
-      const qrData = JSON.parse(decodedText);
-
-      // --- BẮT ĐẦU LOGIC XÁC THỰC ---
-
-      // 1. Kiểm tra cấu trúc dữ liệu QR
-      if (!qrData.eventId || !qrData.userId || !qrData.timestamp || !qrData.coords?.lat || !qrData.coords?.lng) {
-        setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc thiếu dữ liệu.' });
-        return;
-      }
-      
-      // 2. Kiểm tra mã QR có đúng cho sự kiện này không
-      if (qrData.eventId !== event.id) {
-        setScanResult({ success: false, message: `Mã QR không thuộc sự kiện "${event.ten_su_kien}".` });
-        return;
-      }
-
-      // 3. Kiểm tra thời gian hiệu lực của mã QR (30 giây)
-      const timeElapsed = Date.now() - qrData.timestamp;
-      if (timeElapsed > 30000) {
-        setScanResult({ success: false, message: 'Mã QR đã hết hạn. Vui lòng yêu cầu sinh viên tạo lại mã mới.' });
-        return;
-      }
-
-      // 4. Lấy vị trí của người quét và so sánh
-      if (!navigator.geolocation) {
-        setScanResult({ success: false, message: 'Trình duyệt không hỗ trợ định vị để xác thực.' });
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (scannerPosition) => {
-          const scannerCoords = {
-            latitude: scannerPosition.coords.latitude,
-            longitude: scannerPosition.coords.longitude,
-          };
-
-          const attendeeCoords = {
-            latitude: qrData.coords.lat,
-            longitude: qrData.coords.lng,
-          };
-
-          const distance = geolib.getDistance(scannerCoords, attendeeCoords);
-
-          if (distance <= 100) {
-            // TODO: Gọi API để ghi nhận điểm danh trên server
-            console.log("Điểm danh thành công cho:", qrData, "Khoảng cách:", distance, "m");
-            setScanResult({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}. Khoảng cách: ${distance}m.` });
-          } else {
-            setScanResult({ success: false, message: `Điểm danh thất bại. Khoảng cách quá xa (${distance}m > 100m).` });
-          }
-        },
-        (error) => {
-          console.error("Lỗi lấy vị trí người quét:", error);
-          setScanResult({ success: false, message: 'Không thể lấy được vị trí của bạn để xác thực. Vui lòng cấp quyền truy cập vị trí.' });
-        }
-      );
-
-    } catch (error) {
-      setScanResult({ success: false, message: 'Mã QR không hợp lệ hoặc đã xảy ra lỗi khi đọc.' });
+    if (!navigator.geolocation) {
+      setScanResult({ success: false, message: 'Trình duyệt không hỗ trợ định vị để xác thực.' });
+      return;
     }
+
+    // Lấy vị trí của người quét trước khi gọi API
+    navigator.geolocation.getCurrentPosition(
+      async (scannerPosition) => {
+        const scannerCoords = {
+          latitude: scannerPosition.coords.latitude,
+          longitude: scannerPosition.coords.longitude,
+        };
+        
+        try {
+          // Gọi API để server xử lý toàn bộ logic xác thực
+          const response = await diemDanhSuKien(event.id, decodedText, scannerCoords);
+          setScanResult({ success: true, message: response.message });
+          if (onRefresh) onRefresh(); // Tải lại danh sách sự kiện để cập nhật số người
+        } catch (error) {
+          // Hiển thị lỗi từ server
+          setScanResult({ success: false, message: error.response?.data?.message || 'Điểm danh thất bại. Đã xảy ra lỗi không xác định.' });
+        }
+      },
+      (error) => {
+        console.error("Lỗi lấy vị trí người quét:", error);
+        setScanResult({ success: false, message: 'Không thể lấy vị trí của bạn để xác thực. Vui lòng cấp quyền truy cập vị trí.' });
+      }
+    );
   };
   
   const handleCloseResultModal = () => {
@@ -271,10 +231,19 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
           ) : (
             <>
               {isRegistered ? (
-                <button onClick={handleGenerateQrCode} disabled={isGeneratingQr} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-60">
-                  <QrCodeIcon size={18} />
-                  <span>{isGeneratingQr ? 'Đang tạo mã...' : 'Lấy mã điểm danh'}</span>
-                </button>
+                hasAttended ? (
+                  // Hiển thị khi đã điểm danh thành công
+                  <div className="flex-1 text-center bg-green-100 text-green-800 py-3 px-4 rounded-lg font-medium border border-green-200 flex items-center justify-center gap-2">
+                    <Check size={18} />
+                    <span>Đã điểm danh</span>
+                  </div>
+                ) : (
+                  // Hiển thị nút lấy mã khi chưa điểm danh
+                  <button onClick={handleGenerateQrCode} disabled={isGeneratingQr} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-60">
+                    <QrCodeIcon size={18} />
+                    <span>{isGeneratingQr ? 'Đang tạo mã...' : 'Lấy mã điểm danh'}</span>
+                  </button>
+                )
               ) : (
                 <button onClick={handleRegisterEvent} disabled={isRegistering || isFull || checkingRegistration} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isRegistering ? 'Đang đăng ký...' : isFull ? 'Đã hết chỗ' : 'Đăng ký tham gia'}</button>
               )}
