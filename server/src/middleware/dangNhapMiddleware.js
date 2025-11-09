@@ -23,10 +23,8 @@ export const xacThucToken = (req, res, next) => {
       process.env.JWT_SECRET || 'ute-social-secret-key-2024'
     );
 
-    // Lưu userId vào request để sử dụng ở các handler khác
-    req.userId = decoded.id;
-    req.userEmail = decoded.email;
-    req.userRole = decoded.vai_tro;
+    // Lưu toàn bộ thông tin đã giải mã vào req.user
+    req.user = decoded;
 
     next();
   } catch (error) {
@@ -44,10 +42,11 @@ export const xacThucToken = (req, res, next) => {
       });
     }
 
+    // Lỗi không xác định khác
+    console.error('Lỗi xác thực token:', error);
     return res.status(500).json({
       success: false,
-      message: 'Lỗi xác thực token',
-      error: error.message
+      message: 'Lỗi server khi xác thực token'
     });
   }
 };
@@ -57,20 +56,12 @@ export const xacThucToken = (req, res, next) => {
  */
 export const kiemTraVaiTro = (...vaiTroChoPhep) => {
   return (req, res, next) => {
-    if (!req.userRole) {
-      return res.status(401).json({
-        success: false,
-        message: 'Chưa xác thực'
-      });
-    }
-
-    if (!vaiTroChoPhep.includes(req.userRole)) {
+    if (!req.user || !vaiTroChoPhep.includes(req.user.vai_tro)) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền truy cập tính năng này'
       });
     }
-
     next();
   };
 };

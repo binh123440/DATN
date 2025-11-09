@@ -14,9 +14,9 @@ export const sequelize = new Sequelize(
     dialect: 'postgres',
     logging: false, // Tắt logging SQL queries, bật lên khi debug: console.log
     pool: {
-      max: 5,        // Số kết nối tối đa
+      max: 10,        // Số kết nối tối đa
       min: 0,        // Số kết nối tối thiểu
-      acquire: 30000, // Thời gian chờ tối đa để lấy kết nối (ms)
+      acquire: 60000, // Thời gian chờ tối đa để lấy kết nối (ms)
       idle: 10000    // Thời gian tối đa một kết nối có thể idle (ms)
     },
     define: {

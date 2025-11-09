@@ -33,7 +33,10 @@ const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
 
 
 // --- Component chính: EventCard ---
-const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
+const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) => {
+  // ✅ BƯỚC 1: Tạo state cục bộ cho dữ liệu sự kiện
+  const [event, setEvent] = useState(initialEvent);
+
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrValue, setQrValue] = useState('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
@@ -51,22 +54,51 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
 
   const isEventOrganizer = event.id_nguoi_tao === currentUserId;
 
-  // Sử dụng useEffect để quản lý timer đóng modal
+  // Sử dụng useEffect để quản lý timer và polling
   useEffect(() => {
-    let timer;
+    let qrExpiryTimer;
+    let attendancePollInterval;
+
     if (showQrModal) {
-      // Tự động đóng modal sau 30 giây
-      timer = setTimeout(() => {
+      // 1. Timer tự động đóng mã QR sau 30 giây
+      qrExpiryTimer = setTimeout(() => {
         setShowQrModal(false);
         alert("Mã QR đã hết hạn. Vui lòng tạo mã mới.");
-      }, 30000); 
+      }, 30000);
+
+      // 2. Bắt đầu polling để kiểm tra trạng thái điểm danh mỗi 3 giây
+      attendancePollInterval = setInterval(async () => {
+        try {
+          const response = await kiemTraDangKySuKien(event.id, currentUserId);
+          if (response.data?.da_diem_danh) {
+            // Nếu đã điểm danh thành công
+            setShowQrModal(false); // Đóng modal QR
+            setHasAttended(true);  // Cập nhật UI sang "Đã điểm danh"
+            alert('Điểm danh thành công!'); // Thông báo cho sinh viên
+            
+            // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+            setEvent(prevEvent => ({
+              ...prevEvent,
+              so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
+            }));
+            // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+            // if (onRefresh) onRefresh(); 
+          }
+        } catch (error) {
+          console.error("Lỗi khi polling trạng thái điểm danh:", error);
+        }
+      }, 2000); // Kiểm tra mỗi 2 giây
     }
-    // Dọn dẹp timer khi component unmount hoặc modal bị đóng
-    return () => clearTimeout(timer);
-  }, [showQrModal]);
+
+    // Dọn dẹp khi component unmount hoặc modal bị đóng
+    return () => {
+      clearTimeout(qrExpiryTimer);
+      clearInterval(attendancePollInterval);
+    };
+  }, [showQrModal, event.id, currentUserId, onRefresh]);
 
   /**
-   * Effect: Kiểm tra trạng thái đăng ký và điểm danh
+   * Effect: Kiểm tra trạng thái đăng ký và điểm danh ban đầu
    */
   useEffect(() => {
     const checkStatus = async () => {
@@ -98,13 +130,19 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
 
     setIsRegistering(true);
     try {
-      // ✅ SỬA: Gọi API thật
       const response = await dangKySuKien(event.id, currentUserId);
       
       if (response.success) {
         setIsRegistered(true);
         alert('Đăng ký sự kiện thành công!');
-        if (onRefresh) onRefresh();
+        
+        // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+        setEvent(prevEvent => ({
+          ...prevEvent,
+          so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
+        }));
+        // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+        // if (onRefresh) onRefresh();
       }
     } catch (error) {
       alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
@@ -176,9 +214,16 @@ const EventCard = ({ event, currentUserId, userRole, onRefresh }) => {
           // Gọi API để server xử lý toàn bộ logic xác thực
           const response = await diemDanhSuKien(event.id, decodedText, scannerCoords);
           setScanResult({ success: true, message: response.message });
-          if (onRefresh) onRefresh(); // Tải lại danh sách sự kiện để cập nhật số người
+          
+          // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+          setEvent(prevEvent => ({
+            ...prevEvent,
+            so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
+          }));
+          // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+          // if (onRefresh) onRefresh();
         } catch (error) {
-          // Hiển thị lỗi từ server
+          // Hiển thị lỗi từ server cho người quét
           setScanResult({ success: false, message: error.response?.data?.message || 'Điểm danh thất bại. Đã xảy ra lỗi không xác định.' });
         }
       },

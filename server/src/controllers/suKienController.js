@@ -270,7 +270,7 @@ export const diemDanhSuKien = async (req, res) => {
     await dangKy.save({ transaction });
 
     // Cộng điểm cho người dùng
-    await NguoiDung.increment('diem_tich_luy', { by: suKien.diem_thuong, where: { id: qrData.userId }, transaction });
+    await NguoiDung.increment('tong_diem', { by: suKien.diem_thuong, where: { id: qrData.userId }, transaction });
 
     await transaction.commit();
     res.json({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}.` });
