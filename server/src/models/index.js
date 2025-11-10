@@ -101,9 +101,14 @@ SuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_duyet', as: 'nguoi_duyet' })
 BaiViet.hasOne(SuKien, { foreignKey: 'id_bai_viet', as: 'su_kien' });
 SuKien.belongsTo(BaiViet, { foreignKey: 'id_bai_viet', as: 'bai_viet' });
 
-// Thêm 2 dòng này để định nghĩa quan hệ trực tiếp 1-N
+// Sự kiện - Đăng ký sự kiện (1-N)
 SuKien.hasMany(DangKySuKien, { foreignKey: 'id_su_kien', as: 'luot_dang_ky' });
 DangKySuKien.belongsTo(SuKien, { foreignKey: 'id_su_kien', as: 'su_kien' });
+
+// Người dùng - Đăng ký sự kiện (1-N)
+NguoiDung.hasMany(DangKySuKien, { foreignKey: 'id_nguoi_dung', as: 'cac_lan_dang_ky' });
+DangKySuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_dung', as: 'nguoi_dang_ky' });
+
 
 // NguoiDung - DangKySuKien - SuKien (M-N)
 NguoiDung.belongsToMany(SuKien, {

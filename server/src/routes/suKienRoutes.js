@@ -4,9 +4,10 @@ import {
   dangKySuKien, 
   kiemTraDangKy, 
   layDanhSachSuKien,
-  diemDanhSuKien // Thêm import
+  diemDanhSuKien,
+  layThongKeDiemDanh // Thêm import
 } from '../controllers/suKienController.js';
-import { xacThucToken } from '../middleware/dangNhapMiddleware.js';
+import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
 const router = Router();
 
@@ -24,5 +25,8 @@ router.get('/:id/kiem-tra-dang-ky', xacThucToken, kiemTraDangKy);
 
 // POST /api/su-kien/:id/diem-danh - Điểm danh sự kiện
 router.post('/:id/diem-danh', xacThucToken, diemDanhSuKien);
+
+// GET /api/su-kien/:id/thong-ke - Lấy thống kê điểm danh
+router.get('/:id/thong-ke', xacThucToken, layThongKeDiemDanh);
 
 export default router;

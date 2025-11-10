@@ -120,4 +120,14 @@ export const diemDanhSuKien = async (idSuKien, qrDataString, scannerCoords) => {
   }
 };
 
+export const layThongKeDiemDanh = async (idSuKien) => {
+  try {
+    const response = await apiClient.get(`/su-kien/${idSuKien}/thong-ke`);
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy thống kê:', error);
+    throw error;
+  }
+};
+
 export default apiClient;

@@ -284,3 +284,37 @@ export const diemDanhSuKien = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server khi điểm danh.' });
   }
 };
+
+// Lấy thống kê điểm danh cho một sự kiện
+export const layThongKeDiemDanh = async (req, res) => {
+  try {
+    const { id: id_su_kien } = req.params;
+    const { id: id_nguoi_dung, vai_tro } = req.user;
+
+    const suKien = await SuKien.findByPk(id_su_kien);
+    if (!suKien) {
+      return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại.' });
+    }
+
+    // Chỉ người tạo sự kiện hoặc admin mới có quyền xem
+    if (suKien.id_nguoi_tao !== id_nguoi_dung && vai_tro !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập tài nguyên này.' });
+    }
+
+    const danhSachDangKy = await DangKySuKien.findAll({
+      where: { id_su_kien },
+      include: [{
+        model: NguoiDung,
+        as: 'nguoi_dang_ky',
+        attributes: ['ho_ten', 'email', 'ma_sinh_vien']
+      }],
+      order: [['ngay_gio_diem_danh', 'DESC'], ['ngay_gio_dang_ky', 'ASC']]
+    });
+
+    res.json({ success: true, data: danhSachDangKy });
+
+  } catch (error) {
+    console.error('Lỗi khi lấy thống kê điểm danh:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};

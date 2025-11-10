@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom'; // Thêm Link
+import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine, Check, BarChart3 } from 'lucide-react'; // Thêm BarChart3
 import QRCode from 'react-qr-code';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine, Check } from 'lucide-react';
-// Thêm hàm diemDanhSuKien vào import
 import { dangKySuKien, kiemTraDangKySuKien, diemDanhSuKien } from '../services/apiService';
 import * as geolib from 'geolib';
 
@@ -53,6 +53,8 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   const isEventOrganizer = event.id_nguoi_tao === currentUserId;
+  // Giả sử bạn có thông tin vai trò từ context hoặc props
+  const isAdmin = userRole === 'admin'; 
 
   // Sử dụng useEffect để quản lý timer và polling
   useEffect(() => {
@@ -272,7 +274,12 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
         
         <div className="flex space-x-3">
           {isEventOrganizer ? (
-            <button onClick={handleOpenScanner} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"><ScanLine size={18} /><span>Quét mã điểm danh</span></button>
+            <>
+              <button onClick={handleOpenScanner} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"><ScanLine size={18} /><span>Quét mã</span></button>
+              <Link to={`/events/${event.id}/thong-ke`} className="bg-gray-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-700 transition-all shadow-lg font-medium">
+                <BarChart3 size={18} />
+              </Link>
+            </>
           ) : (
             <>
               {isRegistered ? (

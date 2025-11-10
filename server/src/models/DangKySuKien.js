@@ -31,7 +31,7 @@ const DangKySuKien = sequelize.define('DangKySuKien', {
     allowNull: false,
     defaultValue: 'da_dang_ky'
   },
-  ngay_dang_ky: {
+  ngay_gio_dang_ky: {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW

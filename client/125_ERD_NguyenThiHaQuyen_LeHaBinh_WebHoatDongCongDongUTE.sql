@@ -39,6 +39,7 @@ CREATE TABLE "Nganh" (
 CREATE TABLE "NguoiDung" (
     "id" SERIAL PRIMARY KEY,
     "ho_ten" VARCHAR(255) NOT NULL,
+	"ma_sinh_vien" VARCHAR(255) UNIQUE NOT NULL,
     "email" VARCHAR(255) UNIQUE NOT NULL,
     "mat_khau_bam" VARCHAR(255) NOT NULL,
     "vai_tro" vai_tro_nguoi_dung_enum NOT NULL,
@@ -149,7 +150,7 @@ CREATE TABLE "DangKySuKien" (
     "id_nguoi_dung" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
     "id_su_kien" INT NOT NULL REFERENCES "SuKien"("id") ON DELETE CASCADE,
     "trang_thai" trang_thai_dang_ky_enum NOT NULL DEFAULT 'da_dang_ky',
-    "ngay_dang_ky" TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- ✅ Đã sửa từ "ngay_gio_dang_ky"
+    "ngay_gio_dang_ky" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "ngay_gio_diem_danh" TIMESTAMPTZ, -- ✅ Đã thêm cột này
     UNIQUE("id_nguoi_dung", "id_su_kien")
 );
@@ -201,19 +202,19 @@ INSERT INTO "Nganh" ("ten_nganh", "id_khoa") VALUES
 
 -- Thêm thêm một số người dùng để có nhiều tác giả khác nhau
 INSERT INTO "NguoiDung" (
-    "ho_ten", "email", "mat_khau_bam", "vai_tro", 
+    "ho_ten", "ma_sinh_vien", "email", "mat_khau_bam", "vai_tro", 
     "id_nganh", "lop_sh", "tong_diem"
 ) VALUES
-    ('Phạm Minh Tuấn', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 1, '21DTHD1', 850),
-    ('Nguyễn Thị Hương', 'huongnt@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '21ATTT1', 920),
-    ('Trần Văn Đức', 'ductv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD2', 780),
-    ('Lê Thị Mai', 'mailt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 3, '21TDHH1', 1100),
-    ('Hoàng Văn Nam', 'namhv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD1', 950),
-    ('Vũ Thị Lan', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
-	('Lê Hà Bình', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '22T1', 870),
-	('Lê Kìm Nam', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21T1', 870),
-	('Lê Ngọc Hào', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
-    ('Đỗ Minh Khoa', 'khoadm@ute.edu.vn', '$2a$10$hashed_password', 'dieu_phoi_vien', NULL, NULL, 0);
+    ('Phạm Minh Tuấn', '21115053120101', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 1, '21DTHD1', 850),
+    ('Nguyễn Thị Hương', '21115053120102', 'huongnt@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '21ATTT1', 920),
+    ('Trần Văn Đức', '21115053120103', 'ductv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD2', 780),
+    ('Lê Thị Mai', '21115053120104', 'mailt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 3, '21TDHH1', 1100),
+    ('Hoàng Văn Nam', '21115053120106', 'namhv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD1', 950),
+    ('Vũ Thị Lan', '21115053120107', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
+	('Lê Hà Bình', '21115053120105', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '22T1', 870),
+	('Lê Kìm Nam', '21115053120108', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21T1', 870),
+	('Lê Ngọc Hào', '21115053120109', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
+    ('Đỗ Minh Khoa', '21115053120110', 'khoadm@ute.edu.vn', '$2a$10$hashed_password', 'dieu_phoi_vien', NULL, NULL, 0);
 
 -- === THÊM 10 BÀI VIẾT MẪU ===
 
@@ -603,7 +604,7 @@ VALUES
     (4, 7, 'Trận chung kết hôm qua thật sự kịch tính! Xứng đáng là nhà vô địch!', NOW() - INTERVAL '23 hours');
 
 -- Thêm đăng ký cho một số sự kiện
-INSERT INTO "DangKySuKien" ("id_nguoi_dung", "id_su_kien", "trang_thai", "ngay_dang_ky")
+INSERT INTO "DangKySuKien" ("id_nguoi_dung", "id_su_kien", "trang_thai", "ngay_gio_dang_ky")
 VALUES
     (1, 1, 'da_dang_ky', NOW() - INTERVAL '30 minutes'),
     (4, 1, 'da_dang_ky', NOW() - INTERVAL '1 hour'),
