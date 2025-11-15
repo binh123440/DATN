@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, NavLink } from 'react-router-dom';
 import { 
   Home, 
   Users, 
@@ -9,7 +9,8 @@ import {
   Gift, 
   Settings,
   User,
-  Wifi
+  Wifi,
+  ShieldCheck
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -35,6 +36,13 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
     { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' }
   ];
+
+  // Giả sử bạn có thông tin người dùng từ một context hoặc props
+  // const { currentUser } = useAuth(); 
+  // const userRole = currentUser?.vai_tro;
+
+  // Để ví dụ, ta sẽ hardcode vai trò
+  const userRole = 'admin'; // Thay bằng logic lấy vai trò thực tế
 
   return (
     <>
@@ -63,6 +71,19 @@ const Sidebar = ({ isOpen, onClose }) => {
                 </Link>
               </li>
             ))}
+
+            {/* Link cho Admin và Điều phối viên */}
+            {(userRole === 'admin' || userRole === 'dieu_phoi_vien') && (
+              <li>
+                <NavLink 
+                  to="/duyet-bai" 
+                  className={({ isActive }) => `flex items-center space-x-3 p-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-600 font-semibold' : 'hover:bg-gray-100'}`}
+                >
+                  <ShieldCheck size={20} />
+                  <span>Kiểm Duyệt</span>
+                </NavLink>
+              </li>
+            )}
           </ul>
         </nav>
       </div>
@@ -115,6 +136,20 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </Link>
                   </li>
                 ))}
+                
+                {/* Link cho Admin và Điều phối viên */}
+                {(userRole === 'admin' || userRole === 'dieu_phoi_vien') && (
+                  <li>
+                    <NavLink 
+                      to="/duyet-bai" 
+                      onClick={handleClose}
+                      className={({ isActive }) => `flex items-center space-x-3 p-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-600 font-semibold' : 'hover:bg-gray-100'}`}
+                    >
+                      <ShieldCheck size={20} />
+                      <span>Kiểm Duyệt</span>
+                    </NavLink>
+                  </li>
+                )}
               </ul>
             </nav>
 

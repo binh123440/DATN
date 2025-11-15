@@ -4,26 +4,21 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' }
 });
 
-// Thêm Interceptor để đính kèm token vào mỗi request
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+apiClient.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// ===== BÀI VIẾT =====
+export const taoBaiVietVoiMedia = async (formData) => {
+  const response = await apiClient.post('/bai-viet', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
 
 export const layDanhSachBaiViet = async (page = 1, limit = 10) => {
   try {
@@ -70,6 +65,15 @@ export const thichBaiViet = async (idBaiViet, idNguoiDung) => {
     throw error;
   }
 };
+export const xoaBaiViet = async (id) => {
+  try {
+    const response = await apiClient.delete(`/bai-viet/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi xóa bài viết:', error);
+    throw error;
+  }
+};
 
 // ===== SỰ KIỆN =====
 
@@ -85,9 +89,7 @@ export const taoSuKien = async (data) => {
 
 export const dangKySuKien = async (idSuKien, idNguoiDung) => {
   try {
-    const response = await apiClient.post(`/su-kien/${idSuKien}/dang-ky`, {
-      id_nguoi_dung: idNguoiDung
-    });
+    const response = await apiClient.post(`/su-kien/${idSuKien}/dang-ky`, { id_nguoi_dung: idNguoiDung });
     return response.data;
   } catch (error) {
     console.error('Lỗi khi đăng ký sự kiện:', error);
@@ -97,9 +99,7 @@ export const dangKySuKien = async (idSuKien, idNguoiDung) => {
 
 export const kiemTraDangKySuKien = async (idSuKien, idNguoiDung) => {
   try {
-    const response = await apiClient.get(`/su-kien/${idSuKien}/kiem-tra-dang-ky`, {
-      params: { id_nguoi_dung: idNguoiDung }
-    });
+    const response = await apiClient.get(`/su-kien/${idSuKien}/kiem-tra-dang-ky`, { params: { id_nguoi_dung: idNguoiDung } });
     return response.data;
   } catch (error) {
     console.error('Lỗi khi kiểm tra đăng ký:', error);
@@ -109,10 +109,7 @@ export const kiemTraDangKySuKien = async (idSuKien, idNguoiDung) => {
 
 export const diemDanhSuKien = async (idSuKien, qrDataString, scannerCoords) => {
   try {
-    const response = await apiClient.post(`/su-kien/${idSuKien}/diem-danh`, {
-      qrDataString,
-      scannerCoords
-    });
+    const response = await apiClient.post(`/su-kien/${idSuKien}/diem-danh`, { qrDataString, scannerCoords });
     return response.data;
   } catch (error) {
     console.error('Lỗi khi điểm danh sự kiện:', error);
@@ -126,6 +123,29 @@ export const layThongKeDiemDanh = async (idSuKien) => {
     return response.data;
   } catch (error) {
     console.error('Lỗi khi lấy thống kê:', error);
+    throw error;
+  }
+};
+
+// ===== KIỂM DUYỆT =====
+export const layDanhSachChoDuyet = async () => {
+  try {
+    // Lưu ý đường dẫn mới: /api/su-kien/duyet
+    const response = await apiClient.get('/su-kien/duyet');
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách chờ duyệt:', error);
+    throw error;
+  }
+};
+
+export const capNhatTrangThaiNoiDung = async (id, loai, trang_thai_moi) => {
+  try {
+    // Lưu ý đường dẫn mới: /api/su-kien/duyet/cap-nhat-trang-thai
+    const response = await apiClient.patch('/su-kien/duyet/cap-nhat-trang-thai', { id, loai, trang_thai_moi });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi cập nhật trạng thái:', error);
     throw error;
   }
 };

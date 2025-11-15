@@ -102,10 +102,11 @@ const PostComposer = ({ onCreatePost, currentUserId }) => {
 };
 
 /**
- * Component PostCard - Thẻ hiển thị bài viết thường
+ * Component PostActions - Các nút Thích, Bình luận, Chia sẻ
  */
-const PostCard = ({ post, currentUserId }) => {
-  const [liked, setLiked] = useState(false);
+const PostActions = ({ post, currentUserId }) => {
+  // ✅ Khởi tạo state 'liked' từ dữ liệu API
+  const [liked, setLiked] = useState(post.da_thich || false);
   const [likes, setLikes] = useState(post.so_luot_thich || 0);
   const [isLiking, setIsLiking] = useState(false);
 
@@ -116,9 +117,11 @@ const PostCard = ({ post, currentUserId }) => {
     const newLikes = newLiked ? likes + 1 : likes - 1;
     setLiked(newLiked);
     setLikes(newLikes);
+    console.log(`User ${currentUserId} đã ${newLiked ? 'thích' : 'bỏ thích'} bài viết ${post.id}`);
     try {
       await thichBaiViet(post.id, currentUserId);
     } catch (error) {
+      // Hoàn tác nếu có lỗi
       setLiked(!newLiked);
       setLikes(likes);
       console.error('Lỗi khi thích bài viết:', error);
@@ -127,6 +130,43 @@ const PostCard = ({ post, currentUserId }) => {
     }
   };
 
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+      <div className="flex space-x-2">
+        <button 
+          onClick={handleLike} 
+          disabled={isLiking} 
+          className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 ${
+            liked 
+              ? 'text-red-600 bg-red-50 shadow-sm' 
+              : 'text-gray-500 hover:bg-red-50 hover:text-red-600'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          <Heart 
+            size={18} 
+            fill={liked ? 'currentColor' : 'none'}
+            className={liked ? 'animate-pulse' : ''}
+          />
+          <span>{likes} Thích</span>
+        </button>
+        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
+          <MessageCircle size={18} />
+          <span>{post.so_binh_luan || 0} Bình luận</span>
+        </button>
+        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+          <Share size={18} />
+          <span>Chia sẻ</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * Component PostCard - Thẻ hiển thị bài viết thường
+ */
+const PostCard = ({ post, currentUserId }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4 hover:shadow-md transition-shadow">
       <div className="flex items-center space-x-3 mb-4">
@@ -140,15 +180,7 @@ const PostCard = ({ post, currentUserId }) => {
         <button className="text-gray-400 hover:text-gray-600 p-2"><span className="text-lg">⋯</span></button>
       </div>
       <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <div className="flex space-x-2">
-          <button onClick={handleLike} disabled={isLiking} className={`flex items-center space-x-2 px-3 py-1 rounded-lg font-medium transition-colors duration-200 ${liked ? 'text-red-600 bg-red-50' : 'text-gray-500 hover:bg-red-50 hover:text-red-600'} disabled:opacity-50`}>
-            <Heart size={18} fill={liked ? 'currentColor' : 'none'} /><span>{likes} Thích</span>
-          </button>
-          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"><MessageCircle size={18} /><span>{post.so_binh_luan || 0} Bình luận</span></button>
-          <button className="flex items-center space-x-2 px-3 py-1 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200"><Share size={18} /><span>Chia sẻ</span></button>
-        </div>
-      </div>
+      <PostActions post={post} currentUserId={currentUserId} />
     </div>
   );
 };
@@ -219,6 +251,10 @@ const Feed = ({ currentUser }) => {
                   userRole={userRole}
                   onRefresh={fetchPosts}
                 />
+                {/* ✅ THÊM CÁC NÚT HÀNH ĐỘNG VÀO ĐÂY */}
+                <div className="mt-4">
+                  <PostActions post={post} currentUserId={currentUserId} />
+                </div>
               </div>
             ) : (
               <PostCard post={post} currentUserId={currentUserId} />

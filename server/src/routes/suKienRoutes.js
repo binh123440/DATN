@@ -5,7 +5,9 @@ import {
   kiemTraDangKy, 
   layDanhSachSuKien,
   diemDanhSuKien,
-  layThongKeDiemDanh // Thêm import
+  layThongKeDiemDanh,
+  capNhatTrangThai,
+  layDanhSachChoDuyet// Thêm import
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
@@ -28,5 +30,12 @@ router.post('/:id/diem-danh', xacThucToken, diemDanhSuKien);
 
 // GET /api/su-kien/:id/thong-ke - Lấy thống kê điểm danh
 router.get('/:id/thong-ke', xacThucToken, layThongKeDiemDanh);
+
+
+router.use(xacThucToken, kiemTraVaiTro('admin', 'quan_tri_vien'));
+
+router.get('/duyet', layDanhSachChoDuyet);
+
+router.patch('/duyet/cap-nhat-trang-thai', capNhatTrangThai);
 
 export default router;

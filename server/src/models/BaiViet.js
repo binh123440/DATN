@@ -38,9 +38,17 @@ const BaiViet = sequelize.define('BaiViet', {
     type: DataTypes.TEXT,
     allowNull: false
   },
+  media_urls: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
+  },
+  media_type: {
+    type: DataTypes.ENUM('image', 'video', 'mixed'),
+    allowNull: true
+  },
   trang_thai: {
-    type: DataTypes.ENUM,
-    values: ['cho_duyet', 'da_duyet', 'da_tu_choi'],
+    type: DataTypes.ENUM('cho_duyet', 'da_duyet', 'da_huy'),
     allowNull: false,
     defaultValue: 'cho_duyet'
   },
@@ -63,7 +71,8 @@ const BaiViet = sequelize.define('BaiViet', {
   timestamps: false,
   indexes: [
     { fields: ['id_tac_gia'] },
-    { fields: ['id_cuoc_hoi_thoai'] }
+    { fields: ['id_cuoc_hoi_thoai'] },
+    { fields: ['trang_thai'] }
   ]
 });
 

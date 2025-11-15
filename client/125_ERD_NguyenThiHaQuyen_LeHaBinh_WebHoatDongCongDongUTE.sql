@@ -19,6 +19,7 @@ CREATE TYPE vai_tro_thanh_vien_enum AS ENUM ('thanh_vien', 'quan_tri_vien');
 CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');
 CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'da_tu_choi');
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
+CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
 
 -- === TẠO CÁC BẢNG ===
 
@@ -104,7 +105,9 @@ CREATE TABLE "BaiViet" (
     "id_tac_gia" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
     "id_bai_viet_goc" INT REFERENCES "BaiViet"("id") ON DELETE CASCADE,
     "id_cuoc_hoi_thoai" INT REFERENCES "CuocHoiThoai"("id") ON DELETE CASCADE,
-    "noi_dung" TEXT NOT NULL,
+    "noi_dung" TEXT,
+	"media_urls" JSONB DEFAULT '[]'::jsonb,
+    "media_type" media_type_enum,
     "trang_thai" trang_thai_noi_dung_enum NOT NULL DEFAULT 'cho_duyet',
     "id_nguoi_duyet" INT REFERENCES "NguoiDung"("id") ON DELETE SET NULL,
     "ngay_tao" TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -181,6 +184,7 @@ CREATE INDEX ON "BinhLuan" ("id_tac_gia");
 CREATE INDEX ON "LuotThich" ("id_doi_tuong", "loai_doi_tuong");
 CREATE INDEX ON "DangKySuKien" ("id_su_kien");
 CREATE INDEX ON "ThongBao" ("id_nguoi_nhan");
+CREATE INDEX ON "BaiViet"("media_type");
 
 -- === THÊM DỮ LIỆU MẪU (OPTIONAL) ===
 

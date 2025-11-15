@@ -1,19 +1,13 @@
 import express from 'express';
-import {
-  layDanhSachBaiViet,
-  taoBaiViet,
-  thichBaiViet
-} from '../controllers/baiVietController.js';
+import upload from '../middleware/upload.js';
+import { xacThucToken } from '../middleware/dangNhapMiddleware.js';
+import { layDanhSachBaiViet, taoBaiViet, thichBaiViet, xoaBaiViet } from '../controllers/baiVietController.js';
 
 const router = express.Router();
 
-// GET /api/bai-viet - Lấy danh sách bài viết
-router.get('/', layDanhSachBaiViet);
-
-// POST /api/bai-viet - Tạo bài viết mới
-router.post('/', taoBaiViet);
-
-// POST /api/bai-viet/:id/thich - Thích/bỏ thích bài viết
-router.post('/:id/thich', thichBaiViet);
+router.get('/', xacThucToken, layDanhSachBaiViet);
+router.post('/', xacThucToken, upload.array('media', 5), taoBaiViet); // ✅ Tối đa 5 files
+router.post('/:id/thich', xacThucToken, thichBaiViet);
+router.delete('/:id', xacThucToken, xoaBaiViet);
 
 export default router;

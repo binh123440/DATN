@@ -9,7 +9,8 @@ import Events from './components/Events'
 import Chat from './components/Chat'
 import Profile from './components/Profile'
 import Login from './components/Login'
-import ThongKeDiemDanh from './components/ThongKeDiemDanh';
+import ThongKeDiemDanh from './components/ThongKeDiemDanh'
+import DuyetBai from './components/DuyetBai';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -104,6 +105,8 @@ function App() {
                   <Route path="/chat" element={<Chat currentUser={currentUser} />} />
                   <Route path="/profile" element={<Profile currentUser={currentUser} />} />
                   <Route path="/events/:id/thong-ke" element={<ThongKeDiemDanh />} />
+                  <Route path="/su-kien/:id/thong-ke" element={<ThongKeDiemDanh />} />
+                  <Route path="/duyet-bai" element={<DuyetBai />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

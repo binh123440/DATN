@@ -51,8 +51,7 @@ const SuKien = sequelize.define('SuKien', {
     allowNull: false
   },
   trang_thai: {
-    type: DataTypes.ENUM,
-    values: ['cho_duyet', 'da_duyet', 'da_tu_choi'],
+    type: DataTypes.ENUM('cho_duyet', 'da_duyet', 'da_huy'),
     allowNull: false,
     defaultValue: 'cho_duyet'
   },

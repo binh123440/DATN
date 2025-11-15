@@ -318,3 +318,64 @@ export const layThongKeDiemDanh = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
+
+// Lấy danh sách tất cả nội dung đang chờ duyệt
+export const layDanhSachChoDuyet = async (req, res) => {
+  try {
+    // Lấy các bài viết đang chờ duyệt, kèm thông tin người tạo
+    const baiVietChoDuyet = await BaiViet.findAll({
+      where: { trang_thai: 'cho_duyet' },
+      include: {
+        model: NguoiDung,
+        as: 'tac_gia', // ✅ THÊM DÒNG NÀY ĐỂ CHỈ ĐỊNH RÕ MỐI QUAN HỆ
+        attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+      },
+      order: [['ngay_tao', 'DESC']]
+    });
+
+    // Thêm thuộc tính 'loai' để phân biệt trên frontend
+    const baiVietFormatted = baiVietChoDuyet.map(item => ({ ...item.toJSON(), loai: 'bai_viet' }));
+
+    // Hiện tại chỉ có Bài viết cần duyệt, sau này có thể thêm Sự kiện
+    const tatCaNoiDung = [...baiVietFormatted];
+
+    res.json({ success: true, data: tatCaNoiDung });
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách chờ duyệt:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// Cập nhật trạng thái của một nội dung (Bài viết hoặc Sự kiện)
+export const capNhatTrangThai = async (req, res) => {
+  const { id, loai, trang_thai_moi } = req.body; // loai: 'bai_viet' | 'su_kien'
+
+  if (!id || !loai || !['da_duyet', 'bi_tu_choi'].includes(trang_thai_moi)) {
+    return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ.' });
+  }
+
+  try {
+    let model;
+    if (loai === 'bai_viet') {
+      model = BaiViet;
+    } else if (loai === 'su_kien') {
+      model = SuKien;
+    } else {
+      return res.status(400).json({ success: false, message: 'Loại nội dung không hợp lệ.' });
+    }
+
+    const [updatedCount] = await model.update(
+      { trang_thai: trang_thai_moi },
+      { where: { id } }
+    );
+
+    if (updatedCount === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nội dung để cập nhật.' });
+    }
+
+    res.json({ success: true, message: `Nội dung đã được ${trang_thai_moi === 'da_duyet' ? 'duyệt' : 'từ chối'}.` });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật trạng thái:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
