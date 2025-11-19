@@ -126,6 +126,59 @@ export const taoSuKien = async (req, res) => {
   }
 };
 
+// Cập nhật sự kiện
+export const capNhatSuKien = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const {
+      ten_su_kien,
+      mo_ta,
+      dia_diem,
+      thoi_gian_bat_dau,
+      thoi_gian_ket_thuc,
+      so_luong_toi_da,
+      diem_thuong,
+      noi_dung_bai_viet
+    } = req.body;
+    const idNguoiDung = req.user?.id ;
+
+    const suKien = await SuKien.findByPk(id, { transaction: t });
+    if (!suKien) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện.' });
+    }
+    if (suKien.id_nguoi_tao !== idNguoiDung) {
+      await t.rollback();
+      return res.status(403).json({ success: false, message: 'Không có quyền.' });
+    }
+
+    const payload = {};
+    if (ten_su_kien !== undefined) payload.ten_su_kien = ten_su_kien;
+    if (mo_ta !== undefined) payload.mo_ta = mo_ta;
+    if (dia_diem !== undefined) payload.dia_diem = dia_diem;
+    if (thoi_gian_bat_dau !== undefined) payload.thoi_gian_bat_dau = thoi_gian_bat_dau;
+    if (thoi_gian_ket_thuc !== undefined) payload.thoi_gian_ket_thuc = thoi_gian_ket_thuc;
+    if (so_luong_toi_da !== undefined) payload.so_luong_toi_da = so_luong_toi_da;
+    if (diem_thuong !== undefined) payload.diem_thuong = diem_thuong;
+
+    if (Object.keys(payload).length) await suKien.update(payload, { transaction: t });
+    if (noi_dung_bai_viet && suKien.id_bai_viet) {
+      await BaiViet.update(
+        { noi_dung: noi_dung_bai_viet },
+        { where: { id: suKien.id_bai_viet }, transaction: t }
+      );
+    }
+
+    await t.commit();
+    res.json({ success: true, message: 'Cập nhật sự kiện thành công.' });
+  } catch (error) {
+    await t.rollback();
+    console.error('capNhatSuKien error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server.' });
+  }
+};
+
 // Đăng ký tham gia sự kiện
 export const dangKySuKien = async (req, res) => {
   try {

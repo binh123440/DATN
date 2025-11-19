@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Calendar, ImagePlus, SmilePlus, Heart, MessageCircle, Share, X, MoreHorizontal, Trash2, Edit } from 'lucide-react';
-import { layDanhSachBaiViet, taoBaiVietVoiMedia, taoSuKien, thichBaiViet, xoaBaiViet, capNhatBaiViet } from '../services/apiService';
+import { Home, Calendar, ImagePlus, SmilePlus, Heart, MessageCircle, Share, X, MoreHorizontal, Trash2, Edit, Send, Edit2 } from 'lucide-react';
+import { 
+  layDanhSachBaiViet, 
+  taoBaiVietVoiMedia, 
+  taoSuKien, 
+  thichBaiViet, 
+  xoaBaiViet, 
+  capNhatBaiViet, 
+  capNhatSuKien,
+  layDanhSachBinhLuan,
+  taoBinhLuan,
+  capNhatBinhLuan,
+  xoaBinhLuan
+} from '../services/apiService';
 import EventCard from './EventCard';
 
 /**
@@ -212,13 +224,322 @@ const PostComposer = ({ onCreatePost, currentUserId }) => {
 };
 
 /**
- * Component PostActions - Các nút Thích, Bình luận, Chia sẻ
+ * Component CommentItem - Hiển thị một bình luận với nested vô hạn cấp
+ */
+const CommentItem = ({ comment, currentUserId, onEdit, onDelete, onReply, depth = 0 }) => {
+  const [showActions, setShowActions] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const isOwner = currentUserId === comment.id_tac_gia;
+  const hasReplies = comment.binh_luan_tra_loi && comment.binh_luan_tra_loi.length > 0;
+  
+  // ✅ Giới hạn độ sâu indent (sau 4 cấp thì không indent thêm)
+  const maxIndent = 999;
+  const currentIndent = Math.min(depth, maxIndent);
+  const indentClass = currentIndent > 0 ? `ml-${currentIndent * 2}` : '';
+
+  return (
+    <div className={`mb-3 ${indentClass}`}>
+      <div className="flex space-x-2">
+        {/* Avatar */}
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+          {comment.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          {/* Bubble bình luận */}
+          <div className="bg-gray-100 rounded-2xl px-4 py-2 inline-block max-w-full">
+            <div className="flex items-center justify-between mb-1">
+              <h5 className="font-semibold text-sm text-gray-900">{comment.tac_gia.ho_ten}</h5>
+              {isOwner && (
+                <div className="relative ml-2">
+                  <button
+                    onClick={() => setShowActions(!showActions)}
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  
+                  {showActions && (
+                    <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                      <button
+                        onClick={() => {
+                          onEdit(comment);
+                          setShowActions(false);
+                        }}
+                        className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <Edit2 size={14} />
+                        <span>Chỉnh sửa</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onDelete(comment.id);
+                          setShowActions(false);
+                        }}
+                        className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={14} />
+                        <span>Xóa</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-800 break-words">{comment.noi_dung}</p>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex items-center space-x-4 mt-1 ml-2 text-xs text-gray-500">
+            <span>{new Date(comment.ngay_tao).toLocaleString('vi-VN')}</span>
+            <button
+              onClick={() => onReply(comment)}
+              className="hover:text-blue-600 font-medium transition-colors"
+            >
+              Trả lời
+            </button>
+            {/* ✅ Toggle hiển thị replies */}
+            {hasReplies && (
+              <button
+                onClick={() => setShowReplies(!showReplies)}
+                className="hover:text-blue-600 font-medium transition-colors flex items-center space-x-1"
+              >
+                <span>{showReplies ? '▼' : '►'}</span>
+                <span>{comment.binh_luan_tra_loi.length} phản hồi</span>
+              </button>
+            )}
+          </div>
+
+          {/* ✅ Nested replies - Đệ quy hiển thị tất cả cấp */}
+          {hasReplies && showReplies && (
+            <div className={`mt-2 space-y-2 ${depth < maxIndent ? 'border-l-2 border-blue-100 pl-3' : ''}`}>
+              {comment.binh_luan_tra_loi.map(reply => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  currentUserId={currentUserId}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onReply={onReply}
+                  depth={depth + 1} // ✅ Tăng độ sâu
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Component CommentSection - Quản lý bình luận với nested vô hạn
+ */
+const CommentSection = ({ postId, currentUserId, initialCommentCount = 0, showComments, onToggle, onCommentCountChange }) => {
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingComment, setEditingComment] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [totalComments, setTotalComments] = useState(initialCommentCount);
+
+  const fetchComments = async () => {
+    setIsLoading(true);
+    try {
+      const response = await layDanhSachBinhLuan(postId);
+      if (response.success) {
+        setComments(response.data.binh_luans || []);
+        const newTotal = response.data.pagination.tong_so_binh_luan || 0;
+        setTotalComments(newTotal);
+        if (onCommentCountChange) {
+          onCommentCountChange(newTotal);
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải bình luận:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showComments) {
+      fetchComments();
+    }
+  }, [showComments]);
+
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (editingComment) {
+        await capNhatBinhLuan(editingComment.id, newComment);
+        setEditingComment(null);
+      } else {
+        // ✅ Khi reply, gửi id của comment đang reply (cho phép nested vô hạn)
+        await taoBinhLuan({
+          id_bai_viet: postId,
+          id_tac_gia: currentUserId,
+          noi_dung: newComment,
+          id_binh_luan_cha: replyingTo?.id || null // Gắn vào comment được reply
+        });
+        setReplyingTo(null);
+      }
+      
+      setNewComment('');
+      fetchComments();
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditComment = (comment) => {
+    setEditingComment(comment);
+    setNewComment(comment.noi_dung);
+    setReplyingTo(null);
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này? (Tất cả phản hồi con cũng sẽ bị xóa)')) {
+      return;
+    }
+
+    try {
+      await xoaBinhLuan(commentId);
+      fetchComments();
+    } catch (error) {
+      alert('Lỗi khi xóa bình luận: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleReply = (comment) => {
+    setReplyingTo(comment);
+    setEditingComment(null);
+    setNewComment('');
+    
+    // ✅ Scroll xuống input để user thấy họ đang reply
+    setTimeout(() => {
+      const inputElement = document.querySelector('input[placeholder*="Trả lời"]');
+      if (inputElement) {
+        inputElement.focus();
+        inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingComment(null);
+    setReplyingTo(null);
+    setNewComment('');
+  };
+
+  if (!showComments) return null;
+
+  return (
+    <div className="mt-3 space-y-3 bg-gray-50/50 rounded-lg p-3">
+      {/* Input bình luận */}
+      <div>
+        {(editingComment || replyingTo) && (
+          <div className="mb-2 flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg">
+            <span className="text-sm text-blue-700">
+              {editingComment ? (
+                <>✏️ Đang chỉnh sửa bình luận</>
+              ) : (
+                <>
+                  ↩️ Đang trả lời <strong>{replyingTo.tac_gia.ho_ten}</strong>
+                  {replyingTo.id_binh_luan_cha && (
+                    <span className="text-xs ml-1">(phản hồi cấp {calculateDepth(replyingTo)})</span>
+                  )}
+                </>
+              )}
+            </span>
+            <button
+              onClick={handleCancelEdit}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Hủy
+            </button>
+          </div>
+        )}
+        
+        <div className="flex space-x-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+            U
+          </div>
+          <div className="flex-1 flex space-x-2">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSubmitComment()}
+              placeholder={replyingTo ? `Trả lời ${replyingTo.tac_gia.ho_ten}...` : "Viết bình luận..."}
+              className="flex-1 p-2 px-4 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm bg-white"
+            />
+            <button
+              onClick={handleSubmitComment}
+              disabled={isSubmitting || !newComment.trim()}
+              className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Danh sách bình luận */}
+      {isLoading ? (
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        </div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-6">
+          <MessageCircle size={32} className="mx-auto text-gray-300 mb-2" />
+          <p className="text-sm text-gray-500">Chưa có bình luận nào</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {comments.map(comment => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              currentUserId={currentUserId}
+              onEdit={handleEditComment}
+              onDelete={handleDeleteComment}
+              onReply={handleReply}
+              depth={0} // ✅ Bắt đầu từ độ sâu 0
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ✅ Helper function để tính độ sâu của comment (optional, cho hiển thị)
+const calculateDepth = (comment) => {
+  let depth = 1;
+  let current = comment;
+  while (current.id_binh_luan_cha) {
+    depth++;
+    current = current.binh_luan_cha || {};
+  }
+  return depth;
+};
+
+/**
+ * Component PostActions - Các nút Thích, Bình luận, Chia sẻ (CẬP NHẬT)
  */
 const PostActions = ({ post, currentUserId }) => {
-  // ✅ Khởi tạo state 'liked' từ dữ liệu API
   const [liked, setLiked] = useState(post.da_thich || false);
   const [likes, setLikes] = useState(post.so_luot_thich || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  // ✅ State để track số lượng bình luận
+  const [commentCount, setCommentCount] = useState(post.so_binh_luan || 0);
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -227,11 +548,10 @@ const PostActions = ({ post, currentUserId }) => {
     const newLikes = newLiked ? likes + 1 : likes - 1;
     setLiked(newLiked);
     setLikes(newLikes);
-    console.log(`User ${currentUserId} đã ${newLiked ? 'thích' : 'bỏ thích'} bài viết ${post.id}`);
+    
     try {
       await thichBaiViet(post.id, currentUserId);
     } catch (error) {
-      // Hoàn tác nếu có lỗi
       setLiked(!newLiked);
       setLikes(likes);
       console.error('Lỗi khi thích bài viết:', error);
@@ -240,38 +560,67 @@ const PostActions = ({ post, currentUserId }) => {
     }
   };
 
+  // ✅ Callback để cập nhật số lượng bình luận
+  const handleCommentCountChange = (newCount) => {
+    setCommentCount(newCount);
+  };
+
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-      <div className="flex space-x-2">
-        <button 
-          onClick={handleLike} 
-          disabled={isLiking} 
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 ${
-            liked 
-              ? 'text-red-600 bg-red-50 shadow-sm' 
-              : 'text-gray-500 hover:bg-red-50 hover:text-red-600'
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          <Heart 
-            size={18} 
-            fill={liked ? 'currentColor' : 'none'}
-            className={liked ? 'animate-pulse' : ''}
-          />
-          <span>{likes} Thích</span>
-        </button>
-        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200">
-          <MessageCircle size={18} />
-          <span>{post.so_binh_luan || 0} Bình luận</span>
-        </button>
-        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
-          <Share size={18} />
-          <span>Chia sẻ</span>
-        </button>
+    <div className="space-y-3">
+      {/* ✅ HÀNG NÚT - Like, Bình luận, Chia sẻ */}
+      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        <div className="flex space-x-2">
+          {/* Nút Thích */}
+          <button 
+            onClick={handleLike} 
+            disabled={isLiking} 
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 ${
+              liked 
+                ? 'text-red-600 bg-red-50 shadow-sm' 
+                : 'text-gray-500 hover:bg-red-50 hover:text-red-600'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <Heart 
+              size={18} 
+              fill={liked ? 'currentColor' : 'none'}
+              className={liked ? 'animate-pulse' : ''}
+            />
+            <span>{likes} Thích</span>
+          </button>
+
+          {/* ✅ Nút Bình luận - Hiển thị số lượng từ state local */}
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition-colors duration-200 ${
+              showComments
+                ? 'text-blue-600 bg-blue-50'
+                : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+            }`}
+          >
+            <MessageCircle size={18} />
+            <span>{commentCount} Bình luận</span>
+          </button>
+
+          {/* Nút Chia sẻ */}
+          <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium text-gray-500 hover:bg-green-50 hover:text-green-600 transition-colors duration-200">
+            <Share size={18} />
+            <span>Chia sẻ</span>
+          </button>
+        </div>
       </div>
+
+      {/* ✅ PHẦN NỘI DUNG BÌNH LUẬN - Truyền callback */}
+      <CommentSection
+        postId={post.id}
+        currentUserId={currentUserId}
+        initialCommentCount={post.so_binh_luan || 0}
+        showComments={showComments}
+        onToggle={() => setShowComments(!showComments)}
+        onCommentCountChange={handleCommentCountChange}
+      />
     </div>
   );
 };
-
 
 /**
  * Component PostCard - Thẻ hiển thị bài viết thường
@@ -459,6 +808,310 @@ const PostCard = ({ post, currentUserId, onPostDeleted }) => {
 };
 
 /**
+ * Component EventPostCard - Thẻ hiển thị bài viết có kèm sự kiện (CÓ CHỈNH SỬA SỰ KIỆN)
+ */
+const EventPostCard = ({ post, currentUserId, userRole, onRefresh }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // ✅ State cho chế độ chỉnh sửa
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(post.noi_dung || '');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // ✅ State cho chỉnh sửa thông tin sự kiện
+  const [editedEvent, setEditedEvent] = useState({
+    ten_su_kien: post.su_kien?.ten_su_kien || '',
+    dia_diem: post.su_kien?.dia_diem || '',
+    thoi_gian_bat_dau: post.su_kien?.thoi_gian_bat_dau || '',
+    so_luong_toi_da: post.su_kien?.so_luong_toi_da || '',
+    diem_thuong: post.su_kien?.diem_thuong || ''
+  });
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleDeletePost = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết và sự kiện này?')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await xoaBaiViet(post.id);
+      if (response.success) {
+        alert('Đã xóa bài viết và sự kiện thành công!');
+        setShowDropdown(false);
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    } catch (error) {
+      alert('Lỗi khi xóa: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    setEditedContent(post.noi_dung || '');
+    setEditedEvent({
+      ten_su_kien: post.su_kien?.ten_su_kien || '',
+      dia_diem: post.su_kien?.dia_diem || '',
+      thoi_gian_bat_dau: post.su_kien?.thoi_gian_bat_dau || '',
+      so_luong_toi_da: post.su_kien?.so_luong_toi_da || '',
+      diem_thuong: post.su_kien?.diem_thuong || ''
+    });
+    setIsEditing(true);
+    setShowDropdown(false);
+  };
+
+  const handleEventFieldChange = (e) => {
+    const { name, value } = e.target;
+    setEditedEvent(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdatePost = async () => {
+    setIsUpdating(true);
+    try {
+      // ✅ Cập nhật bài viết (mô tả)
+      if (editedContent !== post.noi_dung) {
+        await capNhatBaiViet(post.id, { noi_dung: editedContent });
+      }
+
+      // ✅ Cập nhật sự kiện
+      const eventUpdateData = {
+        ten_su_kien: editedEvent.ten_su_kien,
+        dia_diem: editedEvent.dia_diem,
+        thoi_gian_bat_dau: editedEvent.thoi_gian_bat_dau,
+        so_luong_toi_da: parseInt(editedEvent.so_luong_toi_da),
+        diem_thuong: parseInt(editedEvent.diem_thuong),
+        noi_dung_bai_viet: editedContent
+      };
+
+      const response = await capNhatSuKien(post.su_kien.id, eventUpdateData);
+      
+      if (response.success) {
+        alert('Cập nhật sự kiện thành công!');
+        setIsEditing(false);
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    } catch (error) {
+      alert('Lỗi khi cập nhật: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Tách date và time từ thoi_gian_bat_dau
+  const getDateValue = () => {
+    if (!editedEvent.thoi_gian_bat_dau) return '';
+    return editedEvent.thoi_gian_bat_dau.split(' ')[0] || '';
+  };
+
+  const getTimeValue = () => {
+    if (!editedEvent.thoi_gian_bat_dau) return '';
+    return editedEvent.thoi_gian_bat_dau.split(' ')[1] || '';
+  };
+
+  const handleDateChange = (e) => {
+    const newDate = e.target.value;
+    const currentTime = getTimeValue() || '00:00:00';
+    setEditedEvent(prev => ({
+      ...prev,
+      thoi_gian_bat_dau: `${newDate} ${currentTime}`
+    }));
+  };
+
+  const handleTimeChange = (e) => {
+    const newTime = e.target.value + ':00';
+    const currentDate = getDateValue();
+    setEditedEvent(prev => ({
+      ...prev,
+      thoi_gian_bat_dau: `${currentDate} ${newTime}`
+    }));
+  };
+
+  // Kiểm tra quyền sở hữu
+  const isOwner = currentUserId === post.id_tac_gia;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4 hover:shadow-md transition-shadow">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+          {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        </div>
+        <div className="flex-1">
+          <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
+          <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
+        </div>
+
+        {/* ✅ Dropdown Menu */}
+        {isOwner && !isEditing && (
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-10">
+                <button
+                  onClick={handleEditClick}
+                  className="w-full flex items-center space-x-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <Edit size={16} />
+                  <span>Chỉnh sửa sự kiện</span>
+                </button>
+                <button
+                  onClick={handleDeletePost}
+                  disabled={isDeleting}
+                  className="w-full flex items-center space-x-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                  <span>{isDeleting ? 'Đang xóa...' : 'Xóa bài viết & sự kiện'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ✅ Giao diện chỉnh sửa TOÀN BỘ THÔNG TIN */}
+      {isEditing ? (
+        <div className="mb-4 space-y-4">
+          {/* Mô tả bài viết */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Mô tả sự kiện</label>
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              placeholder="Mô tả về sự kiện..."
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 outline-none"
+              rows="3"
+            />
+          </div>
+
+          {/* Form chỉnh sửa thông tin sự kiện */}
+          <div className="p-4 bg-cyan-50/50 border border-cyan-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-cyan-800 flex items-center mb-3">
+              <Calendar size={16} className="mr-2" />
+              Thông tin sự kiện
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Tên sự kiện</label>
+                <input
+                  type="text"
+                  name="ten_su_kien"
+                  value={editedEvent.ten_su_kien}
+                  onChange={handleEventFieldChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Địa điểm</label>
+                <input
+                  type="text"
+                  name="dia_diem"
+                  value={editedEvent.dia_diem}
+                  onChange={handleEventFieldChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Ngày</label>
+                <input
+                  type="date"
+                  value={getDateValue()}
+                  onChange={handleDateChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Giờ</label>
+                <input
+                  type="time"
+                  value={getTimeValue().slice(0, 5)}
+                  onChange={handleTimeChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Số người tối đa</label>
+                <input
+                  type="number"
+                  name="so_luong_toi_da"
+                  value={editedEvent.so_luong_toi_da}
+                  onChange={handleEventFieldChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Điểm thưởng</label>
+                <input
+                  type="number"
+                  name="diem_thuong"
+                  value={editedEvent.diem_thuong}
+                  onChange={handleEventFieldChange}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Nút hành động */}
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleUpdatePost}
+              disabled={isUpdating}
+              className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isUpdating ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Hiển thị bình thường */}
+          {post.noi_dung && <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>}
+          
+          <EventCard 
+            event={post.su_kien} 
+            currentUserId={currentUserId}
+            userRole={userRole}
+            onRefresh={onRefresh}
+          />
+
+          <div className="mt-4">
+            <PostActions post={post} currentUserId={currentUserId} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/**
  * Component Feed - Component chính hiển thị trang chủ
  */
 const Feed = ({ currentUser }) => {
@@ -506,27 +1159,12 @@ const Feed = ({ currentUser }) => {
         posts.map(post => (
           <div key={post.id}>
             {post.su_kien ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
-                    <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
-                  </div>
-                </div>
-                {post.noi_dung && <p className="text-gray-800 mb-4">{post.noi_dung}</p>}
-                <EventCard 
-                  event={post.su_kien} 
-                  currentUserId={currentUserId}
-                  userRole={userRole}
-                  onRefresh={fetchPosts}
-                />
-                <div className="mt-4">
-                  <PostActions post={post} currentUserId={currentUserId} />
-                </div>
-              </div>
+              <EventPostCard 
+                post={post}
+                currentUserId={currentUserId}
+                userRole={userRole}
+                onRefresh={fetchPosts}
+              />
             ) : (
               <PostCard 
                 post={post} 

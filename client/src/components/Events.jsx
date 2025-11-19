@@ -36,10 +36,10 @@ const Events = ({ currentUser }) => {
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Sự kiện</h1>
-        <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium">
+        {/* <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium">
           <Plus size={18} />
           <span>Tạo sự kiện</span>
-        </button>
+        </button> */}
       </div>
 
       {/* Filters */}

@@ -28,8 +28,21 @@ export default {
       },
       maxWidth: {
         '70': '70%',
+      },
+      spacing: {
+        '16': '4rem',
+        '20': '5rem',
+        '24': '6rem',
+        '28': '7rem',
+        '32': '8rem',
       }
     },
   },
   plugins: [],
+  safelist: [
+    'ml-2',
+    'ml-4',
+    'ml-6',
+    'ml-8',
+  ]
 }

@@ -7,7 +7,8 @@ import db from './src/models/index.js';
 // Import routes
 import baiVietRoutes from './src/routes/baiVietRoutes.js';
 import suKienRoutes from './src/routes/suKienRoutes.js';
-import dangNhapRoutes from './src/routes/dangNhapRoutes.js';  
+import dangNhapRoutes from './src/routes/dangNhapRoutes.js';
+import binhLuanRoutes from './src/routes/binhLuanRoutes.js';  
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', dangNhapRoutes);
 app.use('/api/bai-viet', baiVietRoutes);
 app.use('/api/su-kien', suKienRoutes);
+app.use('/api/binh-luan', binhLuanRoutes);
 
 // 404 Handler
 app.use((req, res) => {

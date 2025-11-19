@@ -54,6 +54,17 @@ export const taoBaiViet = async (data) => {
   }
 };
 
+export const capNhatBaiViet = async (id, data) => {
+  const response = await apiClient.put(`/bai-viet/${id}`, data);
+  return response.data;
+};
+
+// ✅ THÊM HÀM CẬP NHẬT SỰ KIỆN
+export const capNhatSuKien = async (id, data) => {
+  const response = await apiClient.put(`/su-kien/${id}`, data);
+  return response.data;
+};
+
 export const thichBaiViet = async (idBaiViet, idNguoiDung) => {
   try {
     const response = await apiClient.post(`/bai-viet/${idBaiViet}/thich`, {
@@ -148,6 +159,30 @@ export const capNhatTrangThaiNoiDung = async (id, loai, trang_thai_moi) => {
     console.error('Lỗi khi cập nhật trạng thái:', error);
     throw error;
   }
+};
+
+// ==================== BÌNH LUẬN ====================
+
+export const layDanhSachBinhLuan = async (idBaiViet, page = 1, limit = 10) => {
+  const response = await apiClient.get(`/binh-luan/bai-viet/${idBaiViet}`, {
+    params: { page, limit }
+  });
+  return response.data;
+};
+
+export const taoBinhLuan = async (binhLuanData) => {
+  const response = await apiClient.post('/binh-luan', binhLuanData);
+  return response.data;
+};
+
+export const capNhatBinhLuan = async (id, noiDung) => {
+  const response = await apiClient.put(`/binh-luan/${id}`, { noi_dung: noiDung });
+  return response.data;
+};
+
+export const xoaBinhLuan = async (id) => {
+  const response = await apiClient.delete(`/binh-luan/${id}`);
+  return response.data;
 };
 
 export default apiClient;

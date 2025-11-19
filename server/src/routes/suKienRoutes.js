@@ -7,7 +7,8 @@ import {
   diemDanhSuKien,
   layThongKeDiemDanh,
   capNhatTrangThai,
-  layDanhSachChoDuyet// Thêm import
+  layDanhSachChoDuyet,
+  capNhatSuKien// Thêm import
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
@@ -18,6 +19,9 @@ router.get('/', layDanhSachSuKien);
 
 // POST /api/su-kien - Tạo sự kiện mới
 router.post('/', xacThucToken, taoSuKien);
+
+// PUT /api/su-kien/:id - Cập nhật sự kiện
+router.put('/:id', xacThucToken, capNhatSuKien);
 
 // POST /api/su-kien/:id/dang-ky - Đăng ký tham gia sự kiện
 router.post('/:id/dang-ky', xacThucToken, dangKySuKien);
