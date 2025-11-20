@@ -185,4 +185,25 @@ export const xoaBinhLuan = async (id) => {
   return response.data;
 };
 
+// ==================== ĐIỂM RÈN LUYỆN ====================
+
+export const layThongTinDiemRenLuyen = async () => {
+  const response = await apiClient.get('/diem-ren-luyen/thong-tin');
+  return response.data;
+};
+
+export const layLichSuTichDiem = async (limit = 5) => {
+  const response = await apiClient.get('/diem-ren-luyen/lich-su', {
+    params: { limit }
+  });
+  return response.data;
+};
+
+export const laySuKienSapDienRa = async (limit = 5) => {
+  const response = await apiClient.get('/diem-ren-luyen/su-kien-sap-dien-ra', {
+    params: { limit }
+  });
+  return response.data;
+};
+
 export default apiClient;

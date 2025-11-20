@@ -218,7 +218,7 @@ INSERT INTO "NguoiDung" (
 	('Lê Hà Bình', '21115053120105', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '22T1', 870),
 	('Lê Kìm Nam', '21115053120108', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21T1', 870),
 	('Lê Ngọc Hào', '21115053120109', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
-    ('Đỗ Minh Khoa', '21115053120110', 'khoadm@ute.edu.vn', '$2a$10$hashed_password', 'dieu_phoi_vien', NULL, NULL, 0);
+    ('Đỗ Minh Khoa', '21115053120110', 'khoadm@ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'dieu_phoi_vien', NULL, NULL, 0);
 
 -- === THÊM 10 BÀI VIẾT MẪU ===
 
