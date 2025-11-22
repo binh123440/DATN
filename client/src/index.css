@@ -194,10 +194,36 @@
   animation: scan-line 2s ease-in-out infinite;
 }
 
+/* ✅ Animations cho modal */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Responsive cho mobile */
 @media (max-width: 640px) {
   #reader__camera_selection {
     font-size: 13px !important;
     padding: 8px 10px !important;
   }
+}
+
+/* ✅ Class để ngăn scroll khi modal mở */
+body.body-no-scroll {
+  overflow: hidden;
 }

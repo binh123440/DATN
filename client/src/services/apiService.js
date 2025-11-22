@@ -13,12 +13,7 @@ apiClient.interceptors.request.use(config => {
   return config;
 });
 
-export const taoBaiVietVoiMedia = async (formData) => {
-  const response = await apiClient.post('/bai-viet', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-  return response.data;
-};
+// ==================== BÀI VIẾT ====================
 
 export const layDanhSachBaiViet = async (page = 1, limit = 10) => {
   try {
@@ -32,16 +27,22 @@ export const layDanhSachBaiViet = async (page = 1, limit = 10) => {
   }
 };
 
-export const layDanhSachSuKien = async (page = 1, limit = 10) => {
+// ✅ THÊM HÀM LẤY CHI TIẾT BÀI VIẾT
+export const layChiTietBaiViet = async (idBaiViet) => {
   try {
-    const response = await apiClient.get('/su-kien', {
-      params: { page, limit }
-    });
+    const response = await apiClient.get(`/bai-viet/${idBaiViet}`);
     return response.data;
   } catch (error) {
-    console.error('Lỗi khi lấy danh sách sự kiện:', error);
+    console.error('Lỗi khi lấy chi tiết bài viết:', error);
     throw error;
   }
+};
+
+export const taoBaiVietVoiMedia = async (formData) => {
+  const response = await apiClient.post('/bai-viet', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const taoBaiViet = async (data) => {
@@ -55,14 +56,21 @@ export const taoBaiViet = async (data) => {
 };
 
 export const capNhatBaiViet = async (id, data) => {
-  const response = await apiClient.put(`/bai-viet/${id}`, data);
-  return response.data;
-};
-
-// ✅ THÊM HÀM CẬP NHẬT SỰ KIỆN
-export const capNhatSuKien = async (id, data) => {
-  const response = await apiClient.put(`/su-kien/${id}`, data);
-  return response.data;
+  try {
+    console.log('🔄 Gọi API cập nhật bài viết:', id);
+    
+    const response = await apiClient.put(`/bai-viet/${id}`, data, {
+      headers: {
+        'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+      }
+    });
+    
+    console.log('✅ Response cập nhật:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi API cập nhật:', error);
+    throw error;
+  }
 };
 
 export const thichBaiViet = async (idBaiViet, idNguoiDung) => {
@@ -76,6 +84,7 @@ export const thichBaiViet = async (idBaiViet, idNguoiDung) => {
     throw error;
   }
 };
+
 export const xoaBaiViet = async (id) => {
   try {
     const response = await apiClient.delete(`/bai-viet/${id}`);
@@ -86,7 +95,19 @@ export const xoaBaiViet = async (id) => {
   }
 };
 
-// ===== SỰ KIỆN =====
+// ==================== SỰ KIỆN ====================
+
+export const layDanhSachSuKien = async (page = 1, limit = 10) => {
+  try {
+    const response = await apiClient.get('/su-kien', {
+      params: { page, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách sự kiện:', error);
+    throw error;
+  }
+};
 
 export const taoSuKien = async (data) => {
   try {
@@ -96,6 +117,11 @@ export const taoSuKien = async (data) => {
     console.error('Lỗi khi tạo sự kiện:', error);
     throw error;
   }
+};
+
+export const capNhatSuKien = async (id, data) => {
+  const response = await apiClient.put(`/su-kien/${id}`, data);
+  return response.data;
 };
 
 export const dangKySuKien = async (idSuKien, idNguoiDung) => {
@@ -138,10 +164,10 @@ export const layThongKeDiemDanh = async (idSuKien) => {
   }
 };
 
-// ===== KIỂM DUYỆT =====
+// ==================== KIỂM DUYỆT ====================
+
 export const layDanhSachChoDuyet = async () => {
   try {
-    // Lưu ý đường dẫn mới: /api/su-kien/duyet
     const response = await apiClient.get('/su-kien/duyet');
     return response.data;
   } catch (error) {
@@ -152,7 +178,6 @@ export const layDanhSachChoDuyet = async () => {
 
 export const capNhatTrangThaiNoiDung = async (id, loai, trang_thai_moi) => {
   try {
-    // Lưu ý đường dẫn mới: /api/su-kien/duyet/cap-nhat-trang-thai
     const response = await apiClient.patch('/su-kien/duyet/cap-nhat-trang-thai', { id, loai, trang_thai_moi });
     return response.data;
   } catch (error) {
@@ -203,6 +228,36 @@ export const laySuKienSapDienRa = async (limit = 5) => {
   const response = await apiClient.get('/diem-ren-luyen/su-kien-sap-dien-ra', {
     params: { limit }
   });
+  return response.data;
+};
+
+// ==================== THÔNG BÁO ====================
+
+export const layDanhSachThongBao = async (page = 1, limit = 20, da_doc) => {
+  const params = { page, limit };
+  if (da_doc !== undefined) params.da_doc = da_doc;
+  
+  const response = await apiClient.get('/thong-bao', { params });
+  return response.data;
+};
+
+export const demThongBaoChuaDoc = async () => {
+  const response = await apiClient.get('/thong-bao/chua-doc');
+  return response.data;
+};
+
+export const danhDauDaDoc = async (id) => {
+  const response = await apiClient.put(`/thong-bao/${id}/da-doc`);
+  return response.data;
+};
+
+export const danhDauTatCaDaDoc = async () => {
+  const response = await apiClient.put('/thong-bao/tat-ca-da-doc');
+  return response.data;
+};
+
+export const xoaThongBao = async (id) => {
+  const response = await apiClient.delete(`/thong-bao/${id}`);
   return response.data;
 };
 

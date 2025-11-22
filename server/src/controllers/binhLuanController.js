@@ -1,6 +1,7 @@
 import db from '../models/index.js';
+import { taoThongBao } from './thongBaoController.js';
 
-const { BinhLuan, NguoiDung } = db;
+const { BinhLuan, NguoiDung, BaiViet } = db;
 
 /**
  * ✅ HÀM ĐỆ QUY MỚI
@@ -113,6 +114,33 @@ export const taoBinhLuan = async (req, res) => {
         }
       ]
     });
+
+    // ✅ Tạo thông báo
+    const baiViet = await BaiViet.findByPk(id_bai_viet);
+    if (baiViet) {
+      if (id_binh_luan_cha) {
+        // Thông báo trả lời bình luận
+        const binhLuanCha = await BinhLuan.findByPk(id_binh_luan_cha);
+        if (binhLuanCha) {
+          await taoThongBao({
+            id_nguoi_nhan: binhLuanCha.id_tac_gia,
+            id_nguoi_hanh_dong: id_tac_gia,
+            loai: 'tra_loi_binh_luan',
+            id_muc_tieu: id_bai_viet,
+            loai_muc_tieu: 'bai_viet'
+          });
+        }
+      } else {
+        // Thông báo bình luận bài viết
+        await taoThongBao({
+          id_nguoi_nhan: baiViet.id_tac_gia,
+          id_nguoi_hanh_dong: id_tac_gia,
+          loai: 'binh_luan_bai_viet',
+          id_muc_tieu: id_bai_viet,
+          loai_muc_tieu: 'bai_viet'
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,

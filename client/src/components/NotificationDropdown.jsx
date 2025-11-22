@@ -1,163 +1,255 @@
-import React from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, Check, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  layDanhSachThongBao, 
+  danhDauDaDoc, 
+  danhDauTatCaDaDoc, 
+  xoaThongBao 
+} from '../services/apiService';
 
-const NotificationDropdown = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+const NotificationDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
-  const notifications = [
-    {
-      id: 1,
-      user: {
-        name: 'Lạc Đức Hậu',
-        avatar: 'https://i.pravatar.cc/150?img=1'
-      },
-      message: "You're featured on Lac Duc Hau's public weekly engagement list.",
-      time: '3d',
-      isRead: false
-    },
-    {
-      id: 2,
-      user: {
-        name: 'Xuân Tình',
-        avatar: 'https://i.pravatar.cc/150?img=2'
-      },
-      message: 'mentioned you and others in a comment in Câu lạc bộ Valorant Đà Nẵng.',
-      time: '1w',
-      isRead: true
-    },
-    {
-      id: 3,
-      user: {
-        name: 'Rin Obito',
-        avatar: 'https://i.pravatar.cc/150?img=3'
-      },
-      message: 'and Lac Duc Hau mentioned you in their comments.',
-      time: '1w',
-      isRead: true
-    },
-    {
-      id: 4,
-      user: {
-        name: 'Gumball cầm fact',
-        avatar: 'https://i.pravatar.cc/150?img=4',
-        isPage: true
-      },
-      message: 'a Page that you recently viewed, invited you to join their public group Con...',
-      time: '1w',
-      isRead: false,
-      hasActions: true
-    },
-    {
-      id: 5,
-      user: {
-        name: 'Alex Nguyen',
-        avatar: 'https://i.pravatar.cc/150?img=5'
-      },
-      message: 'mentioned you and others in a comment in Zố đây mà chill.',
-      time: '1w',
-      isRead: false
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Load thông báo
+  const loadNotifications = async () => {
+    setIsLoading(true);
+    try {
+      const response = await layDanhSachThongBao(1, 10);
+      if (response.success) {
+        setNotifications(response.data.thong_baos || []);
+        setUnreadCount(response.data.so_chua_doc || 0);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải thông báo:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    // Refresh mỗi 30 giây
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      loadNotifications();
+    }
+  };
+
+  // Xử lý khi click vào thông báo
+  const handleNotificationClick = async (notif) => {
+    try {
+      // Đánh dấu đã đọc nếu chưa đọc
+      if (!notif.da_doc) {
+        await danhDauDaDoc(notif.id);
+        loadNotifications();
+      }
+
+      // Đóng dropdown
+      setIsOpen(false);
+
+      // Điều hướng dựa vào loại mục tiêu
+      if (notif.loai_muc_tieu === 'bai_viet' && notif.id_muc_tieu) {
+        // Điều hướng đến Feed với postId trong URL để mở modal
+        navigate(`/?postId=${notif.id_muc_tieu}`);
+      } else if (notif.loai_muc_tieu === 'su_kien' && notif.id_muc_tieu) {
+        // Điều hướng đến trang Events với eventId trong URL để mở modal
+        navigate(`/events?eventId=${notif.id_muc_tieu}`);
+      } else if (notif.link) {
+        // Fallback: sử dụng link có sẵn
+        navigate(notif.link);
+      }
+    } catch (error) {
+      console.error('Lỗi khi xử lý thông báo:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await danhDauTatCaDaDoc();
+      loadNotifications();
+    } catch (error) {
+      console.error('Lỗi khi đánh dấu tất cả đã đọc:', error);
+    }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await xoaThongBao(id);
+      loadNotifications();
+    } catch (error) {
+      console.error('Lỗi khi xóa thông báo:', error);
+    }
+  };
+
+  const getNotificationIcon = (loai) => {
+    const icons = {
+      like_bai_viet: '❤️',
+      binh_luan_bai_viet: '💬',
+      tra_loi_binh_luan: '↩️',
+      su_kien_moi: '📅',
+      su_kien_sap_dien_ra: '⏰',
+      duyet_bai_viet: '✅',
+      tu_choi_bai_viet: '❌',
+      diem_danh_thanh_cong: '✔️',
+      nhan_diem_thuong: '🎁',
+      tin_nhan_moi: '💌',
+      he_thong: '🔔'
+    };
+    return icons[loai] || '🔔';
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Vừa xong';
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    return date.toLocaleDateString('vi-VN');
+  };
 
   return (
-    <>
-      {/* Overlay */}
-      <div 
-        className="fixed inset-0 z-30" 
-        onClick={onClose}
-      ></div>
-
-      {/* Dropdown */}
-      <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-2xl z-40 overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-bold text-gray-900">Notifications</h2>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <MoreHorizontal size={20} className="text-gray-600" />
-            </button>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={handleToggle}
+        className="relative p-2 hover:bg-blue-700 rounded-full transition-colors"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">
+            {unreadCount > 9 ? '9+' : unreadCount}
           </div>
-          
-          {/* Tabs */}
-          <div className="flex space-x-2">
-            <button className="px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
-              All
-            </button>
-            <button className="px-4 py-2 hover:bg-gray-100 text-gray-600 rounded-full text-sm font-semibold transition-colors">
-              Unread
-            </button>
-          </div>
-        </div>
+        )}
+      </button>
 
-        {/* Notifications List */}
-        <div className="max-h-96 overflow-y-auto">
-          <div className="px-2 py-1">
-            <p className="px-2 py-2 text-sm font-semibold text-gray-600">Earlier</p>
-            
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`flex items-start p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors ${
-                  !notification.isRead ? 'bg-blue-50' : ''
-                }`}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[600px] flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900">Thông báo</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllAsRead}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
               >
-                {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  <img
-                    src={notification.user.avatar}
-                    alt={notification.user.name}
-                    className="w-14 h-14 rounded-full"
-                  />
-                  {notification.user.isPage && (
-                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
-                      <span className="text-white text-xs">📄</span>
-                    </div>
-                  )}
-                  {!notification.isRead && !notification.user.isPage && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="ml-3 flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    <span className="font-semibold">{notification.user.name}</span>{' '}
-                    {notification.message}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1 font-medium">{notification.time}</p>
-                  
-                  {/* Action Buttons */}
-                  {notification.hasActions && (
-                    <div className="flex space-x-2 mt-2">
-                      <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-md transition-colors">
-                        Join
-                      </button>
-                      <button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold py-2 rounded-md transition-colors">
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Unread indicator */}
-                {!notification.isRead && (
-                  <div className="ml-2 mt-2">
-                    <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>
-                  </div>
-                )}
-              </div>
-            ))}
+                <Check size={16} />
+                <span>Đánh dấu tất cả đã đọc</span>
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-2 border-t border-gray-200">
-          <button className="w-full py-2 text-center text-blue-600 hover:bg-gray-100 rounded-md text-sm font-semibold transition-colors">
-            See previous notifications
-          </button>
+          {/* Notifications List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {isLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-8 text-center">
+                <Bell size={48} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500">Không có thông báo nào</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => handleNotificationClick(notif)}
+                    className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      !notif.da_doc ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="flex space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-lg">
+                          {notif.nguoi_hanh_dong ? (
+                            <span className="text-white text-sm font-semibold">
+                              {notif.nguoi_hanh_dong.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </span>
+                          ) : (
+                            <span className="text-xl">{getNotificationIcon(notif.loai)}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm">
+                              <span className="text-gray-700">{notif.noi_dung}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatTime(notif.ngay_tao)}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 ml-2">
+                            {!notif.da_doc && (
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                            )}
+                            <button
+                              onClick={(e) => handleDelete(notif.id, e)}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="p-3 border-t border-gray-200">
+              <button 
+                onClick={() => {
+                  navigate('/notifications');
+                  setIsOpen(false);
+                }}
+                className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium py-2 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                Xem tất cả thông báo
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

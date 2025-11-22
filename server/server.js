@@ -10,6 +10,7 @@ import suKienRoutes from './src/routes/suKienRoutes.js';
 import dangNhapRoutes from './src/routes/dangNhapRoutes.js';
 import binhLuanRoutes from './src/routes/binhLuanRoutes.js';  
 import diemRenLuyenRoutes from './src/routes/diemRenLuyenRoutes.js';
+import thongBaoRoutes from './src/routes/thongBaoRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.use('/api/bai-viet', baiVietRoutes);
 app.use('/api/su-kien', suKienRoutes);
 app.use('/api/binh-luan', binhLuanRoutes);
 app.use('/api/diem-ren-luyen', diemRenLuyenRoutes);
+app.use('/api/thong-bao', thongBaoRoutes);
+
 
 // 404 Handler
 app.use((req, res) => {

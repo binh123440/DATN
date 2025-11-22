@@ -1,5 +1,6 @@
 import db from '../models/index.js';
 import * as geolib from 'geolib';
+import { taoThongBao } from './thongBaoController.js';
 const { SuKien, BaiViet, NguoiDung, DangKySuKien, sequelize } = db;
 
 // Lấy danh sách sự kiện
@@ -324,6 +325,26 @@ export const diemDanhSuKien = async (req, res) => {
 
     // Cộng điểm cho người dùng
     await NguoiDung.increment('tong_diem', { by: suKien.diem_thuong, where: { id: qrData.userId }, transaction });
+
+    // ✅ Tạo thông báo điểm danh thành công
+    await taoThongBao({
+      id_nguoi_nhan: qrData.userId,
+      id_nguoi_hanh_dong: id_nguoi_quet,
+      loai: 'diem_danh_thanh_cong',
+      id_muc_tieu: suKien.id,
+      loai_muc_tieu: 'su_kien'
+    });
+
+    // ✅ Tạo thông báo nhận điểm thưởng
+    if (suKien.diem_thuong > 0) {
+      await taoThongBao({
+        id_nguoi_nhan: qrData.userId,
+        id_nguoi_hanh_dong: qrData.userId, // Tự động từ hệ thống
+        loai: 'nhan_diem_thuong',
+        id_muc_tieu: suKien.id,
+        loai_muc_tieu: 'su_kien'
+      });
+    }
 
     await transaction.commit();
     res.json({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}.` });

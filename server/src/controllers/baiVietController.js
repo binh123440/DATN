@@ -1,5 +1,26 @@
 import db from '../models/index.js';
+import { taoThongBao } from './thongBaoController.js';
+
 const { BaiViet, NguoiDung, BinhLuan, LuotThich, SuKien } = db;
+
+// ✅ XÓA các helper phức tạp, CHỈ GIỮ CÁI NÀY
+const buildMediaFromFiles = (files) => {
+  return files.map(file => ({
+    url: file.path,
+    public_id: file.filename,
+    resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image'
+  }));
+};
+
+const detectMediaType = (mediaArray) => {
+  if (!mediaArray || mediaArray.length === 0) return null;
+  const hasImage = mediaArray.some(m => m.resource_type === 'image');
+  const hasVideo = mediaArray.some(m => m.resource_type === 'video');
+  if (hasImage && hasVideo) return 'mixed';
+  if (hasVideo) return 'video';
+  if (hasImage) return 'image';
+  return null;
+};
 
 // Lấy danh sách bài viết (bao gồm cả sự kiện)
 export const layDanhSachBaiViet = async (req, res) => {
@@ -31,12 +52,10 @@ export const layDanhSachBaiViet = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    // ✅ Thêm thông tin lượt thích, bình luận và số lượng đăng ký
     const baiVietsWithDetails = await Promise.all(
       baiViets.map(async (baiViet) => {
         const baiVietData = baiViet.toJSON();
 
-        // Đếm lượt thích
         const soLuotThich = await LuotThich.count({
           where: {
             id_doi_tuong: baiViet.id,
@@ -44,12 +63,10 @@ export const layDanhSachBaiViet = async (req, res) => {
           }
         });
 
-        // ✅ Đếm bình luận (bao gồm cả reply)
         const soBinhLuan = await BinhLuan.count({
           where: { id_bai_viet: baiViet.id }
         });
 
-        // ✅ Kiểm tra người dùng hiện tại đã thích bài viết này chưa
         let daThich = false;
         if (id_nguoi_dung) {
           const luotThich = await LuotThich.findOne({
@@ -62,7 +79,6 @@ export const layDanhSachBaiViet = async (req, res) => {
           daThich = !!luotThich;
         }
 
-        // Nếu là sự kiện, đếm số người đăng ký
         let thongTinSuKien = null;
         if (baiVietData.su_kien) {
           const { DangKySuKien } = db;
@@ -83,7 +99,7 @@ export const layDanhSachBaiViet = async (req, res) => {
         return {
           ...baiVietData,
           so_luot_thich: soLuotThich,
-          so_binh_luan: soBinhLuan, // ✅ Thêm số lượng bình luận
+          so_binh_luan: soBinhLuan,
           da_thich: daThich, 
           su_kien: thongTinSuKien
         };
@@ -104,7 +120,7 @@ export const layDanhSachBaiViet = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Lỗi khi lấy danh sách bài viết:', error);
+    console.error('❌ Lỗi:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -121,17 +137,9 @@ export const taoBaiViet = async (req, res) => {
     let media_urls = [];
     let media_type = null;
 
-    // ✅ Lấy URL từ Cloudinary
     if (req.files && req.files.length > 0) {
-      media_urls = req.files.map(file => ({
-        url: file.path,
-        public_id: file.filename,
-        resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image'
-      }));
-
-      const hasImage = req.files.some(f => f.mimetype.startsWith('image/'));
-      const hasVideo = req.files.some(f => f.mimetype.startsWith('video/'));
-      media_type = hasImage && hasVideo ? 'mixed' : hasImage ? 'image' : 'video';
+      media_urls = buildMediaFromFiles(req.files);
+      media_type = detectMediaType(media_urls);
     }
 
     const baiViet = await BaiViet.create({
@@ -153,39 +161,119 @@ export const taoBaiViet = async (req, res) => {
   }
 };
 
-// Cập nhật bài viết
+// ✅ CẬP NHẬT BÀI VIẾT - CÓ XÓA ẢNH CŨ TRÊN CLOUDINARY
 export const capNhatBaiViet = async (req, res) => {
   try {
     const { id } = req.params;
-    const { noi_dung, media_urls, media_type } = req.body;
+    const { noi_dung, existing_media_urls } = req.body;
     const idNguoiDung = req.user?.id;
 
-    if (!noi_dung && !media_urls) {
-      return res.status(400).json({ success: false, message: 'Không có nội dung cần cập nhật.' });
-    }
+    console.log('📥 Nhận request cập nhật:', {
+      id,
+      noi_dung,
+      existing_media_urls,
+      files: req.files?.length || 0
+    });
 
     const baiViet = await BaiViet.findByPk(id);
     if (!baiViet) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
     if (baiViet.id_tac_gia !== idNguoiDung) return res.status(403).json({ success: false, message: 'Không có quyền.' });
 
-    const payload = {};
-    if (noi_dung !== undefined) payload.noi_dung = noi_dung;
-    if (media_urls !== undefined) payload.media_urls = media_urls;
-    if (media_type !== undefined) payload.media_type = media_type;
+    // ✅ Lấy media cũ từ DB
+    const oldMediaInDB = baiViet.media_urls || [];
+    console.log('📦 Media cũ trong DB:', oldMediaInDB);
 
-    await baiViet.update(payload);
-    res.json({ success: true, message: 'Cập nhật bài viết thành công.', data: baiViet });
+    // ✅ Lấy media cũ được giữ lại từ request
+    let mediaToKeep = [];
+    if (existing_media_urls) {
+      try {
+        mediaToKeep = JSON.parse(existing_media_urls);
+        console.log('💾 Media được giữ lại:', mediaToKeep);
+      } catch (e) {
+        console.error('❌ Lỗi parse existing_media_urls:', e);
+        mediaToKeep = [];
+      }
+    }
+
+    // ✅ Tìm media cần xóa (có trong DB nhưng không có trong mediaToKeep)
+    const mediaToDelete = oldMediaInDB.filter(
+      oldItem => !mediaToKeep.some(keepItem => keepItem.public_id === oldItem.public_id)
+    );
+
+    console.log('🗑️ Media cần xóa:', mediaToDelete);
+
+    // ✅ XÓA ẢNH CŨ TRÊN CLOUDINARY
+    if (mediaToDelete.length > 0) {
+      const { cloudinary } = await import('../config/cloudinary.js');
+      
+      await Promise.all(
+        mediaToDelete.map(async (media) => {
+          try {
+            const result = await cloudinary.uploader.destroy(media.public_id, {
+              resource_type: media.resource_type
+            });
+            console.log(`✅ Đã xóa ${media.public_id}:`, result);
+          } catch (err) {
+            console.error(`❌ Lỗi xóa ${media.public_id}:`, err);
+          }
+        })
+      );
+    }
+
+    // ✅ Bắt đầu với media được giữ lại
+    let media_urls = [...mediaToKeep];
+
+    // ✅ Thêm file mới từ upload (giống tạo bài viết)
+    if (req.files && req.files.length > 0) {
+      const newMedia = buildMediaFromFiles(req.files);
+      console.log('📸 Media mới upload:', newMedia);
+      media_urls = [...media_urls, ...newMedia];
+    }
+
+    console.log('✅ Tổng media sau merge:', media_urls);
+
+    const media_type = detectMediaType(media_urls);
+
+    // ✅ Cập nhật vào DB
+    await baiViet.update({
+      noi_dung,
+      media_urls: media_urls.length > 0 ? media_urls : [],
+      media_type
+    });
+
+    console.log('💾 Đã cập nhật vào DB');
+
+    // ✅ Trả về dữ liệu đầy đủ
+    const updatedPost = await BaiViet.findByPk(id, {
+      include: [
+        {
+          model: NguoiDung,
+          as: 'tac_gia',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        }
+      ]
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Cập nhật bài viết thành công.', 
+      data: updatedPost
+    });
   } catch (error) {
-    console.error('capNhatBaiViet error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server.' });
+    console.error('❌ Lỗi capNhatBaiViet:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server.', 
+      error: error.message 
+    });
   }
 };
 
 // Thích/bỏ thích bài viết
 export const thichBaiViet = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { id_nguoi_dung } = req.body;
+    const { id: id_bai_viet } = req.params;
+    const id_nguoi_dung = req.user?.id;
 
     if (!id_nguoi_dung) {
       return res.status(400).json({
@@ -194,7 +282,7 @@ export const thichBaiViet = async (req, res) => {
       });
     }
 
-    const baiViet = await BaiViet.findByPk(id);
+    const baiViet = await BaiViet.findByPk(id_bai_viet);
     if (!baiViet) {
       return res.status(404).json({
         success: false,
@@ -205,30 +293,39 @@ export const thichBaiViet = async (req, res) => {
     const luotThich = await LuotThich.findOne({
       where: {
         id_nguoi_dung,
-        id_doi_tuong: id,
+        id_doi_tuong: id_bai_viet,
         loai_doi_tuong: 'bai_viet'
       }
     });
 
-    if (luotThich) {
-      await luotThich.destroy();
-      return res.json({
-        success: true,
-        message: 'Đã bỏ thích bài viết',
-        data: { da_thich: false }
-      });
-    } else {
+    if (!luotThich) {
       await LuotThich.create({
         id_nguoi_dung,
-        id_doi_tuong: id,
+        id_doi_tuong: id_bai_viet,
         loai_doi_tuong: 'bai_viet'
       });
-      return res.json({
-        success: true,
-        message: 'Đã thích bài viết',
-        data: { da_thich: true }
-      });
+
+      if (baiViet && baiViet.id_tac_gia !== id_nguoi_dung) {
+        await taoThongBao({
+          id_nguoi_nhan: baiViet.id_tac_gia,
+          id_nguoi_tao: id_nguoi_dung,
+          loai_thong_bao: 'like_bai_viet',
+          tieu_de: '❤️ Có người thích bài viết của bạn',
+          noi_dung: 'đã thích bài viết của bạn',
+          link: `/bai-viet/${id_bai_viet}`,
+          id_doi_tuong: id_bai_viet,
+          loai_doi_tuong: 'bai_viet'
+        });
+      }
+    } else {
+      await luotThich.destroy();
     }
+
+    res.json({
+      success: true,
+      message: luotThich ? 'Đã bỏ thích bài viết' : 'Đã thích bài viết',
+      data: { da_thich: !luotThich }
+    });
   } catch (error) {
     console.error('Lỗi khi thích bài viết:', error);
     res.status(500).json({
@@ -239,6 +336,7 @@ export const thichBaiViet = async (req, res) => {
   }
 };
 
+// ✅ XÓA BÀI VIẾT - ĐƠN GIẢN
 export const xoaBaiViet = async (req, res) => {
   try {
     const { id } = req.params;
@@ -253,7 +351,9 @@ export const xoaBaiViet = async (req, res) => {
       const { cloudinary } = await import('../config/cloudinary.js');
       await Promise.all(
         baiViet.media_urls.map(media => 
-          cloudinary.uploader.destroy(media.public_id, { resource_type: media.resource_type })
+          cloudinary.uploader.destroy(media.public_id, { 
+            resource_type: media.resource_type 
+          }).catch(err => console.error('Lỗi xóa media:', err))
         )
       );
     }
@@ -261,7 +361,7 @@ export const xoaBaiViet = async (req, res) => {
     await baiViet.destroy();
     res.json({ success: true, message: 'Đã xóa bài viết' });
   } catch (error) {
-    console.error('❌ Lỗi khi xóa bài viết:', error);
+    console.error('❌ Lỗi:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -278,7 +378,7 @@ export const layDanhSachBinhLuan = async (req, res) => {
     const { count, rows: binhLuans } = await BinhLuan.findAndCountAll({
       where: { 
         id_bai_viet,
-        id_binh_luan_cha: null // Chỉ lấy bình luận gốc
+        id_binh_luan_cha: null
       },
       include: [
         {
@@ -356,6 +456,37 @@ export const taoBinhLuan = async (req, res) => {
         }
       ]
     });
+
+    // ✅ Tạo thông báo
+    const baiViet = await BaiViet.findByPk(id_bai_viet);
+    if (baiViet && baiViet.id_tac_gia !== id_tac_gia) {
+      if (id_binh_luan_cha) {
+        const binhLuanCha = await BinhLuan.findByPk(id_binh_luan_cha);
+        if (binhLuanCha && binhLuanCha.id_tac_gia !== id_tac_gia) {
+          await taoThongBao({
+            id_nguoi_nhan: binhLuanCha.id_tac_gia,
+            id_nguoi_tao: id_tac_gia,
+            loai_thong_bao: 'tra_loi_binh_luan',
+            tieu_de: '💬 Có người trả lời bình luận của bạn',
+            noi_dung: `đã trả lời bình luận của bạn: "${noi_dung}"`,
+            link: `/bai-viet/${id_bai_viet}?commentId=${binhLuan.id}`,
+            id_doi_tuong: binhLuan.id,
+            loai_doi_tuong: 'binh_luan'
+          });
+        }
+      } else {
+        await taoThongBao({
+          id_nguoi_nhan: baiViet.id_tac_gia,
+          id_nguoi_tao: id_tac_gia,
+          loai_thong_bao: 'binh_luan_bai_viet',
+          tieu_de: '💬 Có người bình luận bài viết của bạn',
+          noi_dung: `đã bình luận: "${noi_dung}"`,
+          link: `/bai-viet/${id_bai_viet}?commentId=${binhLuan.id}`,
+          id_doi_tuong: binhLuan.id,
+          loai_doi_tuong: 'binh_luan'
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -442,7 +573,6 @@ export const xoaBinhLuan = async (req, res) => {
       });
     }
 
-    // Xóa cả reply nếu có
     await BinhLuan.destroy({
       where: { id_binh_luan_cha: id }
     });
@@ -459,6 +589,78 @@ export const xoaBinhLuan = async (req, res) => {
       success: false, 
       message: 'Lỗi server',
       error: error.message 
+    });
+  }
+};
+
+// ✅ LẤY CHI TIẾT - KHÔNG NORMALIZE
+export const layChiTietBaiViet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const id_nguoi_dung = req.user?.id;
+
+    const baiViet = await BaiViet.findByPk(id, {
+      include: [
+        {
+          model: NguoiDung,
+          as: 'tac_gia',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url', 'vai_tro']
+        },
+        {
+          model: SuKien,
+          as: 'su_kien',
+          required: false
+        }
+      ]
+    });
+
+    if (!baiViet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài viết'
+      });
+    }
+
+    const so_luot_thich = await LuotThich.count({
+      where: {
+        id_doi_tuong: id,
+        loai_doi_tuong: 'bai_viet'
+      }
+    });
+
+    let da_thich = false;
+    if (id_nguoi_dung) {
+      const luotThich = await LuotThich.findOne({
+        where: {
+          id_nguoi_dung,
+          id_doi_tuong: id,
+          loai_doi_tuong: 'bai_viet'
+        }
+      });
+      da_thich = !!luotThich;
+    }
+
+    const so_binh_luan = await BinhLuan.count({
+      where: { id_bai_viet: id }
+    });
+
+    const baiVietData = {
+      ...baiViet.toJSON(),
+      so_luot_thich,
+      da_thich,
+      so_binh_luan
+    };
+
+    res.json({
+      success: true,
+      data: baiVietData
+    });
+  } catch (error) {
+    console.error('❌ Lỗi:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
     });
   }
 };
