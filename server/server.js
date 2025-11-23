@@ -11,6 +11,7 @@ import dangNhapRoutes from './src/routes/dangNhapRoutes.js';
 import binhLuanRoutes from './src/routes/binhLuanRoutes.js';  
 import diemRenLuyenRoutes from './src/routes/diemRenLuyenRoutes.js';
 import thongBaoRoutes from './src/routes/thongBaoRoutes.js';
+import nhomRoutes from './src/routes/nhomRoutes.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/su-kien', suKienRoutes);
 app.use('/api/binh-luan', binhLuanRoutes);
 app.use('/api/diem-ren-luyen', diemRenLuyenRoutes);
 app.use('/api/thong-bao', thongBaoRoutes);
+app.use('/api/nhom', nhomRoutes);
 
 
 // 404 Handler

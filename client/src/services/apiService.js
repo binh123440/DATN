@@ -261,4 +261,119 @@ export const xoaThongBao = async (id) => {
   return response.data;
 };
 
+// ===== NHÓM (GROUPS) =====
+export const taoNhom = async (data) => {
+  try {
+    const response = await apiClient.post('/nhom', data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi tạo nhóm:', error);
+    throw error;
+  }
+};
+
+export const layDanhSachNhom = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/nhom', { params });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi lấy danh sách nhóm:', error);
+    throw error;
+  }
+};
+
+export const layChiTietNhom = async (id) => {
+  try {
+    const response = await apiClient.get(`/nhom/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi lấy chi tiết nhóm:', error);
+    throw error;
+  }
+};
+
+export const thamGiaNhom = async (id) => {
+  try {
+    const response = await apiClient.post(`/nhom/${id}/tham-gia`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi tham gia nhóm:', error);
+    throw error;
+  }
+};
+
+export const roiNhom = async (id) => {
+  try {
+    const response = await apiClient.delete(`/nhom/${id}/roi-nhom`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi rời nhóm:', error);
+    throw error;
+  }
+};
+
+export const layDanhSachThanhVienNhom = async (id) => {
+  try {
+    const response = await apiClient.get(`/nhom/${id}/thanh-vien`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi lấy danh sách thành viên:', error);
+    throw error;
+  }
+};
+
+export const xoaThanhVienKhoiNhom = async (idNhom, idNguoiDung) => {
+  try {
+    const response = await apiClient.delete(`/nhom/${idNhom}/thanh-vien/${idNguoiDung}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi xóa thành viên:', error);
+    throw error;
+  }
+};
+
+export const capNhatVaiTroThanhVien = async (idNhom, idNguoiDung, vaiTro) => {
+  try {
+    const response = await apiClient.put(`/nhom/${idNhom}/thanh-vien/${idNguoiDung}/vai-tro`, {
+      vai_tro: vaiTro
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi cập nhật vai trò:', error);
+    throw error;
+  }
+};
+
+export const capNhatTenNhom = async (id, tenMoi) => {
+  try {
+    const response = await apiClient.put(`/nhom/${id}`, {
+      ten_hoi_thoai: tenMoi
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi cập nhật tên nhóm:', error);
+    throw error;
+  }
+};
+
+export const xoaNhom = async (id) => {
+  try {
+    const response = await apiClient.delete(`/nhom/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi xóa nhóm:', error);
+    throw error;
+  }
+};
+
+export const layBaiVietTrongNhom = async (id, params = {}) => {
+  try {
+    const response = await apiClient.get(`/nhom/${id}/bai-viet`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Lỗi lấy bài viết trong nhóm:', error);
+    throw error;
+  }
+};
+
 export default apiClient;

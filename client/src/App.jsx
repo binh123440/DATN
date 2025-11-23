@@ -11,6 +11,7 @@ import Profile from './components/Profile'
 import Login from './components/Login'
 import ThongKeDiemDanh from './components/ThongKeDiemDanh'
 import DuyetBai from './components/DuyetBai';
+import GroupDetail from './components/GroupDetail';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -101,6 +102,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Feed currentUser={currentUser} />} />
                   <Route path="/groups" element={<Groups currentUser={currentUser} />} />
+                  <Route path="/nhom/:id" element={<GroupDetail />} />
                   <Route path="/events" element={<Events currentUser={currentUser} />} />
                   <Route path="/chat" element={<Chat currentUser={currentUser} />} />
                   <Route path="/profile" element={<Profile currentUser={currentUser} />} />

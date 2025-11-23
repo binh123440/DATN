@@ -1,116 +1,117 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { authService } from '../services/authService';
 
-const UserMenuDropdown = ({ isOpen, onClose, currentUser }) => {
+const UserMenuDropdown = ({ currentUser }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState(currentUser || null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (currentUser) {
+      setUserInfo(currentUser);
+      return;
     }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setUserInfo(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Lỗi parse user:', error);
+      }
+    }
+  }, [currentUser]);
+
+  const userId = localStorage.getItem('userId');
+  const userName = userInfo?.ho_ten || userInfo?.name || 'Người dùng';
+  const userEmail = userInfo?.email || 'user@example.com';
+
+  const getInitials = () =>
+    userName
+      .trim()
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
 
   const handleLogout = () => {
-    // Xóa thông tin user khỏi localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    
-    // Chuyển hướng về trang đăng nhập
-    navigate('/login');
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  const user = currentUser || {
-    name: 'Hà Bình',
-    avatar: 'https://i.pravatar.cc/150?img=33',
-    email: 'lehabinh@student.ute.edu.vn'
-  };
-
-  const menuItems = [
-    {
-      icon: User,
-      label: 'Trang cá nhân',
-      onClick: () => {
-        navigate('/ca-nhan');
-        onClose();
-      }
-    },
-    {
-      icon: Settings,
-      label: 'Cài đặt',
-      onClick: () => {
-        alert('Tính năng đang phát triển');
-        onClose();
-      }
-    },
-    {
-      icon: HelpCircle,
-      label: 'Trợ giúp',
-      onClick: () => {
-        alert('Tính năng đang phát triển');
-        onClose();
-      }
-    },
-    {
-      icon: LogOut,
-      label: 'Đăng xuất',
-      onClick: handleLogout,
-      danger: true
+    if (window.confirm('Bạn chắc chắn muốn đăng xuất?')) {
+      authService.dangXuat();
+      navigate('/dang-nhap');
+      setIsOpen(false);
     }
-  ];
+  };
 
   return (
-    <>
-      {/* Overlay */}
-      <div 
-        className="fixed inset-0 z-30" 
-        onClick={onClose}
-      ></div>
-
-      {/* Dropdown */}
-      <div 
-        ref={dropdownRef}
-        className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-2 p-1 rounded-full hover:bg-blue-700 transition-colors"
       >
-        {/* User info */}
-        <div className="px-4 py-3 border-b border-gray-100">
-          <p className="font-semibold text-gray-900">{user.name}</p>
-          <p className="text-sm text-gray-500">Sinh viên</p>
+        <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold">
+          {getInitials()}
         </div>
+        <span className="hidden md:block font-medium">{userName}</span>
+      </button>
 
-        {/* Menu items */}
-        <div className="py-2">
-          {menuItems.map((item, index) => (
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="font-semibold text-gray-900">{userName}</p>
+            <p className="text-sm text-gray-500">{userEmail}</p>
+          </div>
+
+          <div className="py-2">
             <button
-              key={index}
-              onClick={item.onClick}
-              className={`w-full px-4 py-3 flex items-center space-x-3 transition-colors ${
-                item.danger 
-                  ? 'hover:bg-red-50 text-red-600' 
-                  : 'hover:bg-gray-50 text-gray-700'
-              }`}
+              onClick={() => {
+                navigate(userId ? `/ho-so/${userId}` : '/');
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 flex items-center space-x-3 text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <item.icon size={20} />
-              <span className="font-medium">{item.label}</span>
+              <User size={20} />
+              <span>Trang cá nhân</span>
             </button>
-          ))}
+
+            <button
+              onClick={() => {
+                alert('Tính năng đang phát triển');
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 flex items-center space-x-3 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Settings size={20} />
+              <span>Cài đặt</span>
+            </button>
+
+            <button
+              onClick={() => {
+                alert('Tính năng đang phát triển');
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 flex items-center space-x-3 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <HelpCircle size={20} />
+              <span>Trợ giúp</span>
+            </button>
+
+            <div className="border-t border-gray-100 my-2" />
+
+            <button
+              onClick={handleLogout}
+              className="w-full px-4 py-3 flex items-center space-x-3 text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut size={20} />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

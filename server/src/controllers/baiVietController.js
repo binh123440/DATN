@@ -128,36 +128,66 @@ export const layDanhSachBaiViet = async (req, res) => {
 // Tạo bài viết mới (thường)
 export const taoBaiViet = async (req, res) => {
   try {
-    const { id_tac_gia, noi_dung } = req.body;
+    const { noi_dung, id_cuoc_hoi_thoai } = req.body; // ✅ Thêm id_cuoc_hoi_thoai
+    const id_tac_gia = req.user.id;
 
-    if (!id_tac_gia || (!noi_dung && (!req.files || req.files.length === 0))) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+    // Validate
+    if (!noi_dung || noi_dung.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung bài viết không được để trống'
+      });
     }
 
-    let media_urls = [];
-    let media_type = null;
-
+    // Upload media files nếu có
+    let mediaPaths = [];
     if (req.files && req.files.length > 0) {
-      media_urls = buildMediaFromFiles(req.files);
-      media_type = detectMediaType(media_urls);
+      for (const file of req.files) {
+        try {
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'bai-viet',
+            resource_type: 'auto'
+          });
+          mediaPaths.push(result.secure_url);
+        } catch (uploadError) {
+          console.error('Lỗi upload file:', uploadError);
+        }
+      }
     }
 
+    // Tạo bài viết mới
     const baiViet = await BaiViet.create({
-      id_tac_gia,
       noi_dung,
-      media_urls,
-      media_type,
-      trang_thai: 'da_duyet'
+      id_tac_gia,
+      id_cuoc_hoi_thoai: id_cuoc_hoi_thoai || null, // ✅ Lưu id nhóm nếu có
+      media: mediaPaths.length > 0 ? JSON.stringify(mediaPaths) : null,
+      trang_thai: 'da_duyet',
+      ngay_tao: new Date()
     });
 
-    const baiVietDayDu = await BaiViet.findByPk(baiViet.id, {
-      include: [{ model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] }]
+    // Lấy thông tin bài viết vừa tạo kèm thông tin tác giả
+    const baiVietMoi = await BaiViet.findByPk(baiViet.id, {
+      include: [
+        {
+          model: NguoiDung,
+          as: 'tac_gia',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        }
+      ]
     });
 
-    res.status(201).json({ success: true, message: 'Đăng bài thành công', data: baiVietDayDu });
+    res.status(201).json({
+      success: true,
+      message: 'Tạo bài viết thành công',
+      data: baiVietMoi
+    });
   } catch (error) {
-    console.error('❌ Lỗi khi tạo bài viết:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    console.error('❌ Lỗi tạo bài viết:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
   }
 };
 

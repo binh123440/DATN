@@ -27,12 +27,32 @@ NguoiDung.belongsTo(Nganh, { foreignKey: 'id_nganh', as: 'nganh' });
 NguoiDung.hasMany(CuocHoiThoai, { foreignKey: 'id_nguoi_tao', as: 'cuoc_hoi_thoai_tao' });
 CuocHoiThoai.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_tao', as: 'nguoi_tao' });
 
+// ✅ CuocHoiThoai - ThanhVienHoiThoai (1-N) - THÊM DÒNG NÀY
+CuocHoiThoai.hasMany(ThanhVienHoiThoai, { 
+  foreignKey: 'id_cuoc_hoi_thoai', 
+  as: 'thanh_vien' 
+});
+ThanhVienHoiThoai.belongsTo(CuocHoiThoai, { 
+  foreignKey: 'id_cuoc_hoi_thoai', 
+  as: 'cuoc_hoi_thoai' 
+});
+
+// ✅ NguoiDung - ThanhVienHoiThoai (1-N) - THÊM DÒNG NÀY
+NguoiDung.hasMany(ThanhVienHoiThoai, { 
+  foreignKey: 'id_nguoi_dung', 
+  as: 'thanh_vien_hoi_thoai' 
+});
+ThanhVienHoiThoai.belongsTo(NguoiDung, { 
+  foreignKey: 'id_nguoi_dung', 
+  as: 'nguoi_dung' 
+});
+
 // CuocHoiThoai - ThanhVienHoiThoai - NguoiDung (M-N)
 CuocHoiThoai.belongsToMany(NguoiDung, {
   through: ThanhVienHoiThoai,
   foreignKey: 'id_cuoc_hoi_thoai',
   otherKey: 'id_nguoi_dung',
-  as: 'thanh_vien'
+  as: 'thanh_vien_nhom'
 });
 NguoiDung.belongsToMany(CuocHoiThoai, {
   through: ThanhVienHoiThoai,
@@ -108,7 +128,6 @@ DangKySuKien.belongsTo(SuKien, { foreignKey: 'id_su_kien', as: 'su_kien' });
 // Người dùng - Đăng ký sự kiện (1-N)
 NguoiDung.hasMany(DangKySuKien, { foreignKey: 'id_nguoi_dung', as: 'cac_lan_dang_ky' });
 DangKySuKien.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_dung', as: 'nguoi_dang_ky' });
-
 
 // NguoiDung - DangKySuKien - SuKien (M-N)
 NguoiDung.belongsToMany(SuKien, {
