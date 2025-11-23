@@ -91,7 +91,7 @@ BaiViet.belongsTo(BaiViet, { foreignKey: 'id_bai_viet_goc', as: 'bai_viet_goc' }
 
 // CuocHoiThoai - BaiViet (1-N) - bài viết trong nhóm
 CuocHoiThoai.hasMany(BaiViet, { foreignKey: 'id_cuoc_hoi_thoai', as: 'bai_viet' });
-BaiViet.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai', as: 'cuoc_hoi_thoai' });
+BaiViet.belongsTo(CuocHoiThoai, { foreignKey: 'id_cuoc_hoi_thoai', as: 'nhom' });
 
 // BaiViet - BinhLuan (1-N)
 BaiViet.hasMany(BinhLuan, { foreignKey: 'id_bai_viet', as: 'binh_luan' });

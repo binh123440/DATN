@@ -12,6 +12,8 @@ import binhLuanRoutes from './src/routes/binhLuanRoutes.js';
 import diemRenLuyenRoutes from './src/routes/diemRenLuyenRoutes.js';
 import thongBaoRoutes from './src/routes/thongBaoRoutes.js';
 import nhomRoutes from './src/routes/nhomRoutes.js';
+import searchRoutes from './src/routes/timKiemRoutes.js';
+import timKiemRoutes from './src/routes/timKiemRoutes.js';
 
 dotenv.config();
 
@@ -40,7 +42,8 @@ app.use('/api/binh-luan', binhLuanRoutes);
 app.use('/api/diem-ren-luyen', diemRenLuyenRoutes);
 app.use('/api/thong-bao', thongBaoRoutes);
 app.use('/api/nhom', nhomRoutes);
-
+app.use('/api/search', searchRoutes);
+app.use('/api/tim-kiem', timKiemRoutes); // ✅ Thêm dòng này
 
 // 404 Handler
 app.use((req, res) => {

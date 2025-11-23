@@ -376,4 +376,9 @@ export const layBaiVietTrongNhom = async (id, params = {}) => {
   }
 };
 
+export const timKiemTongHop = async (query) => {
+  const response = await apiClient.get('/tim-kiem', { params: { q: query } }); // ✅ Đổi từ '/search' thành '/tim-kiem'
+  return response.data;
+};
+
 export default apiClient;

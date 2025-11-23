@@ -1,7 +1,8 @@
+import { Op } from 'sequelize';
 import db from '../models/index.js';
 import { taoThongBao } from './thongBaoController.js';
 
-const { BaiViet, NguoiDung, BinhLuan, LuotThich, SuKien } = db;
+const { BaiViet, NguoiDung, CuocHoiThoai, ThanhVienHoiThoai } = db;
 
 // ✅ XÓA các helper phức tạp, CHỈ GIỮ CÁI NÀY
 const buildMediaFromFiles = (files) => {
@@ -25,102 +26,47 @@ const detectMediaType = (mediaArray) => {
 // Lấy danh sách bài viết (bao gồm cả sự kiện)
 export const layDanhSachBaiViet = async (req, res) => {
   try {
-    const { page = 1, limit = 10, trang_thai = 'da_duyet' } = req.query;
-    const id_nguoi_dung = req.user?.id;
+    const idNguoiDung = req.user.id;
+    const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    const { count, rows: baiViets } = await BaiViet.findAndCountAll({
-      where: { trang_thai },
+    const thanhVien = await ThanhVienHoiThoai.findAll({
+      where: { id_nguoi_dung: idNguoiDung },
+      attributes: ['id_cuoc_hoi_thoai'],
+      raw: true
+    });
+    const nhomIds = thanhVien.map(tv => tv.id_cuoc_hoi_thoai);
+
+    const whereClause = {
+      [Op.or]: [
+        { id_cuoc_hoi_thoai: null },
+        nhomIds.length ? { id_cuoc_hoi_thoai: nhomIds } : { id_cuoc_hoi_thoai: -1 }
+      ]
+    };
+
+    const { rows, count } = await BaiViet.findAndCountAll({
+      where: whereClause,
       include: [
-        {
-          model: NguoiDung,
-          as: 'tac_gia',
-          attributes: ['id', 'ho_ten', 'anh_dai_dien_url', 'vai_tro']
-        },
-        {
-          model: SuKien,
-          as: 'su_kien',
-          required: false,
-          attributes: [
-            'id', 'id_nguoi_tao', 'ten_su_kien', 'mo_ta', 'dia_diem', 
-            'thoi_gian_bat_dau', 'so_luong_toi_da', 'diem_thuong', 'trang_thai'
-          ]
-        }
+        { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
+        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'] },
+        { model: db.SuKien, as: 'su_kien' }
       ],
       order: [['ngay_tao', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
 
-    const baiVietsWithDetails = await Promise.all(
-      baiViets.map(async (baiViet) => {
-        const baiVietData = baiViet.toJSON();
-
-        const soLuotThich = await LuotThich.count({
-          where: {
-            id_doi_tuong: baiViet.id,
-            loai_doi_tuong: 'bai_viet'
-          }
-        });
-
-        const soBinhLuan = await BinhLuan.count({
-          where: { id_bai_viet: baiViet.id }
-        });
-
-        let daThich = false;
-        if (id_nguoi_dung) {
-          const luotThich = await LuotThich.findOne({
-            where: {
-              id_nguoi_dung: id_nguoi_dung,
-              id_doi_tuong: baiViet.id,
-              loai_doi_tuong: 'bai_viet'
-            }
-          });
-          daThich = !!luotThich;
-        }
-
-        let thongTinSuKien = null;
-        if (baiVietData.su_kien) {
-          const { DangKySuKien } = db;
-          const soDaDangKy = await DangKySuKien.count({
-            where: {
-              id_su_kien: baiVietData.su_kien.id,
-              trang_thai: 'da_dang_ky'
-            }
-          });
-
-          thongTinSuKien = {
-            ...baiVietData.su_kien,
-            so_da_dang_ky: soDaDangKy,
-            con_cho: baiVietData.su_kien.so_luong_toi_da - soDaDangKy
-          };
-        }
-
-        return {
-          ...baiVietData,
-          so_luot_thich: soLuotThich,
-          so_binh_luan: soBinhLuan,
-          da_thich: daThich, 
-          su_kien: thongTinSuKien
-        };
-      })
-    );
-
     res.json({
       success: true,
-      message: 'Lấy danh sách bài viết thành công',
       data: {
-        bai_viets: baiVietsWithDetails,
+        bai_viets: rows,
         pagination: {
           trang_hien_tai: parseInt(page),
-          tong_so_trang: Math.ceil(count / limit),
-          tong_so_bai_viet: count,
-          so_bai_viet_moi_trang: parseInt(limit)
+          tong_so_trang: Math.ceil(count / limit)
         }
       }
     });
   } catch (error) {
-    console.error('❌ Lỗi:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -626,71 +572,28 @@ export const xoaBinhLuan = async (req, res) => {
 // ✅ LẤY CHI TIẾT - KHÔNG NORMALIZE
 export const layChiTietBaiViet = async (req, res) => {
   try {
+    const idNguoiDung = req.user.id;
     const { id } = req.params;
-    const id_nguoi_dung = req.user?.id;
 
     const baiViet = await BaiViet.findByPk(id, {
       include: [
-        {
-          model: NguoiDung,
-          as: 'tac_gia',
-          attributes: ['id', 'ho_ten', 'anh_dai_dien_url', 'vai_tro']
-        },
-        {
-          model: SuKien,
-          as: 'su_kien',
-          required: false
-        }
+        { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
+        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'] },
+        { model: db.SuKien, as: 'su_kien' }
       ]
     });
 
-    if (!baiViet) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy bài viết'
+    if (!baiViet) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết' });
+
+    if (baiViet.id_cuoc_hoi_thoai) {
+      const isMember = await ThanhVienHoiThoai.findOne({
+        where: { id_cuoc_hoi_thoai: baiViet.id_cuoc_hoi_thoai, id_nguoi_dung: idNguoiDung }
       });
+      if (!isMember) return res.status(403).json({ success: false, message: 'Bạn không có quyền xem bài viết này' });
     }
 
-    const so_luot_thich = await LuotThich.count({
-      where: {
-        id_doi_tuong: id,
-        loai_doi_tuong: 'bai_viet'
-      }
-    });
-
-    let da_thich = false;
-    if (id_nguoi_dung) {
-      const luotThich = await LuotThich.findOne({
-        where: {
-          id_nguoi_dung,
-          id_doi_tuong: id,
-          loai_doi_tuong: 'bai_viet'
-        }
-      });
-      da_thich = !!luotThich;
-    }
-
-    const so_binh_luan = await BinhLuan.count({
-      where: { id_bai_viet: id }
-    });
-
-    const baiVietData = {
-      ...baiViet.toJSON(),
-      so_luot_thich,
-      da_thich,
-      so_binh_luan
-    };
-
-    res.json({
-      success: true,
-      data: baiVietData
-    });
+    res.json({ success: true, data: baiViet });
   } catch (error) {
-    console.error('❌ Lỗi:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };

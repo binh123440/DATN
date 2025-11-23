@@ -471,6 +471,12 @@ const EventPostCard = ({
             </div>
           </>
         )}
+
+        {post.nhom && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100 mt-2">
+            Thuộc nhóm: {post.nhom.ten_hoi_thoai}
+          </span>
+        )}
       </div>
 
       {/* ✅ Modal xem ảnh full size */}

@@ -41,7 +41,7 @@ const UserMenuDropdown = ({ currentUser }) => {
   const handleLogout = () => {
     if (window.confirm('Bạn chắc chắn muốn đăng xuất?')) {
       authService.dangXuat();
-      navigate('/dang-nhap');
+      navigate('/login');
       setIsOpen(false);
     }
   };

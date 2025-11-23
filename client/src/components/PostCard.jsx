@@ -142,10 +142,16 @@ const PostCard = ({
             <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
               {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
             </div>
+          
             <div>
-              <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
+              <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten} </h4>
               <p className="text-xs text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
             </div>
+            {post.nhom && (
+              <div className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100 mt-2">
+                Thuộc nhóm: {post.nhom.ten_hoi_thoai}
+              </div>
+            )}
           </div>
 
           {isOwner && (

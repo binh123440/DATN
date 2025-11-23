@@ -1,13 +1,50 @@
-import React, { useState } from 'react';
-import { Search, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Bell, MessageCircle, User } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 import MessageDropdown from './MessageDropdown';
 import UserMenuDropdown from './UserMenuDropdown';
+import { timKiemTongHop } from '../services/apiService';
+import { useNavigate } from 'react-router-dom';
 
 const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimeout = useRef(null);
+  const searchWrapperRef = useRef(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target)) {
+        setSearchResults(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (!searchValue.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        const response = await timKiemTongHop(searchValue);
+        setSearchResults(response.data);
+      } catch (error) {
+        console.error('Lỗi tìm kiếm:', error);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+  }, [searchValue]);
 
   const handleMobileMenuToggle = () => {
     if (onToggleSidebar) {
@@ -31,6 +68,64 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
     setIsUserMenuOpen(!isUserMenuOpen);
     setIsNotificationOpen(false); // Close notification dropdown
     setIsMessageOpen(false); // Close message dropdown
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchValue(e.target.value);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      navigate(`/search/${searchValue}`);
+    }
+  };
+
+  const getBadge = (section, item) => {
+    if (section === 'users') return item.ho_ten?.[0] || item.name?.[0] || 'U';
+    if (section === 'groups') return item.ten_hoi_thoai?.[0] || 'N';
+    if (section === 'events') return 'SK';
+    return 'BV';
+  };
+
+  const getTitle = (section, item) => {
+    switch (section) {
+      case 'users':
+        return item.ho_ten;
+      case 'groups':
+        return item.ten_hoi_thoai;
+      case 'events':
+        return item.ten_su_kien;
+      default:
+        return item.noi_dung.slice(0, 80) + (item.noi_dung.length > 80 ? '...' : '');
+    }
+  };
+
+  const getSubtitle = (section, item) => {
+    switch (section) {
+      case 'users':
+        return item.email;
+      case 'groups':
+        return `${item.so_thanh_vien || 0} thành viên`;
+      case 'events':
+        return new Date(item.thoi_gian_bat_dau).toLocaleString('vi-VN');
+      default:
+        return item.nhom ? `Thuộc nhóm ${item.nhom.ten_hoi_thoai}` : 'Bài viết công khai';
+    }
+  };
+
+  const handleNavigateResult = (section, item) => {
+    setSearchResults(null);
+    setSearchValue('');
+    if (section === 'users') {
+      navigate(`/ho-so/${item.id}`);
+    } else if (section === 'groups') {
+      navigate(`/nhom/${item.id}`);
+    } else if (section === 'events') {
+      navigate(`/su-kien?highlight=${item.id}`);
+    } else {
+      navigate(`/bai-viet/${item.id}`);
+    }
   };
 
   return (
@@ -65,15 +160,61 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
           </div>
 
           {/* Center Section: Search Bar (for md and up) */}
-          <div className="w-full max-w-2xl mx-auto md:block px-4">
+          <div className="w-full max-w-2xl mx-auto md:block px-4" ref={searchWrapperRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Tìm kiếm..."
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Tìm người dùng, nhóm, bài viết, sự kiện..."
                 className="w-full bg-white text-gray-900 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
+              {searchLoading && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  Đang tìm...
+                </span>
+              )}
             </div>
+
+            {searchResults && (
+              <div className="absolute mt-2 w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 z-40 max-h-96 overflow-y-auto">
+                {['users', 'groups', 'posts', 'events'].map((section) => {
+                  const data = searchResults[section];
+                  if (!data || data.length === 0) return null;
+
+                  const sectionTitle = {
+                    users: 'Người dùng',
+                    groups: 'Nhóm',
+                    posts: 'Bài viết',
+                    events: 'Sự kiện'
+                  }[section];
+
+                  return (
+                    <div key={section} className="border-b border-gray-100 last:border-none">
+                      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50">
+                        {sectionTitle}
+                      </p>
+                      {data.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleNavigateResult(section, item)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-start gap-3"
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+                            {getBadge(section, item)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{getTitle(section, item)}</p>
+                            <p className="text-xs text-gray-500">{getSubtitle(section, item)}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Right Section: Icons */}
