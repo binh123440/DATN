@@ -12,6 +12,8 @@ import Login from './components/Login'
 import ThongKeDiemDanh from './components/ThongKeDiemDanh'
 import DuyetBai from './components/DuyetBai';
 import GroupDetail from './components/GroupDetail';
+import socketService from './services/tinNhanService';
+import AdminDashboard from './components/AdminDashboard';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -67,11 +69,18 @@ function App() {
           email: user.email,
           vai_tro: user.vai_tro
         });
+        
+        // Connect socket when user logged in
+        socketService.connect();
       } catch (error) {
         console.error('Lỗi khi parse user từ localStorage:', error);
         localStorage.removeItem('user');
       }
     }
+
+    return () => {
+      socketService.disconnect();
+    };
   }, []);
 
   const toggleMobileSidebar = () => {
@@ -111,6 +120,10 @@ function App() {
                   <Route path="/duyet-bai" element={<DuyetBai />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}
                   <Route path="*" element={<Navigate to="/" replace />} />
+                  
+                  {currentUser?.vai_tro === 'quan_tri_vien' && (
+                    <Route path="/admin" element={<AdminDashboard />} />
+                  )}
                 </Routes>
               </MainLayout>
             </ProtectedRoute>

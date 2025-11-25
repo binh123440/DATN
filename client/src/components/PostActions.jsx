@@ -5,24 +5,27 @@ import { thichBaiViet } from '../services/apiService';
 
 const PostActions = ({ post, currentUserId }) => {
   const [liked, setLiked] = useState(post.da_thich || false);
-  const [likes, setLikes] = useState(post.so_luot_thich || 0);
+  const [likes, setLikes] = useState(Number(post.so_luot_thich) || 0); // ✅ Ép kiểu sang Number
   const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.so_binh_luan || 0);
+  const [commentCount, setCommentCount] = useState(Number(post.so_binh_luan) || 0); // ✅ Ép kiểu sang Number
 
   const handleLike = async () => {
     if (isLiking) return;
     
-    setIsLiking(true);
-    const newLiked = !liked;
-    const newLikes = newLiked ? likes + 1 : likes - 1;
+    setIsLiking(true); // ✅ Đặt trước để tránh double click
     
+    const newLiked = !liked;
+    const newLikes = newLiked ? likes + 1 : likes - 1; // ✅ Bây giờ sẽ cộng đúng
+    
+    // Optimistic update
     setLiked(newLiked);
     setLikes(newLikes);
     
     try {
       await thichBaiViet(post.id, currentUserId);
     } catch (error) {
+      // Rollback nếu có lỗi
       setLiked(!newLiked);
       setLikes(likes);
       console.error('Lỗi khi thích bài viết:', error);
@@ -32,7 +35,7 @@ const PostActions = ({ post, currentUserId }) => {
   };
 
   const handleCommentCountChange = (newCount) => {
-    setCommentCount(newCount);
+    setCommentCount(Number(newCount) || 0); // ✅ Đảm bảo luôn là số
   };
 
   return (

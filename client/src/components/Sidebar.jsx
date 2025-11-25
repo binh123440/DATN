@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { 
   Home, 
@@ -7,13 +7,26 @@ import {
   MessageCircle, 
   Bell, 
   User,
-  ShieldCheck
+  ShieldCheck,
+  Shield
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // ✅ Lấy thông tin user từ localStorage
+  const currentUser = useMemo(() => {
+    try {
+      const userString = localStorage.getItem('user');
+      return userString ? JSON.parse(userString) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const userRole = currentUser?.vai_tro;
+  console.log('User Role :', userRole);
   useEffect(() => {
     if (isOpen) {
       setIsAnimating(true);
@@ -24,7 +37,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     setIsAnimating(false);
     setTimeout(() => {
       if (onClose) onClose();
-    }, 300); // Match transition duration
+    }, 300);
   };
 
   const menuItems = [
@@ -33,13 +46,6 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
     { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' }
   ];
-
-  // Giả sử bạn có thông tin người dùng từ một context hoặc props
-  // const { currentUser } = useAuth(); 
-  // const userRole = currentUser?.vai_tro;
-
-  // Để ví dụ, ta sẽ hardcode vai trò
-  const userRole = 'admin'; // Thay bằng logic lấy vai trò thực tế
 
   return (
     <>
@@ -69,16 +75,37 @@ const Sidebar = ({ isOpen, onClose }) => {
               </li>
             ))}
 
-            {/* Link cho Admin và Điều phối viên */}
-            {(userRole === 'admin' || userRole === 'dieu_phoi_vien') && (
+            {/* ✅ Link Quản trị cho Admin */}
+            {userRole === 'quan_tri_vien' && (
               <li>
-                <NavLink 
-                  to="/duyet-bai" 
-                  className={({ isActive }) => `flex items-center space-x-3 p-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-600 font-semibold' : 'hover:bg-gray-100'}`}
+                <Link
+                  to="/admin"
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                    location.pathname === '/admin'
+                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
                 >
-                  <ShieldCheck size={20} />
-                  <span>Kiểm Duyệt</span>
-                </NavLink>
+                  <Shield size={20} className="mr-3" />
+                  <span className="flex-1 font-medium">Quản trị</span>
+                </Link>
+              </li>
+            )}
+
+            {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên */}
+            {(userRole === 'quan_tri_vien' || userRole === 'dieu_phoi_vien') && (
+              <li>
+                <Link
+                  to="/duyet-bai"
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                    location.pathname === '/duyet-bai'
+                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
+                >
+                  <ShieldCheck size={20} className="mr-3" />
+                  <span className="flex-1 font-medium">Kiểm duyệt</span>
+                </Link>
               </li>
             )}
           </ul>
@@ -91,13 +118,13 @@ const Sidebar = ({ isOpen, onClose }) => {
           {/* Backdrop */}
           <div 
             className={`fixed inset-0 z-40 transition-opacity duration-300 ease-in-out ${
-              isAnimating ? 'bg-transparent' : 'bg-opacity-0'
+              isAnimating ? 'bg-black bg-opacity-50' : 'bg-opacity-0'
             }`}
             onClick={handleClose}
           ></div>
           
           {/* Mobile Sidebar */}
-          <div className={`fixed left-0 top-0 bottom-0 w-64 bg-white bg-opacity-90 backdrop-blur-md shadow-xl z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out custom-scrollbar-blue ${
+          <div className={`fixed left-0 top-0 bottom-0 w-64 bg-white bg-opacity-95 backdrop-blur-md shadow-xl z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out custom-scrollbar-blue ${
             isAnimating ? 'translate-x-0' : '-translate-x-full'
           }`}>
             {/* Header Space */}
@@ -133,18 +160,40 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </Link>
                   </li>
                 ))}
+
+                {/* ✅ Link Quản trị cho Admin - Mobile */}
+                {userRole === 'quan_tri_vien' && (
+                  <li>
+                    <Link
+                      to="/admin"
+                      onClick={handleClose}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                        location.pathname === '/admin'
+                          ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg transform scale-105'
+                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 hover:text-purple-600'
+                      }`}
+                    >
+                      <Shield size={20} className="mr-3" />
+                      <span className="flex-1 font-medium">Quản trị</span>
+                    </Link>
+                  </li>
+                )}
                 
-                {/* Link cho Admin và Điều phối viên */}
+                {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên - Mobile */}
                 {(userRole === 'admin' || userRole === 'dieu_phoi_vien') && (
                   <li>
-                    <NavLink 
-                      to="/duyet-bai" 
+                    <Link
+                      to="/duyet-bai"
                       onClick={handleClose}
-                      className={({ isActive }) => `flex items-center space-x-3 p-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-600 font-semibold' : 'hover:bg-gray-100'}`}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                        location.pathname === '/duyet-bai'
+                          ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                      }`}
                     >
-                      <ShieldCheck size={20} />
-                      <span>Kiểm Duyệt</span>
-                    </NavLink>
+                      <ShieldCheck size={20} className="mr-3" />
+                      <span className="flex-1 font-medium">Kiểm duyệt</span>
+                    </Link>
                   </li>
                 )}
               </ul>

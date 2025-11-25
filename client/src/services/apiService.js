@@ -188,7 +188,7 @@ export const capNhatTrangThaiNoiDung = async (id, loai, trang_thai_moi) => {
 
 // ==================== BÌNH LUẬN ====================
 
-export const layDanhSachBinhLuan = async (idBaiViet, page = 1, limit = 10) => {
+export const  layDanhSachBinhLuan = async (idBaiViet, page = 1, limit = 10) => {
   const response = await apiClient.get(`/binh-luan/bai-viet/${idBaiViet}`, {
     params: { page, limit }
   });
@@ -380,5 +380,36 @@ export const timKiemTongHop = async (query) => {
   const response = await apiClient.get('/tim-kiem', { params: { q: query } }); // ✅ Đổi từ '/search' thành '/tim-kiem'
   return response.data;
 };
+
+export const layDanhSachCuocHoiThoai = async () => {
+  const response = await apiClient.get('/chat/cuoc-hoi-thoai');
+  return response.data;
+};
+
+export const layTinNhanTrongCuocHoiThoai = async (idCuocHoiThoai, params = {}) => {
+  const response = await apiClient.get(`/chat/cuoc-hoi-thoai/${idCuocHoiThoai}/tin-nhan`, { params });
+  return response.data;
+};
+
+export const guiTinNhan = async (data) => {
+  const response = await apiClient.post('/chat/tin-nhan', data);
+  return response.data;
+};
+
+export const taoCuocHoiThoaiRiengTu = async (idNguoiNhan) => {
+  const response = await apiClient.post('/chat/cuoc-hoi-thoai/rieng-tu', { id_nguoi_nhan: idNguoiNhan });
+  return response.data;
+};
+
+// ==================== ADMIN APIs ====================
+export const layDanhSachNguoiDung = () => apiClient.get('/admin/users');
+
+export const capNhatVaiTroNguoiDung = (userId, vai_tro) => 
+  apiClient.put(`/admin/users/${userId}/role`, { vai_tro });
+
+export const layNoiDungChoDuyet = () => apiClient.get('/admin/pending-content');
+
+export const duyetNoiDung = (id, loai, trang_thai_moi) => 
+  apiClient.post('/admin/approve-content', { id, loai, trang_thai_moi });
 
 export default apiClient;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Users, Settings, LogOut, Edit2, Trash2, 
+  Users, Settings, LogOut, MessageSquare, Edit2, Trash2, 
   MessageCircle, X, MoreVertical, Shield, ArrowLeft, Image, Video
 } from 'lucide-react';
 import {
@@ -196,6 +196,11 @@ const GroupDetail = () => {
     }
   };
 
+  const handleOpenChat = () => {
+    // Navigate to chat with this group's conversation
+    navigate(`/tin-nhan?conversation=${id}`);
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -278,6 +283,15 @@ const GroupDetail = () => {
                 </button>
               ) : (
                 <>
+                  {/* ✅ Nút Nhắn tin - Hiển thị cho thành viên */}
+                  <button
+                    onClick={handleOpenChat}
+                    className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+                  >
+                    <MessageSquare size={18} />
+                    <span>Nhắn tin</span>
+                  </button>
+
                   {canManage && (
                     <button
                       onClick={() => setShowEditModal(true)}

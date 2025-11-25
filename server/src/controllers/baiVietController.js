@@ -1,8 +1,8 @@
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import db from '../models/index.js';
 import { taoThongBao } from './thongBaoController.js';
 
-const { BaiViet, NguoiDung, CuocHoiThoai, ThanhVienHoiThoai } = db;
+const { BaiViet, NguoiDung, CuocHoiThoai, ThanhVienHoiThoai, LuotThich, BinhLuan} = db;
 
 // ✅ XÓA các helper phức tạp, CHỈ GIỮ CÁI NÀY
 const buildMediaFromFiles = (files) => {
@@ -46,14 +46,50 @@ export const layDanhSachBaiViet = async (req, res) => {
 
     const { rows, count } = await BaiViet.findAndCountAll({
       where: whereClause,
+      attributes: {
+        include: [
+          // ✅ Sửa tên bảng từ luot_thich → LuotThich
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM "LuotThich" AS lt
+              WHERE lt.id_doi_tuong = "BaiViet".id 
+                AND lt.loai_doi_tuong = 'bai_viet'
+            )`),
+            'so_luot_thich'
+          ],
+          // ✅ Sửa tên bảng từ binh_luan → BinhLuan
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM "BinhLuan" AS bl
+              WHERE bl.id_bai_viet = "BaiViet".id
+            )`),
+            'so_binh_luan'
+          ],
+          // ✅ Sửa tên bảng từ luot_thich → LuotThich
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*) > 0
+              FROM "LuotThich" AS lt
+              WHERE lt.id_doi_tuong = "BaiViet".id 
+                AND lt.loai_doi_tuong = 'bai_viet'
+                AND lt.id_nguoi_dung = ${idNguoiDung}
+            )`),
+            'da_thich'
+          ]
+        ]
+      },
       include: [
         { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
-        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'] },
-        { model: db.SuKien, as: 'su_kien' }
+        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
+        { model: db.SuKien, as: 'su_kien', required: false }
       ],
       order: [['ngay_tao', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      distinct: true,
+      subQuery: false
     });
 
     res.json({
@@ -67,6 +103,7 @@ export const layDanhSachBaiViet = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Lỗi khi lấy danh sách bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -281,16 +318,14 @@ export const thichBaiViet = async (req, res) => {
         loai_doi_tuong: 'bai_viet'
       });
 
+      // ✅ Sửa tham số theo đúng schema mới
       if (baiViet && baiViet.id_tac_gia !== id_nguoi_dung) {
         await taoThongBao({
           id_nguoi_nhan: baiViet.id_tac_gia,
-          id_nguoi_tao: id_nguoi_dung,
-          loai_thong_bao: 'like_bai_viet',
-          tieu_de: '❤️ Có người thích bài viết của bạn',
-          noi_dung: 'đã thích bài viết của bạn',
-          link: `/bai-viet/${id_bai_viet}`,
-          id_doi_tuong: id_bai_viet,
-          loai_doi_tuong: 'bai_viet'
+          id_nguoi_hanh_dong: id_nguoi_dung,  // ✅ Đổi từ id_nguoi_tao
+          loai: 'like_bai_viet',              // ✅ Đổi từ loai_thong_bao
+          id_muc_tieu: parseInt(id_bai_viet), // ✅ Đổi từ id_doi_tuong
+          loai_muc_tieu: 'bai_viet'           // ✅ Đổi từ loai_doi_tuong
         });
       }
     } else {
@@ -433,7 +468,7 @@ export const taoBinhLuan = async (req, res) => {
       ]
     });
 
-    // ✅ Tạo thông báo
+    // ✅ Sửa tham số theo đúng schema mới
     const baiViet = await BaiViet.findByPk(id_bai_viet);
     if (baiViet && baiViet.id_tac_gia !== id_tac_gia) {
       if (id_binh_luan_cha) {
@@ -441,25 +476,19 @@ export const taoBinhLuan = async (req, res) => {
         if (binhLuanCha && binhLuanCha.id_tac_gia !== id_tac_gia) {
           await taoThongBao({
             id_nguoi_nhan: binhLuanCha.id_tac_gia,
-            id_nguoi_tao: id_tac_gia,
-            loai_thong_bao: 'tra_loi_binh_luan',
-            tieu_de: '💬 Có người trả lời bình luận của bạn',
-            noi_dung: `đã trả lời bình luận của bạn: "${noi_dung}"`,
-            link: `/bai-viet/${id_bai_viet}?commentId=${binhLuan.id}`,
-            id_doi_tuong: binhLuan.id,
-            loai_doi_tuong: 'binh_luan'
+            id_nguoi_hanh_dong: id_tac_gia,  // ✅ Đổi từ id_nguoi_tao
+            loai: 'tra_loi_binh_luan',       // ✅ Đổi từ loai_thong_bao
+            id_muc_tieu: binhLuan.id,        // ✅ Đổi từ id_doi_tuong
+            loai_muc_tieu: 'binh_luan'       // ✅ Đổi từ loai_doi_tuong
           });
         }
       } else {
         await taoThongBao({
           id_nguoi_nhan: baiViet.id_tac_gia,
-          id_nguoi_tao: id_tac_gia,
-          loai_thong_bao: 'binh_luan_bai_viet',
-          tieu_de: '💬 Có người bình luận bài viết của bạn',
-          noi_dung: `đã bình luận: "${noi_dung}"`,
-          link: `/bai-viet/${id_bai_viet}?commentId=${binhLuan.id}`,
-          id_doi_tuong: binhLuan.id,
-          loai_doi_tuong: 'binh_luan'
+          id_nguoi_hanh_dong: id_tac_gia,   // ✅ Đổi từ id_nguoi_tao
+          loai: 'binh_luan_bai_viet',       // ✅ Đổi từ loai_thong_bao
+          id_muc_tieu: binhLuan.id,         // ✅ Đổi từ id_doi_tuong
+          loai_muc_tieu: 'binh_luan'        // ✅ Đổi từ loai_doi_tuong
         });
       }
     }
@@ -576,10 +605,44 @@ export const layChiTietBaiViet = async (req, res) => {
     const { id } = req.params;
 
     const baiViet = await BaiViet.findByPk(id, {
+      attributes: {
+        include: [
+          // ✅ Sửa tên bảng từ luot_thich → LuotThich
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM "LuotThich" AS lt
+              WHERE lt.id_doi_tuong = "BaiViet".id 
+                AND lt.loai_doi_tuong = 'bai_viet'
+            )`),
+            'so_luot_thich'
+          ],
+          // ✅ Sửa tên bảng từ binh_luan → BinhLuan
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM "BinhLuan" AS bl
+              WHERE bl.id_bai_viet = "BaiViet".id
+            )`),
+            'so_binh_luan'
+          ],
+          // ✅ Sửa tên bảng từ luot_thich → LuotThich
+          [
+            Sequelize.literal(`(
+              SELECT COUNT(*) > 0
+              FROM "LuotThich" AS lt
+              WHERE lt.id_doi_tuong = "BaiViet".id 
+                AND lt.loai_doi_tuong = 'bai_viet'
+                AND lt.id_nguoi_dung = ${idNguoiDung}
+            )`),
+            'da_thich'
+          ]
+        ]
+      },
       include: [
         { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
-        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'] },
-        { model: db.SuKien, as: 'su_kien' }
+        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
+        { model: db.SuKien, as: 'su_kien', required: false }
       ]
     });
 
@@ -594,6 +657,7 @@ export const layChiTietBaiViet = async (req, res) => {
 
     res.json({ success: true, data: baiViet });
   } catch (error) {
+    console.error('❌ Lỗi khi lấy chi tiết bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };

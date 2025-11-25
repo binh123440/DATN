@@ -114,14 +114,10 @@ const PostModal = ({ postId, commentId, isOpen, onClose, currentUser, PostCardCo
             <div className="p-4">
               <PostCardComponent
                 post={post}
-                currentUserId={currentUser?.id || 1}
-                userRole={currentUser?.vai_tro || 'sinh_vien'}
-                onPostDeleted={() => {
-                  onClose();
-                }}
-                onRefresh={() => {
-                  fetchPost();
-                }}
+                currentUserId={currentUser?.id}
+                userRole={currentUser?.vai_tro}
+                onPostDeleted={onClose}
+                onRefresh={fetchPost} 
                 isInModal={true}
                 highlightCommentId={commentId}
                 autoOpenComments={!!commentId}
