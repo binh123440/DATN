@@ -14,6 +14,7 @@ import DuyetBai from './components/DuyetBai';
 import GroupDetail from './components/GroupDetail';
 import socketService from './services/tinNhanService';
 import AdminDashboard from './components/AdminDashboard';
+import UserProfile from './components/UserProfile';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -115,6 +116,7 @@ function App() {
                   <Route path="/events" element={<Events currentUser={currentUser} />} />
                   <Route path="/chat" element={<Chat currentUser={currentUser} />} />
                   <Route path="/profile" element={<Profile currentUser={currentUser} />} />
+                  <Route path="/profile/:id" element={<UserProfile currentUser={currentUser} />} />
                   <Route path="/events/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/su-kien/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/duyet-bai" element={<DuyetBai />} />

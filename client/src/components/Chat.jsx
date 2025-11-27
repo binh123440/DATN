@@ -221,9 +221,9 @@ const Chat = () => {
           ) : (
             filteredConversations.map((conv) => {
               const lastMessage = conv.tin_nhan?.[0];
-              console.log('Conversation:', conv);
-              console.log('Last Message:', lastMessage.nguoi_gui.id);
-              console.log('Current User ID:', currentUserId);
+              // console.log('Conversation:', conv);
+              // console.log('Last Message:', lastMessage.nguoi_gui.id);
+              // console.log('Current User ID:', currentUserId);
               const isSelected = selectedConversation?.id === conv.id;
               return (
                 <button

@@ -30,6 +30,7 @@ export const layDanhSachBaiViet = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
+    // ✅ Lấy danh sách nhóm mà user tham gia
     const thanhVien = await ThanhVienHoiThoai.findAll({
       where: { id_nguoi_dung: idNguoiDung },
       attributes: ['id_cuoc_hoi_thoai'],
@@ -37,10 +38,21 @@ export const layDanhSachBaiViet = async (req, res) => {
     });
     const nhomIds = thanhVien.map(tv => tv.id_cuoc_hoi_thoai);
 
+    // ✅ Điều kiện lọc: 
+    // - Bài viết công khai (id_cuoc_hoi_thoai = null) 
+    // - HOẶC bài viết trong nhóm mà user là thành viên
+    // - VÀ chỉ lấy bài viết đã duyệt
     const whereClause = {
-      [Op.or]: [
-        { id_cuoc_hoi_thoai: null },
-        nhomIds.length ? { id_cuoc_hoi_thoai: nhomIds } : { id_cuoc_hoi_thoai: -1 }
+      [Op.and]: [
+        // ✅ Chỉ lấy bài viết đã duyệt
+        { trang_thai: 'da_duyet' },
+        // ✅ Bài viết công khai hoặc trong nhóm của user
+        {
+          [Op.or]: [
+            { id_cuoc_hoi_thoai: null },
+            nhomIds.length ? { id_cuoc_hoi_thoai: nhomIds } : { id_cuoc_hoi_thoai: -1 }
+          ]
+        }
       ]
     };
 
@@ -48,7 +60,6 @@ export const layDanhSachBaiViet = async (req, res) => {
       where: whereClause,
       attributes: {
         include: [
-          // ✅ Sửa tên bảng từ luot_thich → LuotThich
           [
             Sequelize.literal(`(
               SELECT COUNT(*)
@@ -58,7 +69,6 @@ export const layDanhSachBaiViet = async (req, res) => {
             )`),
             'so_luot_thich'
           ],
-          // ✅ Sửa tên bảng từ binh_luan → BinhLuan
           [
             Sequelize.literal(`(
               SELECT COUNT(*)
@@ -67,7 +77,6 @@ export const layDanhSachBaiViet = async (req, res) => {
             )`),
             'so_binh_luan'
           ],
-          // ✅ Sửa tên bảng từ luot_thich → LuotThich
           [
             Sequelize.literal(`(
               SELECT COUNT(*) > 0
@@ -81,9 +90,24 @@ export const layDanhSachBaiViet = async (req, res) => {
         ]
       },
       include: [
-        { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
-        { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
-        { model: db.SuKien, as: 'su_kien', required: false }
+        { 
+          model: NguoiDung, 
+          as: 'tac_gia', 
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] 
+        },
+        { 
+          model: CuocHoiThoai, 
+          as: 'nhom', 
+          attributes: ['id', 'ten_hoi_thoai'], 
+          required: false 
+        },
+        { 
+          model: db.SuKien, 
+          as: 'su_kien', 
+          // ✅ Chỉ join với sự kiện đã duyệt
+          where: { trang_thai: 'da_duyet' },
+          required: false // LEFT JOIN để vẫn lấy bài viết không có sự kiện
+        }
       ],
       order: [['ngay_tao', 'DESC']],
       limit: parseInt(limit),
@@ -92,19 +116,31 @@ export const layDanhSachBaiViet = async (req, res) => {
       subQuery: false
     });
 
+    console.log(`📊 Lấy danh sách bài viết - Trang ${page}:`, {
+      tong_bai_viet: count,
+      bai_viet_trang_nay: rows.length,
+      bai_viet_su_kien: rows.filter(bv => bv.su_kien).length,
+      bai_viet_nhom: rows.filter(bv => bv.id_cuoc_hoi_thoai).length
+    });
+
     res.json({
       success: true,
       data: {
         bai_viets: rows,
         pagination: {
           trang_hien_tai: parseInt(page),
-          tong_so_trang: Math.ceil(count / limit)
+          tong_so_trang: Math.ceil(count / limit),
+          tong_bai_viet: count
         }
       }
     });
   } catch (error) {
     console.error('❌ Lỗi khi lấy danh sách bài viết:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server',
+      error: error.message 
+    });
   }
 };
 

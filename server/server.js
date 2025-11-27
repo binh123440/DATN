@@ -62,7 +62,7 @@ app.use('/api/nhom', nhomRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/tim-kiem', timKiemRoutes);
 app.use('/api/chat', tinNhanRoutes);
-app.use('/api/admin', adminRoutes); // Thêm dòng này
+app.use('/api/admin', adminRoutes);
 
 // 404 Handler
 app.use((req, res) => {

@@ -178,7 +178,7 @@ export const layDanhSachChoDuyet = async () => {
 
 export const capNhatTrangThaiNoiDung = async (id, loai, trang_thai_moi) => {
   try {
-    const response = await apiClient.patch('/su-kien/duyet/cap-nhat-trang-thai', { id, loai, trang_thai_moi });
+    const response = await apiClient.post('/su-kien/duyet/cap-nhat-trang-thai', { id, loai, trang_thai_moi });
     return response.data;
   } catch (error) {
     console.error('Lỗi khi cập nhật trạng thái:', error);
@@ -411,5 +411,42 @@ export const layNoiDungChoDuyet = () => apiClient.get('/admin/pending-content');
 
 export const duyetNoiDung = (id, loai, trang_thai_moi) => 
   apiClient.post('/admin/approve-content', { id, loai, trang_thai_moi });
+
+// ========== NGƯỜI DÙNG ==========
+export const layThongTinNguoiDung = (id) => apiClient.get(`/nguoi-dung/${id}`);
+
+export const layBaiVietNguoiDung = (id, page = 1, limit = 10) => 
+  apiClient.get(`/nguoi-dung/${id}/bai-viet`, { params: { page, limit } });
+
+export const capNhatThongTinCaNhan = (id, data) => 
+  apiClient.put(`/nguoi-dung/${id}`, data);
+
+export const capNhatAnhNguoiDung = async (id, file, loaiAnh) => {
+  try {
+    const formData = new FormData();
+    formData.append('image', file); // ✅ Đúng với multer.single('image')
+    formData.append('loai_anh', loaiAnh); // ✅ Gửi loại ảnh
+
+    console.log('📤 Uploading image:', {
+      id,
+      loaiAnh,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
+    const response = await apiClient.put(`/nguoi-dung/${id}/anh`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    console.log('✅ Upload response:', response.data);
+    return response;
+  } catch (error) {
+    console.error('❌ Lỗi capNhatAnhNguoiDung:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 export default apiClient;

@@ -53,8 +53,8 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   const isEventOrganizer = event.id_nguoi_tao === currentUserId;
-  // Giả sử bạn có thông tin vai trò từ context hoặc props
-  const isAdmin = userRole === 'admin'; 
+  // // Giả sử bạn có thông tin vai trò từ context hoặc props
+  // const isAdmin = userRole === 'admin'; 
 
   // Sử dụng useEffect để quản lý timer và polling
   useEffect(() => {

@@ -13,7 +13,7 @@ CASCADE;
 
 -- === TẠO CÁC KIỂU DỮ LIỆU ENUM ===
 
-CREATE TYPE vai_tro_nguoi_dung_enum AS ENUM ('sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien');
+CREATE TYPE vai_tro_nguoi_dung_enum AS ENUM ('sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'kiem_duyet_vien');
 CREATE TYPE loai_cuoc_hoi_thoai_enum AS ENUM ('rieng_tu', 'nhom');
 CREATE TYPE vai_tro_thanh_vien_enum AS ENUM ('thanh_vien', 'quan_tri_vien');
 CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');

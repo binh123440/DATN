@@ -25,7 +25,7 @@ const UserMenuDropdown = ({ currentUser }) => {
     }
   }, [currentUser]);
 
-  const userId = localStorage.getItem('userId');
+  const userId = userInfo?.id || currentUser?.id || localStorage.getItem('userId');
   const userName = userInfo?.ho_ten || userInfo?.name || 'Người dùng';
   const userEmail = userInfo?.email || 'user@example.com';
 
@@ -68,7 +68,7 @@ const UserMenuDropdown = ({ currentUser }) => {
           <div className="py-2">
             <button
               onClick={() => {
-                navigate(userId ? `/ho-so/${userId}` : '/');
+                navigate(userId ? `/profile/${userId}` : '/');
                 setIsOpen(false);
               }}
               className="w-full px-4 py-3 flex items-center space-x-3 text-gray-700 hover:bg-gray-50 transition-colors"

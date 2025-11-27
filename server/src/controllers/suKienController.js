@@ -6,7 +6,8 @@ const { SuKien, BaiViet, NguoiDung, DangKySuKien, sequelize } = db;
 // Lấy danh sách sự kiện
 export const layDanhSachSuKien = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     const { count, rows } = await SuKien.findAndCountAll({
@@ -428,28 +429,66 @@ export const capNhatTrangThai = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ.' });
   }
 
+  const transaction = await sequelize.transaction();
+
   try {
-    let model;
     if (loai === 'bai_viet') {
-      model = BaiViet;
+      // ✅ Cập nhật trạng thái bài viết
+      const [updatedCount] = await BaiViet.update(
+        { trang_thai: trang_thai_moi },
+        { where: { id }, transaction }
+      );
+
+      if (updatedCount === 0) {
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết để cập nhật.' });
+      }
+
+      // ✅ Nếu có sự kiện liên kết với bài viết này, cập nhật luôn trạng thái sự kiện
+      const suKienLienKet = await SuKien.findOne({ where: { id_bai_viet: id }, transaction });
+      if (suKienLienKet) {
+        await suKienLienKet.update({ trang_thai: trang_thai_moi }, { transaction });
+      }
+
     } else if (loai === 'su_kien') {
-      model = SuKien;
+      // ✅ Lấy thông tin sự kiện để tìm bài viết liên kết
+      const suKien = await SuKien.findByPk(id, { transaction });
+      
+      if (!suKien) {
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện để cập nhật.' });
+      }
+
+      // ✅ Cập nhật trạng thái sự kiện
+      await suKien.update({ trang_thai: trang_thai_moi }, { transaction });
+
+      // ✅ Nếu sự kiện có bài viết liên kết, cập nhật luôn trạng thái bài viết
+      if (suKien.id_bai_viet) {
+        await BaiViet.update(
+          { trang_thai: trang_thai_moi },
+          { where: { id: suKien.id_bai_viet }, transaction }
+        );
+      }
+
     } else {
+      await transaction.rollback();
       return res.status(400).json({ success: false, message: 'Loại nội dung không hợp lệ.' });
     }
 
-    const [updatedCount] = await model.update(
-      { trang_thai: trang_thai_moi },
-      { where: { id } }
-    );
+    await transaction.commit();
 
-    if (updatedCount === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy nội dung để cập nhật.' });
-    }
+    // ✅ Thông báo rõ ràng hơn
+    const thongBao = trang_thai_moi === 'da_duyet' ? 'duyệt' : 'từ chối';
+    const loaiNoiDung = loai === 'bai_viet' ? 'bài viết' : 'sự kiện';
+    
+    res.json({ 
+      success: true, 
+      message: `${loaiNoiDung.charAt(0).toUpperCase() + loaiNoiDung.slice(1)} đã được ${thongBao} thành công${loai === 'su_kien' ? ' (bao gồm bài viết liên kết)' : ''}.` 
+    });
 
-    res.json({ success: true, message: `Nội dung đã được ${trang_thai_moi === 'da_duyet' ? 'duyệt' : 'từ chối'}.` });
   } catch (error) {
+    await transaction.rollback();
     console.error('Lỗi khi cập nhật trạng thái:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };

@@ -36,10 +36,10 @@ router.post('/:id/diem-danh', xacThucToken, diemDanhSuKien);
 router.get('/:id/thong-ke', xacThucToken, layThongKeDiemDanh);
 
 
-router.use(xacThucToken, kiemTraVaiTro('admin', 'quan_tri_vien'));
+router.use(xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'));
 
 router.get('/duyet', layDanhSachChoDuyet);
 
-router.patch('/duyet/cap-nhat-trang-thai', capNhatTrangThai);
+router.post('/duyet/cap-nhat-trang-thai', capNhatTrangThai);
 
 export default router;
