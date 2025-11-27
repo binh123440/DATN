@@ -10,7 +10,9 @@ import {
   Camera,
   Edit2,
   Save,
-  X
+  X,
+  Loader,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   layThongTinNguoiDung, 
@@ -24,6 +26,10 @@ const UserProfile = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [showCoverHover, setShowCoverHover] = useState(false);
 
   const isOwnProfile = currentUser?.id === parseInt(id);
 
@@ -33,6 +39,7 @@ const UserProfile = ({ currentUser }) => {
 
   const fetchUserData = async () => {
     try {
+      setLoading(true);
       const response = await layThongTinNguoiDung(id);
       if (response.data.success) {
         setUserData(response.data.data);
@@ -46,6 +53,7 @@ const UserProfile = ({ currentUser }) => {
       }
     } catch (error) {
       console.error('❌ Lỗi khi tải thông tin người dùng:', error);
+      alert('Không thể tải thông tin người dùng');
     } finally {
       setLoading(false);
     }
@@ -53,35 +61,66 @@ const UserProfile = ({ currentUser }) => {
 
   const handleUpdateProfile = async () => {
     try {
-      await capNhatThongTinCaNhan(id, editForm);
-      alert('✅ Cập nhật thông tin thành công!');
-      setIsEditing(false);
-      fetchUserData();
-    } catch (error) {
-      console.error('❌ Lỗi khi cập nhật:', error);
-      alert('Không thể cập nhật thông tin');
-    }
-  };
-
-  const handleImageUpload = async (file, loaiAnh) => {
-    if (!file) return;
-    
-    try {
-      const response = await capNhatAnhNguoiDung(id, file, loaiAnh);
+      const response = await capNhatThongTinCaNhan(id, editForm);
       if (response.data.success) {
-        alert('✅ Cập nhật ảnh thành công!');
+        alert('✅ Cập nhật thông tin thành công!');
+        setIsEditing(false);
         fetchUserData();
       }
     } catch (error) {
+      console.error('❌ Lỗi khi cập nhật:', error);
+      alert(error.response?.data?.message || 'Không thể cập nhật thông tin');
+    }
+  };
+
+  const handleImageUpload = async (e, loaiAnh) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('❌ Kích thước file không được vượt quá 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('❌ Chỉ chấp nhận file ảnh (JPG, PNG, GIF, WEBP)');
+      return;
+    }
+
+    try {
+      if (loaiAnh === 'anh_dai_dien') {
+        setUploadingAvatar(true);
+      } else {
+        setUploadingCover(true);
+      }
+
+      const response = await capNhatAnhNguoiDung(id, file, loaiAnh);
+      
+      if (response.data.success) {
+        alert('✅ Cập nhật ảnh thành công!');
+        await fetchUserData();
+      }
+    } catch (error) {
       console.error('❌ Lỗi khi upload ảnh:', error);
-      alert('Không thể cập nhật ảnh');
+      alert(error.response?.data?.message || 'Không thể cập nhật ảnh');
+    } finally {
+      if (loaiAnh === 'anh_dai_dien') {
+        setUploadingAvatar(false);
+      } else {
+        setUploadingCover(false);
+      }
+      e.target.value = '';
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải thông tin...</p>
+        </div>
       </div>
     );
   }
@@ -98,27 +137,48 @@ const UserProfile = ({ currentUser }) => {
   return (
     <div className="max-w-4xl mx-auto p-4">
       {/* Cover Photo */}
-      <div className="relative h-64 bg-gradient-to-r from-blue-400 to-purple-500 rounded-t-2xl overflow-hidden">
+      <div 
+        className="relative h-64 bg-gradient-to-r from-blue-400 to-purple-500 rounded-t-2xl overflow-hidden group"
+        onMouseEnter={() => setShowCoverHover(true)}
+        onMouseLeave={() => setShowCoverHover(false)}
+      >
         {userData.anh_bia_url ? (
           <img 
             src={userData.anh_bia_url} 
-            alt="Cover" 
+            alt="Ảnh bìa" 
             className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400" />
         )}
-        
-        {isOwnProfile && (
-          <label className="absolute bottom-4 right-4 bg-white p-3 rounded-full shadow-lg cursor-pointer hover:bg-gray-100 transition-colors">
-            <Camera size={20} className="text-gray-700" />
+
+        {/* Nút Camera đổi ảnh bìa chỉ hiện khi đang chỉnh sửa */}
+        {isOwnProfile && isEditing && (
+          <label className={`absolute top-4 right-4 bg-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-gray-100 transition-all border border-gray-200 ${uploadingCover ? 'opacity-75 cursor-not-allowed' : ''}`}>
+            {uploadingCover ? (
+              <Loader className="text-blue-600 animate-spin" size={20} />
+            ) : (
+              <Camera size={20} className="text-gray-700" />
+            )}
             <input 
               type="file" 
               accept="image/*" 
               className="hidden"
-              onChange={(e) => handleImageUpload(e.target.files[0], 'anh_bia')}
+              onChange={(e) => handleImageUpload(e, 'anh_bia')}
+              disabled={uploadingCover}
             />
           </label>
+        )}
+
+        {/* Overlay loading toàn màn hình */}
+        {uploadingCover && (
+          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+            <div className="text-white text-center">
+              <Loader className="animate-spin mx-auto mb-3" size={40} />
+              <p className="text-lg font-medium">Đang tải ảnh bìa lên...</p>
+              <p className="text-sm mt-2 text-gray-200">Ảnh cũ sẽ được tự động xóa</p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -127,7 +187,7 @@ const UserProfile = ({ currentUser }) => {
         <div className="p-6 pt-20">
           {/* Avatar Section */}
           <div className="absolute left-1/2 -translate-x-1/2 -top-16">
-            <div className="relative">
+            <div className="relative group">
               {userData.anh_dai_dien_url ? (
                 <img 
                   src={userData.anh_dai_dien_url} 
@@ -139,17 +199,30 @@ const UserProfile = ({ currentUser }) => {
                   {userData.ho_ten?.charAt(0).toUpperCase()}
                 </div>
               )}
-              
-              {isOwnProfile && (
-                <label className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                  <Camera size={16} className="text-gray-700" />
+
+              {/* Nút Camera đổi avatar chỉ hiện khi đang chỉnh sửa */}
+              {isOwnProfile && isEditing && (
+                <label className={`absolute bottom-0 right-0 bg-white p-2.5 rounded-full shadow-xl cursor-pointer hover:bg-gray-100 transition-all border-2 border-gray-200 hover:border-blue-500 ${uploadingAvatar ? 'opacity-75 cursor-not-allowed' : ''}`}>
+                  {uploadingAvatar ? (
+                    <Loader className="text-blue-600 animate-spin" size={20} />
+                  ) : (
+                    <Camera size={20} className="text-gray-700 group-hover:text-blue-600" />
+                  )}
                   <input 
                     type="file" 
                     accept="image/*" 
                     className="hidden"
-                    onChange={(e) => handleImageUpload(e.target.files[0], 'anh_dai_dien')}
+                    onChange={(e) => handleImageUpload(e, 'anh_dai_dien')}
+                    disabled={uploadingAvatar}
                   />
                 </label>
+              )}
+
+              {/* Overlay loading ảnh đại diện */}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                  <Loader className="text-white animate-spin" size={28} />
+                </div>
               )}
             </div>
           </div>

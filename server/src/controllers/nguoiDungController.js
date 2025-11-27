@@ -1,6 +1,7 @@
 import db from '../models/index.js';
 const { NguoiDung, BaiViet, SuKien, DangKySuKien, Nganh, Khoa } = db;
 import { Op } from 'sequelize';
+import { cloudinary } from '../config/cloudinary.js';
 
 /**
  * Lấy thông tin profile người dùng
@@ -176,7 +177,7 @@ export const capNhatThongTinCaNhan = async (req, res) => {
 
     await nguoiDung.update({
       ho_ten,
-      dong_gioi_thieu,
+      dong_gio_thieu,
       ngay_sinh,
       so_dien_thoai,
       lop_sh,
@@ -199,18 +200,37 @@ export const capNhatThongTinCaNhan = async (req, res) => {
 };
 
 /**
+ * Helper function để trích xuất public_id từ Cloudinary URL
+ */
+const extractPublicId = (url) => {
+  if (!url) return null;
+  
+  try {
+    // URL format: https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/{transformations}/{public_id}.{format}
+    const matches = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/);
+    if (matches && matches[1]) {
+      return matches[1];
+    }
+  } catch (error) {
+    console.error('❌ Lỗi khi trích xuất public_id:', error);
+  }
+  
+  return null;
+};
+
+/**
  * Cập nhật ảnh đại diện/ảnh bìa
  */
 export const capNhatAnhNguoiDung = async (req, res) => {
   try {
     const { id } = req.params;
-    const { loai_anh } = req.body; // 'anh_dai_dien' hoặc 'anh_bia'
+    const { loai_anh } = req.body;
     const nguoiDungHienTai = req.user?.id;
 
     console.log('📸 Cập nhật ảnh:', { id, loai_anh, nguoiDungHienTai });
     console.log('📁 File uploaded:', req.file);
 
-    // ✅ Kiểm tra quyền
+    // Kiểm tra quyền
     if (nguoiDungHienTai !== parseInt(id)) {
       return res.status(403).json({
         success: false,
@@ -218,7 +238,7 @@ export const capNhatAnhNguoiDung = async (req, res) => {
       });
     }
 
-    // ✅ Kiểm tra file
+    // Kiểm tra file
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -226,7 +246,7 @@ export const capNhatAnhNguoiDung = async (req, res) => {
       });
     }
 
-    // ✅ Validate loại ảnh
+    // Validate loại ảnh
     if (!loai_anh || !['anh_dai_dien', 'anh_bia'].includes(loai_anh)) {
       return res.status(400).json({
         success: false,
@@ -243,7 +263,14 @@ export const capNhatAnhNguoiDung = async (req, res) => {
       });
     }
 
-    // ✅ Cập nhật URL ảnh từ Cloudinary
+    // ✅ Lấy URL ảnh cũ để xóa sau
+    const oldImageUrl = loai_anh === 'anh_dai_dien' 
+      ? nguoiDung.anh_dai_dien_url 
+      : nguoiDung.anh_bia_url;
+
+    console.log('🖼️ Ảnh cũ:', oldImageUrl);
+
+    // Cập nhật URL ảnh mới từ Cloudinary
     const updateData = {};
     if (loai_anh === 'anh_dai_dien') {
       updateData.anh_dai_dien_url = req.file.path;
@@ -253,7 +280,22 @@ export const capNhatAnhNguoiDung = async (req, res) => {
 
     await nguoiDung.update(updateData);
 
-    console.log('✅ Cập nhật ảnh thành công:', updateData);
+    console.log('✅ Cập nhật ảnh mới thành công:', updateData);
+
+    // ✅ Xóa ảnh cũ khỏi Cloudinary (nếu có)
+    if (oldImageUrl) {
+      try {
+        const publicId = extractPublicId(oldImageUrl);
+        if (publicId) {
+          console.log('🗑️ Đang xóa ảnh cũ từ Cloudinary:', publicId);
+          const result = await cloudinary.uploader.destroy(publicId);
+          console.log('✅ Đã xóa ảnh cũ:', result);
+        }
+      } catch (deleteError) {
+        // Không throw error để không ảnh hưởng response
+        console.error('⚠️ Không thể xóa ảnh cũ từ Cloudinary:', deleteError);
+      }
+    }
 
     res.json({
       success: true,
@@ -265,6 +307,20 @@ export const capNhatAnhNguoiDung = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Lỗi capNhatAnhNguoiDung:', error);
+    
+    // ✅ Nếu có lỗi và ảnh mới đã upload, xóa ảnh mới
+    if (req.file?.path) {
+      try {
+        const publicId = extractPublicId(req.file.path);
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId);
+          console.log('🗑️ Đã xóa ảnh mới do lỗi');
+        }
+      } catch (cleanupError) {
+        console.error('⚠️ Không thể xóa ảnh mới:', cleanupError);
+      }
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Lỗi server',

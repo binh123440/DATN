@@ -1,6 +1,7 @@
 import { Op, Sequelize } from 'sequelize';
 import db from '../models/index.js';
 import { taoThongBao } from './thongBaoController.js';
+import { cloudinary } from '../config/cloudinary.js';
 
 const { BaiViet, NguoiDung, CuocHoiThoai, ThanhVienHoiThoai, LuotThich, BinhLuan} = db;
 
@@ -147,8 +148,15 @@ export const layDanhSachBaiViet = async (req, res) => {
 // Tạo bài viết mới (thường)
 export const taoBaiViet = async (req, res) => {
   try {
-    const { noi_dung, id_cuoc_hoi_thoai } = req.body; // ✅ Thêm id_cuoc_hoi_thoai
+    const { noi_dung, id_cuoc_hoi_thoai } = req.body;
     const id_tac_gia = req.user.id;
+
+    console.log('📝 Tạo bài viết:', {
+      id_tac_gia,
+      noi_dung: noi_dung?.substring(0, 50),
+      id_cuoc_hoi_thoai,
+      files: req.files?.length || 0
+    });
 
     // Validate
     if (!noi_dung || noi_dung.trim() === '') {
@@ -158,28 +166,23 @@ export const taoBaiViet = async (req, res) => {
       });
     }
 
-    // Upload media files nếu có
-    let mediaPaths = [];
+    // ✅ SỬ DỤNG buildMediaFromFiles - giống hàm capNhatBaiViet
+    // Files đã được upload tự động lên Cloudinary nhờ middleware
+    let media_urls = [];
     if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        try {
-          const result = await cloudinary.uploader.upload(file.path, {
-            folder: 'bai-viet',
-            resource_type: 'auto'
-          });
-          mediaPaths.push(result.secure_url);
-        } catch (uploadError) {
-          console.error('Lỗi upload file:', uploadError);
-        }
-      }
+      media_urls = buildMediaFromFiles(req.files);
+      console.log('📸 Media uploaded:', media_urls);
     }
+
+    const media_type = detectMediaType(media_urls);
 
     // Tạo bài viết mới
     const baiViet = await BaiViet.create({
-      noi_dung,
+      noi_dung: noi_dung.trim(),
       id_tac_gia,
-      id_cuoc_hoi_thoai: id_cuoc_hoi_thoai || null, // ✅ Lưu id nhóm nếu có
-      media: mediaPaths.length > 0 ? JSON.stringify(mediaPaths) : null,
+      id_cuoc_hoi_thoai: id_cuoc_hoi_thoai || null,
+      media_urls: media_urls.length > 0 ? media_urls : [], // ✅ Lưu array object
+      media_type, // ✅ Thêm media_type
       trang_thai: 'da_duyet',
       ngay_tao: new Date()
     });
@@ -193,6 +196,12 @@ export const taoBaiViet = async (req, res) => {
           attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
         }
       ]
+    });
+
+    console.log('✅ Tạo bài viết thành công:', {
+      id: baiVietMoi.id,
+      media_count: media_urls.length,
+      media_type
     });
 
     res.status(201).json({
