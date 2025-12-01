@@ -34,6 +34,16 @@ const SuKien = sequelize.define('SuKien', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  ke_hoach_chi_tiet: {
+      type: DataTypes.JSONB, // ✅ Phải là JSONB, không phải JSON
+      allowNull: true,
+      defaultValue: {}
+  },
+  trang_thai_su_kien: {
+      type: DataTypes.STRING(50),
+      defaultValue: 'ban_nhap',
+      comment: 'ban_nhap | da_gui_khoa | da_duyet_khoa | tu_choi_khoa | da_dang'
+  },
   dia_diem: {
     type: DataTypes.STRING(255),
     allowNull: true

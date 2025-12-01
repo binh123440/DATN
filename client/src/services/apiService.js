@@ -449,4 +449,43 @@ export const capNhatAnhNguoiDung = async (id, file, loaiAnh) => {
   }
 };
 
+// ✅ API Sự kiện - Quản lý kế hoạch
+export const capNhatKeHoachSuKien = async (id, keHoach) => {
+  return apiClient.post(`/su-kien/${id}/ke-hoach`, { ke_hoach: keHoach });
+};
+
+export const ganTaskChoNguoi = async (id, taskId, assignee) => {
+  return apiClient.post(`/su-kien/${id}/task/${taskId}/assign`, { assignee });
+};
+
+export const hoanThanhTask = async (id, taskId, result, attachments) => {
+  return apiClient.post(`/su-kien/${id}/task/${taskId}/complete`, { result, attachments });
+};
+
+export const duyetKetQuaTask = async (id, taskId, approved, feedback) => {
+  return apiClient.post(`/su-kien/${id}/task/${taskId}/duyet-ket-qua`, { approved, feedback });
+};
+
+export const guiSuKienLenKhoa = async (id, ghiChu) => {
+  return apiClient.post(`/su-kien/${id}/gui-duyet`, { ghi_chu: ghiChu });
+};
+
+export const duyetSuKien = async (id, action, phanHoi) => {
+  return apiClient.post(`/su-kien/${id}/duyet`, { action, phan_hoi: phanHoi });
+};
+
+export const dangSuKienCongKhai = async (id) => {
+  return apiClient.post(`/su-kien/${id}/dang-cong-khai`);
+};
+
+export const layDanhSachNguoiPhanCong = async (params) => {
+  try {
+    const response = await apiClient.get('/su-kien/users-for-assignment', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách người phân công:', error);
+    throw error;
+  }
+};
+
 export default apiClient;

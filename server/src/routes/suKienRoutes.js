@@ -8,7 +8,15 @@ import {
   layThongKeDiemDanh,
   capNhatTrangThai,
   layDanhSachChoDuyet,
-  capNhatSuKien// Thêm import
+  capNhatSuKien,
+  capNhatKeHoachSuKien,
+  ganTaskChoNguoi,
+  hoanThanhTask,
+  duyetKetQuaTask,
+  guiSuKienLenKhoa,
+  duyetSuKien,
+  dangSuKienCongKhai,
+  layDanhSachNguoiPhanCong
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
@@ -35,6 +43,21 @@ router.post('/:id/diem-danh', xacThucToken, diemDanhSuKien);
 // GET /api/su-kien/:id/thong-ke - Lấy thống kê điểm danh
 router.get('/:id/thong-ke', xacThucToken, layThongKeDiemDanh);
 
+// ✅ Quản lý kế hoạch sự kiện
+router.post('/:id/ke-hoach', xacThucToken, capNhatKeHoachSuKien);
+
+// ✅ Quản lý tasks
+router.post('/:id/task/:taskId/assign', xacThucToken, ganTaskChoNguoi);
+router.post('/:id/task/:taskId/complete', xacThucToken, hoanThanhTask);
+router.post('/:id/task/:taskId/duyet-ket-qua', xacThucToken, duyetKetQuaTask);
+
+// ✅ Workflow duyệt sự kiện
+router.post('/:id/gui-duyet', xacThucToken, guiSuKienLenKhoa);
+router.post('/:id/duyet', xacThucToken, duyetSuKien);
+router.post('/:id/dang-cong-khai', xacThucToken, dangSuKienCongKhai);
+
+// ✅ Utilities
+router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
 
 router.use(xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'));
 

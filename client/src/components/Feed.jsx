@@ -94,7 +94,10 @@ const Feed = ({ currentUser }) => {
         </div>
       </div>
 
-      <PostComposer onCreatePost={fetchPosts} currentUserId={currentUserId} />
+      <PostComposer onCreatePost={fetchPosts} 
+        currentUserId={currentUser?.id}
+        currentUser={currentUser} 
+      />
 
       {isLoading ? (
         <div className="text-center py-8">

@@ -15,6 +15,9 @@ import GroupDetail from './components/GroupDetail';
 import socketService from './services/tinNhanService';
 import AdminDashboard from './components/AdminDashboard';
 import UserProfile from './components/UserProfile';
+import EventPlanForm from './components/EventPlanForm';
+import TaskManager from './components/TaskManager';
+import EventApprovalList from './components/EventApprovalList';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -120,6 +123,9 @@ function App() {
                   <Route path="/events/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/su-kien/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/duyet-bai" element={<DuyetBai />} />
+                  <Route path="/events/:id/plan" element={<EventPlanForm />} />
+                  <Route path="/events/:id/tasks" element={<TaskManager />} />
+                  <Route path="/admin/event-approvals" element={<EventApprovalList />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                   
