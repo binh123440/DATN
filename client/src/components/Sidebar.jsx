@@ -93,7 +93,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             )}
 
             {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên */}
-            {(userRole === 'quan_tri_vien' || userRole === 'dieu_phoi_vien') && (
+            {(userRole === 'quan_tri_vien' || userRole === 'kiem_duyet_vien') && (
               <li>
                 <Link
                   to="/duyet-bai"
@@ -180,7 +180,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 )}
                 
                 {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên - Mobile */}
-                {(userRole === 'admin' || userRole === 'dieu_phoi_vien') && (
+                {(userRole === 'quan_tri_vien' || userRole === 'kiem_duyet_vien') && (
                   <li>
                     <Link
                       to="/duyet-bai"

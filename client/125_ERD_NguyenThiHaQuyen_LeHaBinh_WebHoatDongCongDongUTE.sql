@@ -8,7 +8,7 @@ CASCADE;
 -- Xóa các kiểu ENUM cũ nếu tồn tại
 DROP TYPE IF EXISTS 
     vai_tro_nguoi_dung_enum, loai_cuoc_hoi_thoai_enum, vai_tro_thanh_vien_enum, 
-    loai_cuoc_goi_enum, trang_thai_noi_dung_enum, trang_thai_dang_ky_enum
+    loai_cuoc_goi_enum, trang_thai_noi_dung_enum, trang_thai_dang_ky_enum, trang_thai_su_kien_enum, media_type_enum
 CASCADE;
 
 -- === TẠO CÁC KIỂU DỮ LIỆU ENUM ===
@@ -20,6 +20,7 @@ CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');
 CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'da_tu_choi');
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
+CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui_khoa','da_duyet_khoa','tu_choi_khoa','da_dang');
 
 -- === TẠO CÁC BẢNG ===
 
@@ -139,7 +140,9 @@ CREATE TABLE "SuKien" (
     "id_bai_viet" INT UNIQUE NOT NULL REFERENCES "BaiViet"("id") ON DELETE CASCADE,
     "ten_su_kien" VARCHAR(255) NOT NULL,
     "mo_ta" TEXT,
-    "dia_diem" VARCHAR(255),
+	"ke_hoach_chi_tiet" JSONB DEFAULT NULL,
+	"trang_thai_su_kien" trang_thai_su_kien_enum DEFAULT 'ban_nhap',
+	"dia_diem" VARCHAR(255),
     "thoi_gian_bat_dau" TIMESTAMPTZ NOT NULL,
     "so_luong_toi_da" INT NOT NULL,
     "diem_thuong" INT NOT NULL,
