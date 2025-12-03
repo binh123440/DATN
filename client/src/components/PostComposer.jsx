@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ImagePlus, SmilePlus, X, ChevronRight, Users } from 'lucide-react';
+import { Calendar, ImagePlus, X, ChevronRight, Users, Trash2, Clock, User, FileText } from 'lucide-react';
 import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong } from '../services/apiService';
 
 const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
@@ -12,7 +12,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ State cho kế hoạch sự kiện
+  // State cho kế hoạch sự kiện
   const [showEventPlan, setShowEventPlan] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [eventPlan, setEventPlan] = useState({
@@ -28,22 +28,21 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
 
   const fetchUsers = async () => {
     try {
-      const response = await layDanhSachNguoiPhanCong({ type: 'giao_vien' });
+      const response = await layDanhSachNguoiPhanCong({ type: 'all' });
       if (response.success) setAvailableUsers(response.data);
     } catch (error) {
       console.error('Lỗi tải người dùng:', error);
     }
   };
 
-  // ✅ Lấy tên viết tắt an toàn
   const initials = currentUser?.name
-        .trim()
-        .split(' ')
-        .filter(n => n.length > 0)
-        .map(n => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
+    ?.trim()
+    .split(' ')
+    .filter(n => n.length > 0)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'U';
 
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
@@ -83,9 +82,16 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       tasks: [...prev.tasks, {
         id: `t${Date.now()}`,
         title: '',
+        description: '',
         assignee: null,
         deadline: '',
-        order: prev.tasks.length + 1
+        order: prev.tasks.length + 1,
+        status: 'todo',
+        attachments: [],
+        result: null,
+        completed_at: null,
+        approved: null,
+        feedback: null
       }]
     }));
   };
@@ -129,7 +135,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
           so_luong_toi_da: parseInt(eventDetails.maxParticipants),
           diem_thuong: parseInt(eventDetails.points),
           noi_dung_bai_viet: content,
-          ke_hoach_chi_tiet: JSON.stringify(eventPlan) // ✅ Gửi kế hoạch
+          ke_hoach_chi_tiet: JSON.stringify(eventPlan)
         };
         const response = await taoSuKien(eventData);
         if (response.success) {
@@ -223,47 +229,139 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
         </div>
       )}
 
-      {/* Kế hoạch chi tiết */}
+      {/* Kế hoạch chi tiết - ✅ PHẦN NÀY ĐƯỢC CẢI THIỆN */}
       {activeType === 'event' && showEventPlan && (
         <div className="mt-4 p-5 bg-cyan-50/50 border border-cyan-200 rounded-lg">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-cyan-800">📋 Kế hoạch công việc</h3>
-            <button onClick={addTask} className="px-3 py-1 bg-green-500 text-white rounded text-sm">+ Thêm task</button>
+            <h3 className="text-md font-semibold text-cyan-800 flex items-center gap-2">
+              <FileText size={18} />Kế hoạch công việc
+            </h3>
+            <button 
+              onClick={addTask} 
+              className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+            >
+              + Thêm công việc
+            </button>
           </div>
 
-          <div className="space-y-3">
-            {eventPlan.tasks.map((task, index) => (
-              <div key={task.id} className="bg-white p-3 rounded-lg border border-gray-200">
-                <div className="flex gap-2 mb-2">
-                  <input type="text" placeholder="Tên công việc" value={task.title} onChange={(e) => updateTask(index, 'title', e.target.value)} className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" />
-                  <button onClick={() => removeTask(index)} className="text-red-500"><X size={18} /></button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select value={task.assignee?.id || ''} onChange={(e) => {
-                    const user = availableUsers.find(u => u.id === parseInt(e.target.value));
-                    updateTask(index, 'assignee', user ? { type: 'user', id: user.id, name: user.ho_ten } : null);
-                  }} className="border border-gray-300 rounded px-2 py-1 text-sm">
-                    <option value="">-- Giao cho --</option>
-                    {availableUsers.map(user => (
-                      <option key={user.id} value={user.id}>{user.ho_ten}</option>
-                    ))}
-                  </select>
-                  <input type="datetime-local" value={task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ''} onChange={(e) => updateTask(index, 'deadline', e.target.value)} className="border border-gray-300 rounded px-2 py-1 text-sm" />
-                </div>
+          {/* Danh sách tasks */}
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+            {eventPlan.tasks.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <FileText size={32} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Chưa có công việc nào. Hãy thêm công việc đầu tiên!</p>
               </div>
-            ))}
+            ) : (
+              eventPlan.tasks.map((task, index) => (
+                <div key={task.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                  {/* Tên công việc + Nút xóa */}
+                  <div className="flex gap-2 mb-3">
+                    <input 
+                      type="text" 
+                      placeholder="Tên công việc *" 
+                      value={task.title} 
+                      onChange={(e) => updateTask(index, 'title', e.target.value)} 
+                      className="flex-1 font-medium text-gray-800 border-b-2 border-transparent focus:border-blue-400 outline-none px-1 py-1 transition-colors"
+                    />
+                    <button 
+                      onClick={() => removeTask(index)} 
+                      className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  {/* ✅ Mô tả công việc */}
+                  <textarea
+                    placeholder="Mô tả chi tiết công việc..."
+                    value={task.description || ''}
+                    onChange={(e) => updateTask(index, 'description', e.target.value)}
+                    rows={2}
+                    className="w-full text-sm text-gray-600 bg-gray-50 rounded-lg p-2 mb-3 border border-gray-200 focus:border-blue-400 outline-none resize-none transition-colors"
+                  />
+
+                  {/* Người thực hiện + Deadline */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <select 
+                        value={task.assignee?.id || ''} 
+                        onChange={(e) => {
+                          const user = availableUsers.find(u => u.id === parseInt(e.target.value));
+                          updateTask(index, 'assignee', user ? { 
+                            type: 'user', 
+                            id: user.id, 
+                            name: user.ho_ten,
+                            email: user.email 
+                          } : null);
+                        }} 
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-400 outline-none transition-colors"
+                      >
+                        <option value="">-- Chọn người thực hiện --</option>
+                        {availableUsers.map(user => (
+                          <option key={user.id} value={user.id}>{user.ho_ten}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="relative">
+                      <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input 
+                        type="datetime-local" 
+                        value={task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ''} 
+                        onChange={(e) => updateTask(index, 'deadline', e.target.value)} 
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-400 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ✅ Thông tin người được giao */}
+                  {task.assignee && (
+                    <div className="mt-3 p-2 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {task.assignee.name.charAt(0)}
+                      </div>
+                      <span className="text-xs text-blue-800 font-medium">{task.assignee.name}</span>
+                      <span className="text-xs text-blue-600 ml-auto">sẽ nhận thông báo</span>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Đối tượng tham gia */}
           <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-            <h4 className="font-semibold mb-2 flex items-center gap-2"><Users size={16} />Đối tượng tham gia</h4>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={eventPlan.targetAudience.voluntary} onChange={(e) => setEventPlan(prev => ({ ...prev, targetAudience: { ...prev.targetAudience, voluntary: e.target.checked } }))} />
-              <span className="text-sm">Đăng ký tự nguyện</span>
+            <h4 className="font-semibold mb-2 flex items-center gap-2 text-gray-700">
+              <Users size={16} />Đối tượng tham gia
+            </h4>
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                eventPlan.targetAudience.voluntary 
+                  ? 'bg-cyan-500 border-cyan-500' 
+                  : 'bg-white border-gray-300 group-hover:border-cyan-400'
+              }`}>
+                {eventPlan.targetAudience.voluntary && <Users size={12} className="text-white" />}
+              </div>
+              <input 
+                type="checkbox" 
+                className="hidden" 
+                checked={eventPlan.targetAudience.voluntary} 
+                onChange={(e) => setEventPlan(prev => ({ 
+                  ...prev, 
+                  targetAudience: { ...prev.targetAudience, voluntary: e.target.checked } 
+                }))} 
+              />
+              <span className="text-sm text-gray-700 group-hover:text-cyan-700 transition-colors">
+                Cho phép đăng ký tự nguyện
+              </span>
             </label>
           </div>
 
-          <button onClick={() => setShowEventPlan(false)} className="mt-4 w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button 
+            onClick={() => setShowEventPlan(false)} 
+            className="mt-4 w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600 text-sm transition-colors"
+          >
             ← Quay lại
           </button>
         </div>

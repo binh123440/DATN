@@ -72,6 +72,23 @@ export const taoSuKien = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
     }
 
+    // ✅ Parse JSON nếu gửi dưới dạng string
+    let keHoachData = ke_hoach_chi_tiet;
+    if (typeof ke_hoach_chi_tiet === 'string') {
+      try {
+        keHoachData = JSON.parse(ke_hoach_chi_tiet);
+      } catch (parseError) {
+        console.error('❌ Lỗi parse JSON:', parseError);
+        await transaction.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Dữ liệu kế hoạch không hợp lệ' 
+        });
+      }
+    }
+
+    console.log('📋 Kế hoạch sau khi parse:', keHoachData);
+
     // 1. Tạo bài viết
     const baiViet = await BaiViet.create({
       id_tac_gia: id_nguoi_tao,
@@ -91,23 +108,30 @@ export const taoSuKien = async (req, res) => {
       diem_thuong,
       trang_thai: 'cho_duyet',
       trang_thai_su_kien: 'ban_nhap',
-      ke_hoach_chi_tiet: ke_hoach_chi_tiet || {}
+      ke_hoach_chi_tiet: keHoachData || {} // ✅ Sử dụng keHoachData đã parse
     }, { transaction });
 
-    // 3. ✅ Gửi thông báo cho người được giao task (sửa lỗi)
-    if (ke_hoach_chi_tiet?.tasks?.length > 0) {
-      for (const task of ke_hoach_chi_tiet.tasks) {
+    // 3. ✅ Gửi thông báo cho người được giao task
+    if (keHoachData?.tasks?.length > 0) {
+      console.log('📤 Đang gửi thông báo cho', keHoachData.tasks.length, 'task(s)');
+      
+      for (const task of keHoachData.tasks) {
         if (task.assignee?.id) {
+          console.log('✉️ Gửi thông báo cho user:', task.assignee.id, '-', task.assignee.name);
+          
           await ThongBao.create({
             id_nguoi_nhan: task.assignee.id,
-            id_nguoi_hanh_dong: id_nguoi_tao, // ✅ THÊM DÒNG NÀY
+            id_nguoi_hanh_dong: id_nguoi_tao,
             loai: 'phan_cong_task',
-            tieu_de: `📋 Bạn được giao task: ${task.title}`,
-            noi_dung: `Trong sự kiện "${ten_su_kien}"`,
-            link: `/events/${suKien.id}`
+            id_muc_tieu: suKien.id,
+            loai_muc_tieu: 'ke_hoach'
           }, { transaction });
+        } else {
+          console.log('⚠️ Task không có assignee:', task.title);
         }
       }
+    } else {
+      console.log('⚠️ Không có task nào trong kế hoạch');
     }
 
     await transaction.commit();
@@ -119,8 +143,12 @@ export const taoSuKien = async (req, res) => {
     });
   } catch (error) {
     await transaction.rollback();
-    console.error('Lỗi khi tạo sự kiện:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+    console.error('❌ Lỗi khi tạo sự kiện:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi server', 
+      error: error.message 
+    });
   }
 };
 
@@ -535,9 +563,8 @@ export const capNhatKeHoachSuKien = async (req, res) => {
         id_nguoi_nhan: uid,
         id_nguoi_hanh_dong: userId,
         loai: 'phan_cong_su_kien',
-        tieu_de: `🎯 Bạn được phân công nhiệm vụ: ${suKien.ten_su_kien}`,
-        noi_dung: `Kiểm tra chi tiết công việc được giao trong sự kiện "${suKien.ten_su_kien}"`,
-        link: `/events/${id}/ke-hoach`
+        id_muc_tieu: id,
+        loai_muc_tieu: 'ke_hoach' // ✅
       });
     }
 
@@ -593,9 +620,8 @@ export const ganTaskChoNguoi = async (req, res) => {
         id_nguoi_nhan: assignee.id,
         id_nguoi_hanh_dong: userId,
         loai: 'phan_cong_task',
-        tieu_de: `📋 Task mới: ${keHoach.tasks[taskIndex].title}`,
-        noi_dung: `Bạn được giao nhiệm vụ "${keHoach.tasks[taskIndex].title}" trong sự kiện "${suKien.ten_su_kien}"`,
-        link: `/events/${id}/ke-hoach`
+        id_muc_tieu: id,
+        loai_muc_tieu: 'ke_hoach' // ✅
       });
     }
 
@@ -656,9 +682,8 @@ export const hoanThanhTask = async (req, res) => {
       id_nguoi_nhan: suKien.id_nguoi_tao,
       id_nguoi_hanh_dong: userId,
       loai: 'hoan_thanh_task',
-      tieu_de: `✅ Task "${task.title}" đã hoàn thành`,
-      noi_dung: `Nhiệm vụ trong sự kiện "${suKien.ten_su_kien}" đã được hoàn thành. Vui lòng kiểm tra kết quả.`,
-      link: `/events/${id}/ke-hoach`
+      id_muc_tieu: id,
+      loai_muc_tieu: 'ke_hoach' // ✅
     });
 
     res.json({ 
@@ -718,9 +743,8 @@ export const duyetKetQuaTask = async (req, res) => {
         id_nguoi_nhan: task.assignee.id,
         id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
         loai: approved ? 'task_approved' : 'task_rejected',
-        tieu_de: approved ? `✅ Kết quả task "${task.title}" được chấp nhận` : `❌ Kết quả task "${task.title}" cần chỉnh sửa`,
-        noi_dung: feedback || (approved ? 'Kết quả đạt yêu cầu' : 'Vui lòng xem phản hồi và chỉnh sửa'),
-        link: `/events/${id}/ke-hoach`
+        id_muc_tieu: id,
+        loai_muc_tieu: 'ke_hoach' // ✅
       });
     }
 
@@ -861,13 +885,8 @@ export const duyetSuKien = async (req, res) => {
       id_nguoi_nhan: suKien.id_nguoi_tao,
       id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
       loai: action === 'duyet' ? 'su_kien_duyet' : 'su_kien_tu_choi',
-      tieu_de: action === 'duyet' 
-        ? `✅ Sự kiện "${suKien.ten_su_kien}" đã được duyệt`
-        : `❌ Sự kiện "${suKien.ten_su_kien}" bị từ chối`,
-      noi_dung: phan_hoi || (action === 'duyet' 
-        ? 'Sự kiện đã được phê duyệt. Bạn có thể đăng công khai.'
-        : 'Sự kiện cần chỉnh sửa lại theo phản hồi.'),
-      link: `/events/${id}`
+      id_muc_tieu: id,
+      loai_muc_tieu: 'su_kien' // ✅
     });
 
     res.json({ 
@@ -935,9 +954,8 @@ export const dangSuKienCongKhai = async (req, res) => {
             id_nguoi_nhan: participant.id,
             id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
             loai: 'su_kien_bat_buoc',
-            tieu_de: `⚠️ Bạn bắt buộc tham gia: ${suKien.ten_su_kien}`,
-            noi_dung: `Sự kiện "${suKien.ten_su_kien}" yêu cầu sự tham gia của bạn. Vui lòng đăng ký sớm.`,
-            link: `/events/${id}`
+            id_muc_tieu: id,
+            loai_muc_tieu: 'su_kien' // ✅
           });
         }
       }

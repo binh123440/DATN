@@ -17,7 +17,7 @@ CREATE TYPE vai_tro_nguoi_dung_enum AS ENUM ('sinh_vien', 'giao_vien', 'doanh_ng
 CREATE TYPE loai_cuoc_hoi_thoai_enum AS ENUM ('rieng_tu', 'nhom');
 CREATE TYPE vai_tro_thanh_vien_enum AS ENUM ('thanh_vien', 'quan_tri_vien');
 CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');
-CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'da_tu_choi');
+CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'bi_tu_choi');
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
 CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui_khoa','da_duyet_khoa','tu_choi_khoa','da_dang');
