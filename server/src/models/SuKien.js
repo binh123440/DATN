@@ -39,11 +39,6 @@ const SuKien = sequelize.define('SuKien', {
       allowNull: true,
       defaultValue: {}
   },
-  trang_thai_su_kien: {
-      type: DataTypes.STRING(50),
-      defaultValue: 'ban_nhap',
-      comment: 'ban_nhap | da_gui_khoa | da_duyet_khoa | tu_choi_khoa | da_dang'
-  },
   dia_diem: {
     type: DataTypes.STRING(255),
     allowNull: true

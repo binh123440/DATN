@@ -470,8 +470,13 @@ export const guiSuKienLenKhoa = async (id, ghiChu) => {
   return apiClient.post(`/su-kien/${id}/gui-duyet`, { ghi_chu: ghiChu });
 };
 
-export const duyetSuKien = async (id, action, phanHoi) => {
-  return apiClient.post(`/su-kien/${id}/duyet`, { action, phan_hoi: phanHoi });
+// ✅ Duyệt sự kiện
+export const duyetSuKien = async (id, action, phan_hoi) => {
+  const response = await apiClient.post(`/su-kien/${id}/duyet`, { 
+    action, // 'duyet' | 'tu_choi'
+    phan_hoi 
+  });
+  return response.data;
 };
 
 export const dangSuKienCongKhai = async (id) => {

@@ -106,7 +106,7 @@ export const layDanhSachBaiViet = async (req, res) => {
           model: db.SuKien, 
           as: 'su_kien', 
           // ✅ Chỉ join với sự kiện đã duyệt
-          where: { trang_thai: 'da_duyet' },
+          where: { trang_thai: 'da_dang' },
           required: false // LEFT JOIN để vẫn lấy bài viết không có sự kiện
         }
       ],

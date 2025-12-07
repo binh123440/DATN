@@ -11,8 +11,16 @@ export const layDanhSachSuKien = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const { count, rows } = await SuKien.findAndCountAll({
-      where: { trang_thai: 'da_duyet' },
+      where: { 
+        trang_thai: 'da_dang' // ✅ Chỉ lấy sự kiện đã đăng công khai
+      },
       include: [
+        {
+          model: BaiViet,
+          as: 'bai_viet',
+          where: { trang_thai: 'da_duyet' }, // ✅ Bài viết đã được duyệt
+          required: true
+        },
         {
           model: NguoiDung,
           as: 'nguoi_tao',
@@ -72,7 +80,6 @@ export const taoSuKien = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
     }
 
-    // ✅ Parse JSON nếu gửi dưới dạng string
     let keHoachData = ke_hoach_chi_tiet;
     if (typeof ke_hoach_chi_tiet === 'string') {
       try {
@@ -87,16 +94,14 @@ export const taoSuKien = async (req, res) => {
       }
     }
 
-    console.log('📋 Kế hoạch sau khi parse:', keHoachData);
-
-    // 1. Tạo bài viết
+    // ✅ 1. Tạo bài viết với trạng thái cho_duyet (chưa đăng)
     const baiViet = await BaiViet.create({
       id_tac_gia: id_nguoi_tao,
       noi_dung: noi_dung_bai_viet || mo_ta || `Sự kiện: ${ten_su_kien}`,
-      trang_thai: 'cho_duyet'
+      trang_thai: 'cho_duyet' // Chưa được đăng công khai
     }, { transaction });
 
-    // 2. Tạo sự kiện với kế hoạch
+    // ✅ 2. Tạo sự kiện với trạng thái ban_nhap
     const suKien = await SuKien.create({
       id_nguoi_tao,
       id_bai_viet: baiViet.id,
@@ -106,19 +111,14 @@ export const taoSuKien = async (req, res) => {
       thoi_gian_bat_dau,
       so_luong_toi_da,
       diem_thuong,
-      trang_thai: 'cho_duyet',
-      trang_thai_su_kien: 'ban_nhap',
-      ke_hoach_chi_tiet: keHoachData || {} // ✅ Sử dụng keHoachData đã parse
+      trang_thai: 'ban_nhap', // Kế hoạch đang soạn thảo
+      ke_hoach_chi_tiet: keHoachData || {}
     }, { transaction });
 
-    // 3. ✅ Gửi thông báo cho người được giao task
+    // ✅ 3. Gửi thông báo cho người được giao task
     if (keHoachData?.tasks?.length > 0) {
-      console.log('📤 Đang gửi thông báo cho', keHoachData.tasks.length, 'task(s)');
-      
       for (const task of keHoachData.tasks) {
         if (task.assignee?.id) {
-          console.log('✉️ Gửi thông báo cho user:', task.assignee.id, '-', task.assignee.name);
-          
           await ThongBao.create({
             id_nguoi_nhan: task.assignee.id,
             id_nguoi_hanh_dong: id_nguoi_tao,
@@ -126,12 +126,8 @@ export const taoSuKien = async (req, res) => {
             id_muc_tieu: suKien.id,
             loai_muc_tieu: 'ke_hoach'
           }, { transaction });
-        } else {
-          console.log('⚠️ Task không có assignee:', task.title);
         }
       }
-    } else {
-      console.log('⚠️ Không có task nào trong kế hoạch');
     }
 
     await transaction.commit();
@@ -421,27 +417,82 @@ export const layThongKeDiemDanh = async (req, res) => {
 // Lấy danh sách tất cả nội dung đang chờ duyệt
 export const layDanhSachChoDuyet = async (req, res) => {
   try {
-    // Lấy các bài viết đang chờ duyệt, kèm thông tin người tạo
+    // ✅ Lấy các bài viết đang chờ duyệt
     const baiVietChoDuyet = await BaiViet.findAll({
       where: { trang_thai: 'cho_duyet' },
-      include: {
-        model: NguoiDung,
-        as: 'tac_gia', // ✅ THÊM DÒNG NÀY ĐỂ CHỈ ĐỊNH RÕ MỐI QUAN HỆ
-        attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
-      },
+      include: [
+        {
+          model: NguoiDung,
+          as: 'tac_gia',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        },
+        {
+          model: SuKien,
+          as: 'su_kien',
+          // ✅ Sửa ở đây: Thêm các trường còn thiếu
+          attributes: [
+            'id', 
+            'ten_su_kien', 
+            'thoi_gian_bat_dau', 
+            'dia_diem', 
+            'so_luong_toi_da', 
+            'diem_thuong', 
+            'ke_hoach_chi_tiet', 
+            'trang_thai'
+          ]
+        }
+      ],
       order: [['ngay_tao', 'DESC']]
     });
 
-    // Thêm thuộc tính 'loai' để phân biệt trên frontend
-    const baiVietFormatted = baiVietChoDuyet.map(item => ({ ...item.toJSON(), loai: 'bai_viet' }));
+    // ✅ Lấy các sự kiện chờ duyệt
+    const suKienChoDuyet = await SuKien.findAll({
+      where: { trang_thai: 'da_gui' },
+      include: [
+        {
+          model: NguoiDung,
+          as: 'nguoi_tao',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        },
+        {
+          model: BaiViet,
+          as: 'bai_viet',
+          attributes: ['noi_dung', 'ngay_tao']
+        }
+      ],
+      order: [['thoi_gian_bat_dau', 'DESC']]
+    });
 
-    // Hiện tại chỉ có Bài viết cần duyệt, sau này có thể thêm Sự kiện
-    const tatCaNoiDung = [...baiVietFormatted];
+    // Format dữ liệu
+    const baiVietFormatted = baiVietChoDuyet.map(item => ({ 
+      ...item.toJSON(), 
+      loai: item.su_kien ? 'bai_viet_su_kien' : 'bai_viet', // ✅ Phân biệt loại
+      ngay_tao: item.ngay_tao
+    }));
+
+    const suKienFormatted = suKienChoDuyet.map(item => ({
+      id: item.id,
+      loai: 'su_kien',
+      noi_dung: item.bai_viet?.noi_dung || item.mo_ta,
+      tac_gia: item.nguoi_tao,
+      ngay_tao: item.bai_viet?.ngay_tao || item.thoi_gian_bat_dau,
+      ten_su_kien: item.ten_su_kien,
+      dia_diem: item.dia_diem,
+      thoi_gian_bat_dau: item.thoi_gian_bat_dau,
+      so_luong_toi_da: item.so_luong_toi_da,
+      diem_thuong: item.diem_thuong,
+      ke_hoach_chi_tiet: item.ke_hoach_chi_tiet,
+      trang_thai: item.trang_thai
+    }));
+
+    const tatCaNoiDung = [...baiVietFormatted, ...suKienFormatted].sort((a, b) => {
+      return new Date(b.ngay_tao) - new Date(a.ngay_tao);
+    });
 
     res.json({ success: true, data: tatCaNoiDung });
   } catch (error) {
     console.error('Lỗi khi lấy danh sách chờ duyệt:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
 
@@ -540,8 +591,8 @@ export const capNhatKeHoachSuKien = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Không có quyền chỉnh sửa kế hoạch' });
     }
 
-    // Kiểm tra trạng thái - chỉ sửa được khi ở trạng thái ban_nhap hoặc tu_choi_khoa
-    if (!['ban_nhap', 'tu_choi_khoa'].includes(suKien.trang_thai_su_kien)) {
+    // Kiểm tra trạng thái - chỉ sửa được khi ở trạng thái ban_nhap hoặc tu_choi
+    if (!['ban_nhap', 'tu_choi'].includes(suKien.trang_thai_su_kien)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Không thể sửa kế hoạch khi sự kiện đã gửi duyệt hoặc đã duyệt' 
@@ -774,33 +825,20 @@ export const guiSuKienLenKhoa = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện' });
     }
 
-    // Chỉ người tạo mới có thể gửi
     if (suKien.id_nguoi_tao !== userId) {
       return res.status(403).json({ success: false, message: 'Chỉ người tạo mới có thể gửi duyệt' });
     }
 
-    // Kiểm tra trạng thái
-    if (suKien.trang_thai_su_kien !== 'ban_nhap' && suKien.trang_thai_su_kien !== 'tu_choi_khoa') {
-      return res.status(400).json({ success: false, message: 'Sự kiện đã được gửi duyệt hoặc đã duyệt rồi' });
+    // ✅ Kiểm tra trạng thái phê duyệt
+    if (suKien.trang_thai !== 'ban_nhap' && suKien.trang_thai !== 'tu_choi') {
+      return res.status(400).json({ success: false, message: 'Sự kiện đã được gửi duyệt rồi' });
     }
 
-    // Kiểm tra xem tất cả task đã được duyệt chưa
-    const keHoach = suKien.ke_hoach_chi_tiet || { tasks: [] };
-    const hasUnapprovedTasks = keHoach.tasks?.some(task => 
-      task.status === 'done' && !task.approved
-    );
-
-    if (hasUnapprovedTasks) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vui lòng duyệt tất cả kết quả task trước khi gửi lên Khoa' 
-      });
-    }
-
-    // Cập nhật trạng thái
-    await suKien.update({ trang_thai_su_kien: 'da_gui_khoa' });
+    // ✅ Cập nhật trạng thái phê duyệt
+    await suKien.update({ trang_thai: 'da_gui' });
 
     // Lưu lịch sử
+    const keHoach = suKien.ke_hoach_chi_tiet || {};
     keHoach.history = keHoach.history || [];
     keHoach.history.push({
       action: 'gui_khoa',
@@ -811,7 +849,7 @@ export const guiSuKienLenKhoa = async (req, res) => {
     });
     await suKien.update({ ke_hoach_chi_tiet: keHoach });
 
-    // Gửi thông báo cho kiểm duyệt viên
+    // Gửi thông báo
     const kiemduyetvien = await NguoiDung.findAll({
       where: { vai_tro: ['quan_tri_vien', 'kiem_duyet_vien'] }
     });
@@ -819,18 +857,16 @@ export const guiSuKienLenKhoa = async (req, res) => {
     for (const user of kiemduyetvien) {
       await ThongBao.create({
         id_nguoi_nhan: user.id,
-        id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
+        id_nguoi_hanh_dong: userId,
         loai: 'duyet_su_kien',
-        tieu_de: `📝 Sự kiện "${suKien.ten_su_kien}" cần phê duyệt`,
-        noi_dung: ghi_chu || `Sự kiện mới từ ${req.user.ho_ten} cần được phê duyệt`,
-        link: `/admin/duyet-su-kien/${id}`
+        id_muc_tieu: id,
+        loai_muc_tieu: 'su_kien'
       });
     }
 
     res.json({ 
       success: true, 
-      message: 'Đã gửi sự kiện lên để duyệt',
-      data: { trang_thai_su_kien: suKien.trang_thai_su_kien }
+      message: 'Đã gửi sự kiện lên để duyệt'
     });
   } catch (error) {
     console.error('❌ Lỗi guiSuKienLenKhoa:', error);
@@ -843,61 +879,66 @@ export const guiSuKienLenKhoa = async (req, res) => {
  * POST /api/su-kien/:id/duyet
  */
 export const duyetSuKien = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const { id } = req.params;
-    const { action, phan_hoi } = req.body; // action: 'duyet' | 'tu_choi'
+    const { action, phan_hoi } = req.body; // 'duyet' | 'tu_choi'
     const userId = req.user?.id;
 
-    // Kiểm tra quyền
     if (!['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro)) {
-      return res.status(403).json({ success: false, message: 'Không có quyền duyệt sự kiện' });
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Không có quyền duyệt' });
     }
 
-    const suKien = await SuKien.findByPk(id);
+    const suKien = await SuKien.findByPk(id, { transaction });
     if (!suKien) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện' });
     }
 
-    if (suKien.trang_thai_su_kien !== 'da_gui_khoa') {
+    if (suKien.trang_thai !== 'da_gui') {
+      await transaction.rollback();
       return res.status(400).json({ success: false, message: 'Sự kiện chưa được gửi duyệt' });
     }
 
-    const newStatus = action === 'duyet' ? 'da_duyet_khoa' : 'tu_choi_khoa';
+    // ✅ Cập nhật trạng thái phê duyệt
+    const newStatusSuKien = action === 'duyet' ? 'da_duyet' : 'tu_choi';
     await suKien.update({ 
-      trang_thai_su_kien: newStatus,
+      trang_thai: newStatusSuKien,
       id_nguoi_duyet: userId
-    });
+    }, { transaction });
 
     // Lưu lịch sử
     const keHoach = suKien.ke_hoach_chi_tiet || {};
     keHoach.history = keHoach.history || [];
     keHoach.history.push({
-      action: action === 'duyet' ? 'duyet_khoa' : 'tu_choi_khoa',
+      action: action === 'duyet' ? 'duyet_khoa' : 'tu_choi',
       user_id: userId,
       user_name: req.user.ho_ten,
       phan_hoi,
       timestamp: new Date().toISOString()
     });
-    await suKien.update({ ke_hoach_chi_tiet: keHoach });
+    await suKien.update({ ke_hoach_chi_tiet: keHoach }, { transaction });
 
     // Gửi thông báo cho người tạo
     await ThongBao.create({
       id_nguoi_nhan: suKien.id_nguoi_tao,
-      id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
+      id_nguoi_hanh_dong: userId,
       loai: action === 'duyet' ? 'su_kien_duyet' : 'su_kien_tu_choi',
       id_muc_tieu: id,
-      loai_muc_tieu: 'su_kien' // ✅
-    });
+      loai_muc_tieu: 'su_kien'
+    }, { transaction });
+
+    await transaction.commit();
 
     res.json({ 
       success: true, 
       message: action === 'duyet' ? 'Đã duyệt sự kiện' : 'Đã từ chối sự kiện',
-      data: { 
-        trang_thai_su_kien: suKien.trang_thai_su_kien,
-        phan_hoi 
-      }
+      data: { trang_thai: newStatusSuKien, phan_hoi }
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('❌ Lỗi duyetSuKien:', error);
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
@@ -908,31 +949,49 @@ export const duyetSuKien = async (req, res) => {
  * POST /api/su-kien/:id/dang-cong-khai
  */
 export const dangSuKienCongKhai = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
   try {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const suKien = await SuKien.findByPk(id);
+    const suKien = await SuKien.findByPk(id, {
+      include: [{
+        model: BaiViet,
+        as: 'bai_viet'
+      }],
+      transaction
+    });
+
     if (!suKien) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện' });
     }
 
-    // Kiểm tra quyền: người tạo hoặc kiểm duyệt viên
     const isOwner = suKien.id_nguoi_tao === userId;
     const isReviewer = ['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro);
     
     if (!isOwner && !isReviewer) {
+      await transaction.rollback();
       return res.status(403).json({ success: false, message: 'Không có quyền đăng sự kiện' });
     }
 
-    if (suKien.trang_thai_su_kien !== 'da_duyet_khoa') {
+    // ✅ Kiểm tra trạng thái phê duyệt
+    if (suKien.trang_thai !== 'da_duyet') {
+      await transaction.rollback();
       return res.status(400).json({ success: false, message: 'Sự kiện chưa được Khoa duyệt' });
     }
 
+    // ✅ 1. Cập nhật trạng thái phê duyệt sự kiện
     await suKien.update({ 
-      trang_thai_su_kien: 'da_dang',
-      trang_thai: 'da_duyet'
-    });
+      trang_thai: 'da_dang'
+    }, { transaction });
+
+    // ✅ 2. Cập nhật trạng thái bài viết để công khai
+    await BaiViet.update(
+      { trang_thai: 'da_duyet' },
+      { where: { id: suKien.id_bai_viet }, transaction }
+    );
 
     // Lưu lịch sử
     const keHoach = suKien.ke_hoach_chi_tiet || {};
@@ -943,7 +1002,6 @@ export const dangSuKienCongKhai = async (req, res) => {
       user_name: req.user.ho_ten,
       timestamp: new Date().toISOString()
     });
-    await suKien.update({ ke_hoach_chi_tiet: keHoach });
 
     // Gửi thông báo cho các đối tượng bắt buộc tham gia
     const targetAudience = keHoach.target_audience || {};
@@ -960,13 +1018,23 @@ export const dangSuKienCongKhai = async (req, res) => {
         }
       }
     }
+    
+    await suKien.update({ ke_hoach_chi_tiet: keHoach }, { transaction });
+
+    await transaction.commit();
+
+    
 
     res.json({ 
       success: true, 
       message: 'Đã đăng sự kiện công khai',
-      data: suKien
+      data: {
+        trang_thai_su_kien: 'da_dang',
+        trang_thai_bai_viet: 'da_duyet'
+      }
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('❌ Lỗi dangSuKienCongKhai:', error);
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }

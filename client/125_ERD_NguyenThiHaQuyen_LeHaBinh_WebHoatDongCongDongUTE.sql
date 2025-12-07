@@ -17,10 +17,10 @@ CREATE TYPE vai_tro_nguoi_dung_enum AS ENUM ('sinh_vien', 'giao_vien', 'doanh_ng
 CREATE TYPE loai_cuoc_hoi_thoai_enum AS ENUM ('rieng_tu', 'nhom');
 CREATE TYPE vai_tro_thanh_vien_enum AS ENUM ('thanh_vien', 'quan_tri_vien');
 CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');
-CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'bi_tu_choi');
+CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet');
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
-CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui_khoa','da_duyet_khoa','tu_choi_khoa','da_dang');
+CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui','da_duyet','tu_choi','da_dang');
 
 -- === TẠO CÁC BẢNG ===
 
@@ -141,12 +141,11 @@ CREATE TABLE "SuKien" (
     "ten_su_kien" VARCHAR(255) NOT NULL,
     "mo_ta" TEXT,
 	"ke_hoach_chi_tiet" JSONB DEFAULT NULL,
-	"trang_thai_su_kien" trang_thai_su_kien_enum DEFAULT 'ban_nhap',
 	"dia_diem" VARCHAR(255),
     "thoi_gian_bat_dau" TIMESTAMPTZ NOT NULL,
     "so_luong_toi_da" INT NOT NULL,
     "diem_thuong" INT NOT NULL,
-    "trang_thai" trang_thai_noi_dung_enum NOT NULL DEFAULT 'cho_duyet',
+    "trang_thai" trang_thai_su_kien_enum NOT NULL DEFAULT 'ban_nhap',
     "id_nguoi_duyet" INT REFERENCES "NguoiDung"("id") ON DELETE SET NULL
 );
 

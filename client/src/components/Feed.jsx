@@ -110,8 +110,9 @@ const Feed = ({ currentUser }) => {
         </div>
       ) : (
         posts.map(post => (
-          <div key={post.id}>
-            {post.su_kien ? (
+          <div key={post.id} className="mb-4">
+            {/* ✅ Kiểm tra chặt chẽ hơn: post.su_kien phải là một object và có id */}
+            {post.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
               <EventPostCard 
                 post={post}
                 currentUserId={currentUserId}
@@ -138,10 +139,11 @@ const Feed = ({ currentUser }) => {
         onClose={handleCloseModal}
         currentUser={currentUser}
         PostCardComponent={({ post, ...props }) => {
-          return post.su_kien ? (
-            <EventPostCard post={post} {...props} />
+          // ✅ Đồng bộ logic trong Modal
+          return post.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
+            <EventPostCard post={post} {...props} isModalView={true} />
           ) : (
-            <PostCard post={post} {...props} />
+            <PostCard post={post} {...props} isModalView={true} />
           );
         }}
       />
