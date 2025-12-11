@@ -44,7 +44,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Home, label: 'Trang chủ', badge: null, path: '/' },
     { icon: Calendar, label: 'Sự kiện', badge: 8, path: '/events' },
     { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
-    { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' }
+    { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' },
+    { icon: MessageCircle, label: 'Nhiệm vụ', badge: 6, path: '/nhiem-vu' }
   ];
 
   return (
@@ -76,7 +77,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             ))}
 
             {/* ✅ Link Quản trị cho Admin */}
-            {userRole === 'quan_tri_vien' && (
+            {userRole.includes('quan_tri_vien') && (
               <li>
                 <Link
                   to="/admin"
@@ -93,7 +94,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             )}
 
             {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên */}
-            {(userRole === 'quan_tri_vien' || userRole === 'kiem_duyet_vien') && (
+            {(userRole.includes('quan_tri_vien') || userRole.includes('kiem_duyet_vien')) && (
               <li>
                 <Link
                   to="/duyet-bai"

@@ -493,4 +493,17 @@ export const layDanhSachNguoiPhanCong = async (params) => {
   }
 };
 
+// Nhiệm vụ
+export const layNhiemVuCuaToi = async () => {
+  const response = await apiClient.get('/su-kien/nhiem-vu/cua-toi');
+  return response.data;
+};
+
+export const submitNhiemVu = async (idSuKien, taskIndex, ketQua) => {
+  const response = await apiClient.post(`/su-kien/nhiem-vu/${idSuKien}/${taskIndex}/submit`, {
+    ket_qua: ketQua
+  });
+  return response.data;
+};
+
 export default apiClient;

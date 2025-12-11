@@ -54,14 +54,28 @@ export const xacThucToken = (req, res, next) => {
 /**
  * Middleware kiểm tra vai trò
  */
-export const kiemTraVaiTro = (...vaiTroChoPhep) => {
+export const kiemTraVaiTro = (...allowedRoles) => {
+  // nếu truyền 1 mảng vào như kiemTraVaiTro(['a','b']) cũng hợp lệ
+  const rolesToCheck = Array.isArray(allowedRoles[0]) ? allowedRoles[0] : allowedRoles;
+
   return (req, res, next) => {
-    if (!req.user || !vaiTroChoPhep.includes(req.user.vai_tro)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bạn không có quyền truy cập tính năng này'
-      });
+    const userRoles = req.user?.vai_tro;
+
+    // nếu không có vai trò -> chặn
+    if (!userRoles) {
+      return res.status(403).json({ success: false, message: 'Không có quyền' });
     }
+
+    // chuẩn hóa userRoles thành mảng
+    const userRolesArr = Array.isArray(userRoles) ? userRoles : [userRoles];
+
+    // kiểm tra giao nhau
+    const ok = userRolesArr.some(r => rolesToCheck.includes(r));
+
+    if (!ok) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+    }
+
     next();
   };
 };

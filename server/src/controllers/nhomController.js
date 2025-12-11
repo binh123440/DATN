@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { Op } from 'sequelize';
 
 const { CuocHoiThoai, ThanhVienHoiThoai, NguoiDung, BaiViet, TinNhan } = db;
 
@@ -89,7 +90,7 @@ export const layDanhSachNhom = async (req, res) => {
         ...nhomData,
         so_thanh_vien: nhomData.thanh_vien?.length || 0,
         da_tham_gia: !!thanhVien || isOwner,
-        vai_tro_cua_toi: isOwner ? 'chu_nhom' : thanhVien?.vai_tro || null
+        vai_tro_cua_toi: isOwner ? 'quan_tri_vien' : thanhVien?.vai_tro || null
       };
     });
 
@@ -163,7 +164,7 @@ export const layChiTietNhom = async (req, res) => {
         ...nhomData,
         so_thanh_vien: nhomData.thanh_vien?.length || 0,
         da_tham_gia: !!thanhVien || isOwner,
-        vai_tro_cua_toi: isOwner ? 'chu_nhom' : thanhVien?.vai_tro || null
+        vai_tro_cua_toi: isOwner ? 'quan_tri_vien' : thanhVien?.vai_tro || null
       }
     });
   } catch (error) {
@@ -304,7 +305,7 @@ export const layDanhSachThanhVien = async (req, res) => {
     const danhSachFull = [
       {
         id_nguoi_dung: nhom.id_nguoi_tao,
-        vai_tro: 'chu_nhom',
+         vai_tro: 'quay_tri_vien',
         nguoi_dung: nhom.nguoi_tao,
         ngay_gio_tham_gia: nhom.ngay_tao
       },

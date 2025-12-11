@@ -1,6 +1,7 @@
 import db from '../models/index.js';
 import * as geolib from 'geolib';
 import { taoThongBao } from './thongBaoController.js';
+import { Op } from 'sequelize';
 const { SuKien, BaiViet, NguoiDung, DangKySuKien, sequelize, ThongBao, Khoa } = db;
 
 // Lấy danh sách sự kiện
@@ -392,7 +393,7 @@ export const layThongKeDiemDanh = async (req, res) => {
     }
 
     // Chỉ người tạo sự kiện hoặc admin mới có quyền xem
-    if (suKien.id_nguoi_tao !== id_nguoi_dung && vai_tro !== 'admin') {
+    if (suKien.id_nguoi_tao !== id_nguoi_dung && !vai_tro.includes('quan_tri_vien')) {
       return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập tài nguyên này.' });
     }
 
@@ -851,7 +852,10 @@ export const guiSuKienLenKhoa = async (req, res) => {
 
     // Gửi thông báo
     const kiemduyetvien = await NguoiDung.findAll({
-      where: { vai_tro: ['quan_tri_vien', 'kiem_duyet_vien'] }
+      where: { vai_tro:{
+                  [Op.overlap]: ['quan_tri_vien', 'kiem_duyet_vien']
+                } 
+              }
     });
 
     for (const user of kiemduyetvien) {
@@ -1026,7 +1030,7 @@ export const dangSuKienCongKhai = async (req, res) => {
     
 
     res.json({ 
-      success: true, 
+      success: true,
       message: 'Đã đăng sự kiện công khai',
       data: {
         trang_thai_su_kien: 'da_dang',
@@ -1050,9 +1054,9 @@ export const layDanhSachNguoiPhanCong = async (req, res) => {
 
     let whereCondition = {};
     if (type === 'giao_vien') {
-      whereCondition.vai_tro = 'giao_vien';
+      whereCondition.vai_tro = {[Op.contains]: ['giao_vien']};
     } else if (type === 'can_bo') {
-      whereCondition.vai_tro = ['quan_tri_vien', 'kiem_duyet_vien', 'giao_vien'];
+      whereCondition.vai_tro = {[Op.overlap]: ['quan_tri_vien', 'kiem_duyet_vien', 'giao_vien']};
     }
 
     const users = await NguoiDung.findAll({
@@ -1068,5 +1072,150 @@ export const layDanhSachNguoiPhanCong = async (req, res) => {
   } catch (error) {
     console.error('❌ Lỗi layDanhSachNguoiPhanCong:', error);
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+  }
+};
+
+// API: Lấy danh sách nhiệm vụ của người dùng hiện tại
+export const layNhiemVuCuaToi = async (req, res) => {
+  try {
+    const id_nguoi_dung = req.user?.id;
+
+    if (!id_nguoi_dung) {
+      return res.status(401).json({
+        success: false,
+        message: 'Không tìm thấy thông tin người dùng'
+      });
+    }
+
+    // Lấy tất cả sự kiện đã được duyệt
+    const suKiens = await SuKien.findAll({
+      where: { trang_thai: 'da_dang' },
+      attributes: ['id', 'ten_su_kien', 'thoi_gian_bat_dau', 'dia_diem', 'ke_hoach_chi_tiet'],
+      include: [
+        {
+          model: NguoiDung,
+          as: 'nguoi_tao',
+          attributes: ['id', 'ho_ten', 'anh_dai_dien_url']
+        }
+      ],
+      order: [['thoi_gian_bat_dau', 'DESC']]
+    });
+
+    // Lọc ra các nhiệm vụ được giao cho người dùng hiện tại
+    const danhSachNhiemVu = [];
+
+    suKiens.forEach(suKien => {
+      const keHoach = suKien.ke_hoach_chi_tiet;
+      if (keHoach?.tasks) {
+        keHoach.tasks.forEach((task, index) => {
+          if (task.assignee?.id === id_nguoi_dung) {
+            danhSachNhiemVu.push({
+              id_su_kien: suKien.id,
+              ten_su_kien: suKien.ten_su_kien,
+              thoi_gian_bat_dau: suKien.thoi_gian_bat_dau,
+              dia_diem: suKien.dia_diem,
+              nguoi_tao: suKien.nguoi_tao,
+              task_index: index,
+              task_id: task.id,
+              ten_nhiem_vu: task.title,
+              mo_ta: task.description,
+              deadline: task.deadline,
+              trang_thai: task.status || 'chua_lam',
+              ket_qua: task.result || null,
+              ngay_nop: task.submitted_at || null
+            });
+          }
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      data: danhSachNhiemVu
+    });
+  } catch (error) {
+    console.error('❌ Lỗi khi lấy nhiệm vụ:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
+  }
+};
+
+// API: Submit kết quả nhiệm vụ
+export const submitNhiemVu = async (req, res) => {
+  try {
+    const { id_su_kien, task_index } = req.params;
+    const { ket_qua } = req.body;
+    const id_nguoi_dung = req.user?.id;
+
+    if (!ket_qua) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập kết quả nhiệm vụ'
+      });
+    }
+
+    const suKien = await SuKien.findByPk(id_su_kien);
+
+    if (!suKien) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sự kiện'
+      });
+    }
+
+    const keHoach = suKien.ke_hoach_chi_tiet;
+    const taskIdx = parseInt(task_index);
+
+    if (!keHoach?.tasks || !keHoach.tasks[taskIdx]) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhiệm vụ'
+      });
+    }
+
+    const task = keHoach.tasks[taskIdx];
+
+    // Kiểm tra quyền
+    if (task.assignee?.id !== id_nguoi_dung) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền submit nhiệm vụ này'
+      });
+    }
+
+    // Cập nhật trạng thái và kết quả
+    keHoach.tasks[taskIdx] = {
+      ...task,
+      status: 'cho_duyet',
+      result: ket_qua,
+      submitted_at: new Date().toISOString()
+    };
+
+    await suKien.update({ ke_hoach_chi_tiet: keHoach });
+
+    // Gửi thông báo cho người tạo sự kiện
+    await ThongBao.create({
+      id_nguoi_nhan: suKien.id_nguoi_tao,
+      loai: 'submit_nhiem_vu',
+      tieu_de: 'Nhiệm vụ mới được submit',
+      noi_dung: `${req.user.ho_ten} đã submit nhiệm vụ "${task.title}" trong sự kiện "${suKien.ten_su_kien}"`,
+      lien_ket: `/su-kien/${id_su_kien}`
+    });
+
+    res.json({
+      success: true,
+      message: 'Đã gửi kết quả thành công',
+      data: keHoach.tasks[taskIdx]
+    });
+  } catch (error) {
+    console.error('❌ Lỗi khi submit nhiệm vụ:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
   }
 };

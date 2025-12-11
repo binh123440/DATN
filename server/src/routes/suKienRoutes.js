@@ -16,7 +16,9 @@ import {
   guiSuKienLenKhoa,
   duyetSuKien,
   dangSuKienCongKhai,
-  layDanhSachNguoiPhanCong
+  layDanhSachNguoiPhanCong,
+  layNhiemVuCuaToi,
+  submitNhiemVu
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
@@ -58,6 +60,10 @@ router.post('/:id/dang-cong-khai', xacThucToken, dangSuKienCongKhai);
 
 // ✅ Utilities
 router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
+
+// Nhiệm vụ cá nhân
+router.get('/nhiem-vu/cua-toi', xacThucToken, layNhiemVuCuaToi);
+router.post('/nhiem-vu/:id_su_kien/:task_index/submit', xacThucToken, submitNhiemVu);
 
 router.use(xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'));
 

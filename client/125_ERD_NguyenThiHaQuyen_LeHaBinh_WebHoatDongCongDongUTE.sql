@@ -44,7 +44,7 @@ CREATE TABLE "NguoiDung" (
 	"ma_sinh_vien" VARCHAR(255) UNIQUE NOT NULL,
     "email" VARCHAR(255) UNIQUE NOT NULL,
     "mat_khau_bam" VARCHAR(255) NOT NULL,
-    "vai_tro" vai_tro_nguoi_dung_enum NOT NULL,
+    "vai_tro" vai_tro_nguoi_dung_enum[] NOT NULL DEFAULT '{}',
     
     -- Thông tin cá nhân
     "dong_gioi_thieu" TEXT,
@@ -316,7 +316,7 @@ VALUES (
 
 -- === THÊM 10 SỰ KIỆN MẪU ===
 
--- Sự kiện 1: Hội thảo AI
+-- Sự kiện 1: Hội da_dangthảo AI
 INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet", "ngay_tao")
 VALUES (
     10,
@@ -339,7 +339,7 @@ VALUES (
     NOW() + INTERVAL '5 days',
     100,
     60,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -366,7 +366,7 @@ VALUES (
     NOW() + INTERVAL '3 days',
     50,
     70,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -393,7 +393,7 @@ VALUES (
     NOW() + INTERVAL '7 days',
     200,
     50,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -420,7 +420,7 @@ VALUES (
     NOW() + INTERVAL '14 days',
     150,
     100,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -447,7 +447,7 @@ VALUES (
     NOW() + INTERVAL '10 days',
     500,
     40,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -474,7 +474,7 @@ VALUES (
     NOW() + INTERVAL '21 days',
     80,
     90,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -501,7 +501,7 @@ VALUES (
     NOW() + INTERVAL '6 days',
     60,
     75,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -528,7 +528,7 @@ VALUES (
     NOW() + INTERVAL '30 days',
     100,
     80,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -555,7 +555,7 @@ VALUES (
     NOW() + INTERVAL '15 days',
     300,
     45,
-    'da_duyet',
+    'da_dang',
     2
 );
 
@@ -582,7 +582,7 @@ VALUES (
     NOW() + INTERVAL '12 days',
     120,
     55,
-    'da_duyet',
+    'da_dang',
     2
 );
 

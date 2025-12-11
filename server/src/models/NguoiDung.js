@@ -24,10 +24,12 @@ const NguoiDung = sequelize.define('NguoiDung', {
     allowNull: false
   },
   vai_tro: {
-    // ✅ SỬA: Chỉ định rõ ENUM type đã tồn tại trong database
-    type: DataTypes.ENUM,
-    values: ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'],
-    allowNull: false
+    type: DataTypes.ARRAY(DataTypes.ENUM({
+      values: ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'],
+      name: 'vai_tro_nguoi_dung_enum' // Tên ENUM type trong database
+    })),
+    allowNull: false,
+    defaultValue: []
   },
   // Thông tin cá nhân
   dong_gioi_thieu: {

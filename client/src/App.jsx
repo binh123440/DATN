@@ -18,6 +18,7 @@ import UserProfile from './components/UserProfile';
 import EventPlanForm from './components/EventPlanForm';
 import TaskManager from './components/TaskManager';
 import EventApprovalList from './components/EventApprovalList';
+import NhiemVu from './components/NhiemVu';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -126,10 +127,11 @@ function App() {
                   <Route path="/events/:id/plan" element={<EventPlanForm />} />
                   <Route path="/events/:id/tasks" element={<TaskManager />} />
                   <Route path="/admin/event-approvals" element={<EventApprovalList />} />
+                  <Route path="/nhiem-vu" element={<NhiemVu />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                   
-                  {currentUser?.vai_tro === 'quan_tri_vien' && (
+                  {currentUser?.vai_tro.includes('quan_tri_vien') && (
                     <Route path="/admin" element={<AdminDashboard />} />
                   )}
                 </Routes>

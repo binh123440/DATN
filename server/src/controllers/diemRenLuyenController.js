@@ -1,5 +1,6 @@
 import db from '../models/index.js';
 import { Op } from 'sequelize';
+import sequelize from '../config/database.js';
 
 const { NguoiDung, DangKySuKien, SuKien } = db;
 
@@ -45,7 +46,11 @@ export const layThongTinDiemRenLuyen = async (req, res) => {
     const danhSachSinhVien = await NguoiDung.findAll({
       where: {
         id_nganh: nguoiDung.id_nganh,
-        vai_tro: 'sinh_vien'
+        [Op.and]: sequelize.where(
+          // ✅ Dùng literal để ép kiểu đúng: vai_tro @> ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[]
+          sequelize.literal(`vai_tro @> ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[]`),
+          true
+        )
       },
       attributes: ['id', 'tong_diem'],
       order: [['tong_diem', 'DESC']]
