@@ -122,11 +122,11 @@ function App() {
                   <Route path="/profile" element={<Profile currentUser={currentUser} />} />
                   <Route path="/profile/:id" element={<UserProfile currentUser={currentUser} />} />
                   <Route path="/events/:id/thong-ke" element={<ThongKeDiemDanh />} />
-                  <Route path="/su-kien/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/duyet-bai" element={<DuyetBai />} />
-                  <Route path="/events/:id/plan" element={<EventPlanForm />} />
-                  <Route path="/events/:id/tasks" element={<TaskManager />} />
-                  <Route path="/admin/event-approvals" element={<EventApprovalList />} />
+
+
+                  {/* <Route path="/admin/event-approvals" element={<EventApprovalList />} /> */}
+
                   <Route path="/nhiem-vu" element={<NhiemVu />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}
                   <Route path="*" element={<Navigate to="/" replace />} />
