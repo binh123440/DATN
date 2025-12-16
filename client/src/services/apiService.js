@@ -495,14 +495,22 @@ export const layDanhSachNguoiPhanCong = async (params) => {
 
 // Nhiệm vụ
 export const layNhiemVuCuaToi = async () => {
+  console.log('🔍 Gọi API: GET /su-kien/nhiem-vu/cua-toi');
   const response = await apiClient.get('/su-kien/nhiem-vu/cua-toi');
+  console.log('✅ Response layNhiemVuCuaToi:', response.data);
   return response.data;
 };
 
 export const submitNhiemVu = async (idSuKien, taskIndex, ketQua) => {
-  const response = await apiClient.post(`/su-kien/nhiem-vu/${idSuKien}/${taskIndex}/submit`, {
+  const url = `/su-kien/nhiem-vu/${idSuKien}/${taskIndex}/submit`;
+  console.log('📤 Gọi API: POST', url);
+  console.log('📦 Payload:', { ket_qua: ketQua });
+  
+  const response = await apiClient.post(url, {
     ket_qua: ketQua
   });
+  
+  console.log('✅ Response submitNhiemVu:', response.data);
   return response.data;
 };
 

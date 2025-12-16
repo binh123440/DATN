@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { layDanhSachChoDuyet, capNhatTrangThaiNoiDung, duyetSuKien } from '../services/apiService';
+import { layDanhSachChoDuyet, capNhatTrangThaiNoiDung, duyetSuKien, duyetKetQuaTask } from '../services/apiService';
 import { Check, X, Clock, FileText, Calendar, AlertCircle, MapPin, Users, Target, ChevronDown, ChevronUp, User, List, Eye } from 'lucide-react';
 
 // Component con để hiển thị chi tiết kế hoạch
-const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, loai }) => {
+const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, loai, onTaskAction }) => {
   if (!keHoach) {
     return (
       <div className="bg-yellow-50 border-t border-yellow-200 rounded-b-lg p-6">
@@ -14,12 +14,45 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
     );
   }
 
+  const getTaskStatusBadge = (task) => {
+    if (task.approved === true) {
+      return <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700 font-medium">✅ Đã duyệt</span>;
+    }
+    if (task.approved === false) {
+      return <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-700 font-medium">❌ Từ chối</span>;
+    }
+    if (task.status === 'done' || task.result) {
+      return <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-700 font-medium">⏳ Chờ duyệt</span>;
+    }
+    return <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 font-medium">📝 Chưa làm</span>;
+  };
+
+  const totalTasks = keHoach.tasks?.length || 0;
+  const completedTasks = keHoach.tasks?.filter(t => t.approved === true).length || 0;
+  const pendingTasks = keHoach.tasks?.filter(t => t.status === 'done' && t.approved !== true && t.approved !== false).length || 0;
+
   return (
     <div className="border-t border-gray-200 bg-gray-50 p-6 animate-fadeIn">
-      <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <List size={20} className="text-purple-600" />
-        Kế Hoạch Chi Tiết
-      </h4>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <List size={20} className="text-purple-600" />
+          Kế Hoạch Chi Tiết
+        </h4>
+        {totalTasks > 0 && (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1">
+              <Check size={14} className="text-green-600" />
+              <span className="font-semibold text-green-700">{completedTasks}/{totalTasks}</span>
+            </span>
+            {pendingTasks > 0 && (
+              <span className="flex items-center gap-1">
+                <Clock size={14} className="text-yellow-600" />
+                <span className="font-semibold text-yellow-700">{pendingTasks} chờ</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       {keHoach.tasks?.length > 0 ? (
         <div className="space-y-3 mb-6">
@@ -29,10 +62,17 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
                 <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                   <span className="text-xs font-bold text-purple-600">#{index + 1}</span>
                 </div>
-                <div className="flex-1">
-                  <h5 className="font-semibold text-gray-800 mb-1">{task.title}</h5>
-                  {task.description && <p className="text-sm text-gray-600 mb-2">{task.description}</p>}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h5 className="font-semibold text-gray-800 flex-1">{task.title}</h5>
+                    {getTaskStatusBadge(task)}
+                  </div>
+                  
+                  {task.description && (
+                    <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                  )}
+                  
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-2">
                     {task.assignee?.name && (
                       <div className="flex items-center gap-1">
                         <User size={14} className="text-blue-500" />
@@ -46,6 +86,71 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
                       </div>
                     )}
                   </div>
+
+                  {/* Kết quả đã submit */}
+                  {task.result && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2 mb-1">
+                        <FileText size={14} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-blue-900 mb-1">Kết quả đã nộp:</p>
+                          <p className="text-xs text-gray-700">{task.result}</p>
+                          {task.submitted_at && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              📅 {new Date(task.submitted_at).toLocaleString('vi-VN')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Feedback từ người duyệt */}
+                      {task.feedback && task.approved === false && (
+                        <div className="mt-2 pt-2 border-t border-red-200">
+                          <p className="text-xs font-semibold text-red-800 mb-1">💬 Phản hồi:</p>
+                          <p className="text-xs text-red-700">{task.feedback}</p>
+                        </div>
+                      )}
+
+                      {/* Nút duyệt task - chỉ hiện khi task chưa được duyệt */}
+                      {task.approved === null && task.status === 'done' && (
+                        <div className="mt-3 pt-2 border-t border-blue-200">
+                          <input
+                            type="text"
+                            placeholder="Phản hồi (tùy chọn)..."
+                            className="w-full text-xs px-2 py-1.5 mb-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 outline-none"
+                            id={`feedback-${itemId}-${index}`}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const feedback = document.getElementById(`feedback-${itemId}-${index}`).value;
+                                onTaskAction(itemId, task.id || index, true, feedback);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 bg-green-500 text-white px-2 py-1.5 rounded text-xs hover:bg-green-600 transition-colors font-medium"
+                            >
+                              <Check size={12} /> Duyệt
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const feedback = document.getElementById(`feedback-${itemId}-${index}`).value;
+                                if (!feedback.trim()) {
+                                  alert('Vui lòng nhập lý do từ chối');
+                                  return;
+                                }
+                                onTaskAction(itemId, task.id || index, false, feedback);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 bg-red-500 text-white px-2 py-1.5 rounded text-xs hover:bg-red-600 transition-colors font-medium"
+                            >
+                              <X size={12} /> Từ chối
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -60,7 +165,7 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
         </div>
       )}
 
-      {/* Chỉ hiển thị form phản hồi và nút duyệt cho Kế hoạch sự kiện */}
+      {/* Form duyệt sự kiện */}
       {loai === 'su_kien' && (
         <>
           <div className="mb-4">
@@ -148,6 +253,19 @@ const DuyetBai = () => {
     }
   };
 
+  const handleTaskAction = async (eventId, taskId, approved, feedback) => {
+    const confirmMsg = approved ? 'Bạn có chắc muốn duyệt task này?' : 'Bạn có chắc muốn từ chối task này?';
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await duyetKetQuaTask(eventId, taskId, approved, feedback);
+      alert(`✅ ${approved ? 'Đã duyệt' : 'Đã từ chối'} task thành công!`);
+      fetchData();
+    } catch (err) {
+      alert('Lỗi: ' + (err.response?.data?.message || 'Vui lòng thử lại'));
+    }
+  };
+
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
@@ -200,12 +318,10 @@ const DuyetBai = () => {
             return (
               <div key={`${item.loai}-${item.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
                 <div className="p-6">
-                  {/* Phần nội dung có thể click để expand */}
                   <div 
                     className={isEventRelated ? 'cursor-pointer' : ''}
                     onClick={() => isEventRelated && toggleExpand(item.id)}
                   >
-                    {/* Badge */}
                     <div className="flex items-center gap-2 mb-3">
                       {item.loai === 'bai_viet' && (
                         <span className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
@@ -225,20 +341,17 @@ const DuyetBai = () => {
                       {isEventRelated && (isExpanded ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />)}
                     </div>
 
-                    {/* Tiêu đề sự kiện */}
                     {isEventRelated && (
                       <h3 className="text-xl font-bold text-gray-800 mb-2 hover:text-purple-600">
                         {eventData?.ten_su_kien}
                       </h3>
                     )}
 
-                    {/* Nội dung bài viết */}
                     <div 
                       className="text-sm text-gray-600 mb-4 line-clamp-3"
                       dangerouslySetInnerHTML={{ __html: item.noi_dung?.substring(0, 300) + (item.noi_dung?.length > 300 ? '...' : '') }}
                     />
 
-                    {/* Thông tin tác giả */}
                     <div className="flex items-center gap-3 text-sm text-gray-500">
                       <img 
                         src={item.tac_gia?.anh_dai_dien_url || '/default-avatar.png'} 
@@ -253,7 +366,6 @@ const DuyetBai = () => {
                       </span>
                     </div>
 
-                    {/* Thông tin tóm tắt sự kiện */}
                     {isEventRelated && (
                       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div className="flex items-center gap-2 text-sm"><MapPin size={16} className="text-red-500" /><span className="text-gray-700">{eventData?.dia_diem}</span></div>
@@ -271,7 +383,6 @@ const DuyetBai = () => {
                     )}
                   </div>
 
-                  {/* Nút hành động */}
                   <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleAction(item.id, item.loai, item.loai === 'su_kien' ? 'duyet' : 'da_duyet'); }}
@@ -288,7 +399,6 @@ const DuyetBai = () => {
                   </div>
                 </div>
 
-                {/* Phần chi tiết được expand */}
                 {isExpanded && isEventRelated && (
                   <KeHoachChiTiet 
                     keHoach={eventData?.ke_hoach_chi_tiet}
@@ -298,8 +408,9 @@ const DuyetBai = () => {
                       setPhanHoi(prev => ({ ...prev, [item.id]: e.target.value }));
                     }}
                     onAction={handleAction}
-                    itemId={item.id}
+                    itemId={eventData?.id || item.id}
                     loai={item.loai}
+                    onTaskAction={handleTaskAction}
                   />
                 )}
               </div>

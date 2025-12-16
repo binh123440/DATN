@@ -98,8 +98,7 @@ export const layBaiVietNguoiDung = async (req, res) => {
     const { count, rows } = await BaiViet.findAndCountAll({
       where: {
         id_tac_gia: id,
-        trang_thai: 'da_duyet',
-        id_cuoc_hoi_thoai: null // Chỉ lấy bài viết công khai
+        id_cuoc_hoi_thoai: null
       },
       include: [
         {
@@ -110,8 +109,18 @@ export const layBaiVietNguoiDung = async (req, res) => {
         {
           model: db.SuKien,
           as: 'su_kien',
-          where: { trang_thai: 'da_duyet' },
-          required: false
+          required: false,
+          attributes: [
+            'id',
+            'ten_su_kien',
+            'mo_ta',
+            'dia_diem',
+            'thoi_gian_bat_dau',
+            'so_luong_toi_da',
+            'diem_thuong',
+            'trang_thai',
+            'ke_hoach_chi_tiet'
+          ]
         }
       ],
       order: [['ngay_tao', 'DESC']],

@@ -162,7 +162,8 @@ export const capNhatSuKien = async (req, res) => {
       thoi_gian_ket_thuc,
       so_luong_toi_da,
       diem_thuong,
-      noi_dung_bai_viet
+      noi_dung_bai_viet,
+      ke_hoach_chi_tiet // <-- nhận kế hoạch chi tiết ở đây
     } = req.body;
     const idNguoiDung = req.user?.id ;
 
@@ -176,6 +177,22 @@ export const capNhatSuKien = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Không có quyền.' });
     }
 
+    // parse ke_hoach nếu gửi dưới dạng string
+    let keHoachData;
+    if (ke_hoach_chi_tiet !== undefined) {
+      if (typeof ke_hoach_chi_tiet === 'string') {
+        try {
+          keHoachData = JSON.parse(ke_hoach_chi_tiet);
+        } catch (parseErr) {
+          await t.rollback();
+          return res.status(400).json({ success: false, message: 'ke_hoach_chi_tiet không hợp lệ (JSON).' });
+        }
+      } else {
+        keHoachData = ke_hoach_chi_tiet;
+      }
+    }
+
+    // Lưu các thay đổi thông thường
     const payload = {};
     if (ten_su_kien !== undefined) payload.ten_su_kien = ten_su_kien;
     if (mo_ta !== undefined) payload.mo_ta = mo_ta;
@@ -185,7 +202,11 @@ export const capNhatSuKien = async (req, res) => {
     if (so_luong_toi_da !== undefined) payload.so_luong_toi_da = so_luong_toi_da;
     if (diem_thuong !== undefined) payload.diem_thuong = diem_thuong;
 
-    if (Object.keys(payload).length) await suKien.update(payload, { transaction: t });
+    if (Object.keys(payload).length) {
+      await suKien.update(payload, { transaction: t });
+    }
+
+    // Cập nhật nội dung bài viết liên quan nếu cần
     if (noi_dung_bai_viet && suKien.id_bai_viet) {
       await BaiViet.update(
         { noi_dung: noi_dung_bai_viet },
@@ -193,8 +214,45 @@ export const capNhatSuKien = async (req, res) => {
       );
     }
 
+    // Xử lý ke_hoach_chi_tiet: lưu và thông báo cho assignee mới
+    if (keHoachData !== undefined) {
+      const oldKeHoach = suKien.ke_hoach_chi_tiet || { tasks: [] };
+      const oldAssigneeIds = new Set();
+      (oldKeHoach.tasks || []).forEach(tk => {
+        if (tk?.assignee?.type === 'user' && tk.assignee.id) oldAssigneeIds.add(tk.assignee.id);
+      });
+
+      // Lưu ke_hoach mới
+      await suKien.update({ ke_hoach_chi_tiet: keHoachData }, { transaction: t });
+
+      // Tạo thông báo cho các assignee mới (user)
+      const newAssigneeIds = new Set();
+      (keHoachData.tasks || []).forEach(tk => {
+        if (tk?.assignee?.type === 'user' && tk.assignee.id) newAssigneeIds.add(tk.assignee.id);
+      });
+
+      for (const uid of newAssigneeIds) {
+        if (!oldAssigneeIds.has(uid)) {
+          try {
+            await ThongBao.create({
+              id_nguoi_nhan: uid,
+              id_nguoi_hanh_dong: idNguoiDung,
+              loai: 'phan_cong_task',
+              id_muc_tieu: suKien.id,
+              loai_muc_tieu: 'ke_hoach'
+            }, { transaction: t });
+          } catch (nbErr) {
+            console.error('Không thể tạo thông báo phân công:', nbErr);
+          }
+        }
+      }
+    }
+
     await t.commit();
-    res.json({ success: true, message: 'Cập nhật sự kiện thành công.' });
+
+    // Trả về dữ liệu cập nhật
+    const updated = await SuKien.findByPk(id, { include: [{ model: BaiViet, as: 'bai_viet' }, { model: NguoiDung, as: 'nguoi_tao', attributes: ['id','ho_ten','anh_dai_dien_url'] }] });
+    res.json({ success: true, message: 'Cập nhật sự kiện thành công.', data: updated });
   } catch (error) {
     await t.rollback();
     console.error('capNhatSuKien error:', error);
@@ -755,8 +813,12 @@ export const hoanThanhTask = async (req, res) => {
  */
 export const duyetKetQuaTask = async (req, res) => {
   try {
+    console.log('🔍 duyetKetQuaTask called');
+    console.log('Params:', req.params);
+    console.log('Body:', req.body);
+    
     const { id, taskId } = req.params;
-    const { approved, feedback } = req.body; // { approved: boolean, feedback: string }
+    const { approved, feedback } = req.body;
     const userId = req.user?.id;
 
     const suKien = await SuKien.findByPk(id);
@@ -769,35 +831,50 @@ export const duyetKetQuaTask = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Không có quyền duyệt kết quả' });
     }
 
-    const keHoach = suKien.ke_hoach_chi_tiet || { tasks: [] };
-    const taskIndex = keHoach.tasks.findIndex(t => t.id === taskId);
+    // ⚠️ Clone để Sequelize phát hiện thay đổi JSONB
+    const keHoach = JSON.parse(JSON.stringify(suKien.ke_hoach_chi_tiet || { tasks: [] }));
+    
+    console.log('📋 Tìm task với ID:', taskId);
+    console.log('📋 Danh sách tasks:', keHoach.tasks?.map(t => ({ id: t.id, title: t.title })));
+    
+    const taskIndex = keHoach.tasks.findIndex(t => String(t.id) === String(taskId));
     
     if (taskIndex === -1) {
+      console.log('❌ Không tìm thấy task với ID:', taskId);
       return res.status(404).json({ success: false, message: 'Không tìm thấy task' });
     }
 
     const task = keHoach.tasks[taskIndex];
+    console.log('✅ Tìm thấy task:', task.title);
 
     // Cập nhật trạng thái duyệt
     keHoach.tasks[taskIndex] = {
       ...task,
       approved: approved,
-      feedback: feedback,
+      feedback: feedback || '',
       reviewed_by: userId,
       reviewed_at: new Date().toISOString()
     };
 
-    await suKien.update({ ke_hoach_chi_tiet: keHoach });
+    console.log('💾 Cập nhật task:', keHoach.tasks[taskIndex]);
+
+    // ⚠️ Đánh dấu field đã thay đổi
+    suKien.ke_hoach_chi_tiet = keHoach;
+    suKien.changed('ke_hoach_chi_tiet', true);
+    await suKien.save();
+    
+    console.log('✅ Đã lưu vào DB');
 
     // Gửi thông báo cho người thực hiện
     if (task.assignee?.type === 'user' && task.assignee.id) {
       await ThongBao.create({
         id_nguoi_nhan: task.assignee.id,
-        id_nguoi_hanh_dong: userId, // ✅ Thêm dòng này
+        id_nguoi_hanh_dong: userId,
         loai: approved ? 'task_approved' : 'task_rejected',
-        id_muc_tieu: id,
-        loai_muc_tieu: 'ke_hoach' // ✅
+        id_muc_tieu: parseInt(id),
+        loai_muc_tieu: 'su_kien'
       });
+      console.log('✅ Đã gửi thông báo');
     }
 
     res.json({ 
@@ -1089,7 +1166,7 @@ export const layNhiemVuCuaToi = async (req, res) => {
 
     // Lấy tất cả sự kiện đã được duyệt
     const suKiens = await SuKien.findAll({
-      where: { trang_thai: 'da_dang' },
+      where: { trang_thai: 'ban_nhap' },
       attributes: ['id', 'ten_su_kien', 'thoi_gian_bat_dau', 'dia_diem', 'ke_hoach_chi_tiet'],
       include: [
         {
@@ -1108,7 +1185,18 @@ export const layNhiemVuCuaToi = async (req, res) => {
       const keHoach = suKien.ke_hoach_chi_tiet;
       if (keHoach?.tasks) {
         keHoach.tasks.forEach((task, index) => {
-          if (task.assignee?.id === id_nguoi_dung) {
+          // Check if task is assigned to current user
+          if (task.assignee?.type === 'user' && task.assignee?.id === id_nguoi_dung) {
+            // Determine status based on task properties
+            let trangThai = 'chua_lam';
+            if (task.approved === true) {
+              trangThai = 'da_duyet';
+            } else if (task.approved === false) {
+              trangThai = 'bi_tu_choi';
+            } else if (task.status === 'done' || task.result) {
+              trangThai = 'cho_duyet';
+            }
+
             danhSachNhiemVu.push({
               id_su_kien: suKien.id,
               ten_su_kien: suKien.ten_su_kien,
@@ -1120,9 +1208,10 @@ export const layNhiemVuCuaToi = async (req, res) => {
               ten_nhiem_vu: task.title,
               mo_ta: task.description,
               deadline: task.deadline,
-              trang_thai: task.status || 'chua_lam',
+              trang_thai: trangThai,
               ket_qua: task.result || null,
-              ngay_nop: task.submitted_at || null
+              ngay_nop: task.completed_at || task.submitted_at || null,
+              feedback: task.feedback || null
             });
           }
         });
@@ -1146,30 +1235,53 @@ export const layNhiemVuCuaToi = async (req, res) => {
 // API: Submit kết quả nhiệm vụ
 export const submitNhiemVu = async (req, res) => {
   try {
+    console.log('📝 submitNhiemVu called');
+    console.log('Params:', req.params);
+    console.log('Body:', req.body);
+    console.log('User:', req.user?.id, req.user?.ho_ten);
+
     const { id_su_kien, task_index } = req.params;
     const { ket_qua } = req.body;
     const id_nguoi_dung = req.user?.id;
 
-    if (!ket_qua) {
+    if (!id_nguoi_dung) {
+      console.log('❌ Không có user ID');
+      return res.status(401).json({
+        success: false,
+        message: 'Bạn chưa đăng nhập'
+      });
+    }
+
+    if (!ket_qua || ket_qua.trim() === '') {
+      console.log('❌ Không có kết quả');
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập kết quả nhiệm vụ'
       });
     }
 
+    console.log('🔍 Tìm sự kiện:', id_su_kien);
     const suKien = await SuKien.findByPk(id_su_kien);
 
     if (!suKien) {
+      console.log('❌ Không tìm thấy sự kiện');
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy sự kiện'
       });
     }
 
-    const keHoach = suKien.ke_hoach_chi_tiet;
+    console.log('✅ Tìm thấy sự kiện:', suKien.ten_su_kien);
+
+    // ⚠️ Clone object để Sequelize phát hiện thay đổi
+    const keHoach = JSON.parse(JSON.stringify(suKien.ke_hoach_chi_tiet || {}));
     const taskIdx = parseInt(task_index);
 
+    console.log('📋 Kế hoạch có tasks:', keHoach?.tasks?.length);
+    console.log('🎯 Task index:', taskIdx);
+
     if (!keHoach?.tasks || !keHoach.tasks[taskIdx]) {
+      console.log('❌ Không tìm thấy nhiệm vụ tại index:', taskIdx);
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy nhiệm vụ'
@@ -1177,34 +1289,64 @@ export const submitNhiemVu = async (req, res) => {
     }
 
     const task = keHoach.tasks[taskIdx];
+    console.log('📌 Task hiện tại:', {
+      title: task.title,
+      assignee: task.assignee,
+      status: task.status
+    });
 
     // Kiểm tra quyền
-    if (task.assignee?.id !== id_nguoi_dung) {
+    if (task.assignee?.type !== 'user' || task.assignee?.id !== id_nguoi_dung) {
+      console.log('❌ Không có quyền submit:', {
+        taskAssigneeType: task.assignee?.type,
+        taskAssigneeId: task.assignee?.id,
+        userId: id_nguoi_dung
+      });
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền submit nhiệm vụ này'
       });
     }
 
+    console.log('✅ Người dùng có quyền submit');
+
     // Cập nhật trạng thái và kết quả
     keHoach.tasks[taskIdx] = {
       ...task,
-      status: 'cho_duyet',
+      status: 'done',
       result: ket_qua,
-      submitted_at: new Date().toISOString()
+      submitted_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      approved: null, // Reset approval status (dùng null thay vì undefined)
+      feedback: null // Clear old feedback (dùng null thay vì undefined)
     };
 
-    await suKien.update({ ke_hoach_chi_tiet: keHoach });
+    console.log('📝 Task sau khi cập nhật:', keHoach.tasks[taskIdx]);
+    console.log('💾 Lưu kế hoạch mới...');
+    
+    // ⚠️ Quan trọng: Đánh dấu field đã thay đổi và update
+    suKien.ke_hoach_chi_tiet = keHoach;
+    suKien.changed('ke_hoach_chi_tiet', true);
+    await suKien.save();
+    
+    console.log('✅ Đã lưu kế hoạch');
+
+    // Verify - reload và kiểm tra
+    await suKien.reload();
+    console.log('🔍 Kiểm tra lại DB:', suKien.ke_hoach_chi_tiet.tasks[taskIdx]);
 
     // Gửi thông báo cho người tạo sự kiện
+    console.log('📬 Gửi thông báo đến:', suKien.id_nguoi_tao);
     await ThongBao.create({
       id_nguoi_nhan: suKien.id_nguoi_tao,
+      id_nguoi_hanh_dong: id_nguoi_dung,
       loai: 'submit_nhiem_vu',
-      tieu_de: 'Nhiệm vụ mới được submit',
-      noi_dung: `${req.user.ho_ten} đã submit nhiệm vụ "${task.title}" trong sự kiện "${suKien.ten_su_kien}"`,
-      lien_ket: `/su-kien/${id_su_kien}`
+      id_muc_tieu: parseInt(id_su_kien),
+      loai_muc_tieu: 'su_kien'
     });
+    console.log('✅ Đã gửi thông báo');
 
+    console.log('🎉 Submit nhiệm vụ thành công!');
     res.json({
       success: true,
       message: 'Đã gửi kết quả thành công',
@@ -1212,6 +1354,7 @@ export const submitNhiemVu = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Lỗi khi submit nhiệm vụ:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Lỗi server',

@@ -37,6 +37,8 @@ const NhiemVu = () => {
   const handleSubmit = async (idSuKien, taskIndex) => {
     const ketQua = ketQuaSubmit[`${idSuKien}-${taskIndex}`];
     
+    console.log('🚀 handleSubmit called:', { idSuKien, taskIndex, ketQua });
+    
     if (!ketQua || ketQua.trim() === '') {
       alert('Vui lòng nhập kết quả nhiệm vụ');
       return;
@@ -45,7 +47,10 @@ const NhiemVu = () => {
     if (!window.confirm('Bạn có chắc muốn gửi kết quả này?')) return;
 
     try {
-      await submitNhiemVu(idSuKien, taskIndex, ketQua);
+      console.log('📤 Gọi API submitNhiemVu...');
+      const response = await submitNhiemVu(idSuKien, taskIndex, ketQua);
+      console.log('✅ Response:', response);
+      
       alert('✅ Đã gửi kết quả thành công!');
       fetchData(); // Reload dữ liệu
       setKetQuaSubmit(prev => {
@@ -54,7 +59,9 @@ const NhiemVu = () => {
         return newState;
       });
     } catch (err) {
-      alert('Đã xảy ra lỗi: ' + (err.response?.data?.message || 'Vui lòng thử lại.'));
+      console.error('❌ Lỗi submit:', err);
+      console.error('Error response:', err.response);
+      alert('Đã xảy ra lỗi: ' + (err.response?.data?.message || err.message || 'Vui lòng thử lại.'));
     }
   };
 
@@ -229,6 +236,17 @@ const NhiemVu = () => {
                       >
                         <Send size={18} /> <span>Gửi Kết Quả</span>
                       </button>
+                    </div>
+                  )}
+
+                  {/* Feedback từ người duyệt */}
+                  {nv.feedback && nv.trang_thai === 'bi_tu_choi' && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h5 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                        <AlertCircle size={16} />
+                        Phản hồi từ người duyệt:
+                      </h5>
+                      <p className="text-red-700 whitespace-pre-wrap">{nv.feedback}</p>
                     </div>
                   )}
                 </div>

@@ -24,6 +24,19 @@ import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js
 
 const router = Router();
 
+// ⚠️ QUAN TRỌNG: Routes cụ thể phải đặt TRƯỚC routes có params động
+
+// ✅ Utilities - đặt đầu tiên
+router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
+
+// ✅ Nhiệm vụ cá nhân - đặt trước các route động khác
+router.get('/nhiem-vu/cua-toi', xacThucToken, layNhiemVuCuaToi);
+router.post('/nhiem-vu/:id_su_kien/:task_index/submit', xacThucToken, submitNhiemVu);
+
+// Admin routes
+router.get('/duyet', xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'), layDanhSachChoDuyet);
+router.post('/duyet/cap-nhat-trang-thai', xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'), capNhatTrangThai);
+
 // GET /api/su-kien - Lấy danh sách sự kiện
 router.get('/', layDanhSachSuKien);
 
@@ -57,18 +70,5 @@ router.post('/:id/task/:taskId/duyet-ket-qua', xacThucToken, duyetKetQuaTask);
 router.post('/:id/gui-duyet', xacThucToken, guiSuKienLenKhoa);
 router.post('/:id/duyet', xacThucToken, duyetSuKien);
 router.post('/:id/dang-cong-khai', xacThucToken, dangSuKienCongKhai);
-
-// ✅ Utilities
-router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
-
-// Nhiệm vụ cá nhân
-router.get('/nhiem-vu/cua-toi', xacThucToken, layNhiemVuCuaToi);
-router.post('/nhiem-vu/:id_su_kien/:task_index/submit', xacThucToken, submitNhiemVu);
-
-router.use(xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'));
-
-router.get('/duyet', layDanhSachChoDuyet);
-
-router.post('/duyet/cap-nhat-trang-thai', capNhatTrangThai);
 
 export default router;

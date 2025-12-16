@@ -211,16 +211,16 @@ INSERT INTO "NguoiDung" (
     "ho_ten", "ma_sinh_vien", "email", "mat_khau_bam", "vai_tro", 
     "id_nganh", "lop_sh", "tong_diem"
 ) VALUES
-    ('Phạm Minh Tuấn', '21115053120101', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 1, '21DTHD1', 850),
-    ('Nguyễn Thị Hương', '21115053120102', 'huongnt@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '21ATTT1', 920),
-    ('Trần Văn Đức', '21115053120103', 'ductv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD2', 780),
-    ('Lê Thị Mai', '21115053120104', 'mailt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 3, '21TDHH1', 1100),
-    ('Hoàng Văn Nam', '21115053120106', 'namhv@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 1, '21DTHD1', 950),
-    ('Vũ Thị Lan', '21115053120107', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
-	('Lê Hà Bình', '21115053120105', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'sinh_vien', 2, '22T1', 870),
-	('Lê Kìm Nam', '21115053120108', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21T1', 870),
-	('Lê Ngọc Hào', '21115053120109', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', 'sinh_vien', 2, '21A1', 870),
-    ('Đỗ Minh Khoa', '21115053120110', 'khoadm@ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', 'kiem_duyet_vien', NULL, NULL, 0);
+    ('Phạm Minh Tuấn', '21115053120101', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 1, '21DTHD1', 850),
+    ('Nguyễn Thị Hương', '21115053120102', 'huongnt@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 2, '21ATTT1', 920),
+    ('Trần Văn Đức', '21115053120103', 'ductv@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 1, '21DTHD2', 780),
+    ('Lê Thị Mai', '21115053120104', 'mailt@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 3, '21TDHH1', 1100),
+    ('Hoàng Văn Nam', '21115053120106', 'namhv@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 1, '21DTHD1', 950),
+    ('Vũ Thị Lan', '21115053120107', 'lanvt@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 2, '21A1', 870),
+	('Lê Hà Bình', '21115053120105', 'binhlh12@sv.ute.udn.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 2, '22T1', 870),
+	('Lê Kìm Nam', '21115053120108', 'lkn@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 2, '21T1', 870),
+	('Lê Ngọc Hào', '21115053120109', 'lnh@student.ute.edu.vn', '$2a$10$hashed_password', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 2, '21A1', 870),
+    ('Đỗ Minh Khoa', '21115053120110', 'khoadm@ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', ARRAY['quan_tri_vien']::vai_tro_nguoi_dung_enum[], NULL, NULL, 0);
 
 -- === THÊM 10 BÀI VIẾT MẪU ===
 

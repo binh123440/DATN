@@ -8,7 +8,8 @@ import {
   Bell, 
   User,
   ShieldCheck,
-  Shield
+  Shield,
+  Edit2
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -45,7 +46,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: Calendar, label: 'Sự kiện', badge: 8, path: '/events' },
     { icon: Users, label: 'Nhóm', badge: 6, path: '/groups' },
     { icon: MessageCircle, label: 'Tin nhắn', badge: 6, path: '/chat' },
-    { icon: MessageCircle, label: 'Nhiệm vụ', badge: 6, path: '/nhiem-vu' }
+    { icon: MessageCircle, label: 'Nhiệm vụ', badge: 6, path: '/nhiem-vu' },
+    { icon: Edit2, label: 'Quản lý bài viết', badge: null, path: '/quan-ly-bai-viet' }
   ];
 
   return (

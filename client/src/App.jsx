@@ -15,10 +15,8 @@ import GroupDetail from './components/GroupDetail';
 import socketService from './services/tinNhanService';
 import AdminDashboard from './components/AdminDashboard';
 import UserProfile from './components/UserProfile';
-import EventPlanForm from './components/EventPlanForm';
-import TaskManager from './components/TaskManager';
-import EventApprovalList from './components/EventApprovalList';
 import NhiemVu from './components/NhiemVu';
+import QuanLyBaiViet from './components/QuanLyBaiViet';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -119,10 +117,11 @@ function App() {
                   <Route path="/nhom/:id" element={<GroupDetail />} />
                   <Route path="/events" element={<Events currentUser={currentUser} />} />
                   <Route path="/chat" element={<Chat currentUser={currentUser} />} />
-                  <Route path="/profile" element={<Profile currentUser={currentUser} />} />
+                  {/* <Route path="/profile" element={<Profile currentUser={currentUser} />} /> */}
                   <Route path="/profile/:id" element={<UserProfile currentUser={currentUser} />} />
                   <Route path="/events/:id/thong-ke" element={<ThongKeDiemDanh />} />
                   <Route path="/duyet-bai" element={<DuyetBai />} />
+                  <Route path="/quan-ly-bai-viet" element={<QuanLyBaiViet />} />
 
 
                   {/* <Route path="/admin/event-approvals" element={<EventApprovalList />} /> */}
