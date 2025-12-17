@@ -12,6 +12,7 @@ import LuotThich from './LuotThich.js';
 import SuKien from './SuKien.js';
 import DangKySuKien from './DangKySuKien.js';
 import ThongBao from './ThongBao.js';
+import Phong from './Phong.js';
 
 // === ĐỊNH NGHĨA RELATIONSHIPS ===
 
@@ -151,6 +152,10 @@ ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_nhan', as: 'nguoi_nhan' })
 NguoiDung.hasMany(ThongBao, { foreignKey: 'id_nguoi_hanh_dong', as: 'thong_bao_hanh_dong' });
 ThongBao.belongsTo(NguoiDung, { foreignKey: 'id_nguoi_hanh_dong', as: 'nguoi_hanh_dong' });
 
+// Phong - SuKien (1-N)
+Phong.hasMany(SuKien, { foreignKey: 'id_phong', as: 'su_kien' });
+SuKien.belongsTo(Phong, { foreignKey: 'id_phong', as: 'phong' });
+
 // === EXPORT TẤT CẢ MODELS ===
 
 const db = {
@@ -167,7 +172,8 @@ const db = {
   LuotThich,
   SuKien,
   DangKySuKien,
-  ThongBao
+  ThongBao,
+  Phong
 };
 
 export default db;

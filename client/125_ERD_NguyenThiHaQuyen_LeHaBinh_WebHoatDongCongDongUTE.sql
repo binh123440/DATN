@@ -20,9 +20,29 @@ CREATE TYPE loai_cuoc_goi_enum AS ENUM ('thoai', 'hinh');
 CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet');
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
+CREATE TYPE trang_thai_phong_enum AS ENUM ('maintenance', 'active', 'occupied');
 CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui','da_duyet','tu_choi','da_dang');
 
 -- === TẠO CÁC BẢNG ===
+ALTER TABLE "SuKien"
+  ADD COLUMN IF NOT EXISTS "id_phong" INTEGER;
+
+ALTER TABLE "SuKien"
+  ADD CONSTRAINT "fk_sukien_phong"
+  FOREIGN KEY ("id_phong") REFERENCES "Phong"("id")
+  ON DELETE SET NULL
+  ON UPDATE CASCADE;
+
+--Bảng Phòng
+CREATE TABLE IF NOT EXISTS "Phong" (
+  id SERIAL PRIMARY KEY,
+  "ten_phong" VARCHAR(255) NOT NULL,
+  "toa" VARCHAR(255),
+  "co_so" VARCHAR(255),
+  "suc_chua" INTEGER,
+  "mo_ta" TEXT,
+  "trang_thai" VARCHAR(50) DEFAULT 'active'
+);
 
 -- Bảng Khoa
 CREATE TABLE "Khoa" (
@@ -138,6 +158,7 @@ CREATE TABLE "SuKien" (
     "id" SERIAL PRIMARY KEY,
     "id_nguoi_tao" INT NOT NULL REFERENCES "NguoiDung"("id") ON DELETE CASCADE,
     "id_bai_viet" INT UNIQUE NOT NULL REFERENCES "BaiViet"("id") ON DELETE CASCADE,
+	"id_phong" INT REFERENCES "Phong"("id") ON DELETE SET NULL,
     "ten_su_kien" VARCHAR(255) NOT NULL,
     "mo_ta" TEXT,
 	"ke_hoach_chi_tiet" JSONB DEFAULT NULL,
@@ -189,6 +210,18 @@ CREATE INDEX ON "ThongBao" ("id_nguoi_nhan");
 CREATE INDEX ON "BaiViet"("media_type");
 
 -- === THÊM DỮ LIỆU MẪU (OPTIONAL) ===
+
+--Thêm các phòng
+INSERT INTO "Phong" ("ten_phong", "toa", "co_so", "suc_chua", "mo_ta", "trang_thai") VALUES
+('Phòng 101', 'Toà A', 'Cơ sở 1', 40, 'Phòng học lý thuyết, bảng trắng, máy chiếu', 'active'),
+('Phòng 102', 'Toà A', 'Cơ sở 1', 40, 'Phòng học nhỏ', 'active'),
+('Phòng A201', 'Toà A', 'Cơ sở 1', 80, 'Giảng đường lớn, âm thanh, máy chiếu', 'active'),
+('Phòng B105', 'Toà B', 'Cơ sở 2', 35, 'Phòng thực hành máy tính', 'active'),
+('Phòng Thí nghiệm Hóa', 'Toà C', 'Cơ sở 1', 25, 'Trang bị tủ hút và bồn rửa', 'active'),
+('Phòng Thí nghiệm CNTT', 'Toà C', 'Cơ sở 1', 30, 'Máy tính, router thực hành', 'active'),
+('Phòng Hội thảo 1', 'Toà D', 'Cơ sở 1', 120, 'Hội trường đa năng, sân khấu nhỏ', 'active'),
+('Phòng Hội thảo 2', 'Toà D', 'Cơ sở 1', 200, 'Hội trường lớn, sự kiện sinh viên', 'active');
+
 
 -- Thêm các khoa
 INSERT INTO "Khoa" ("ten_khoa") VALUES

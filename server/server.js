@@ -21,6 +21,7 @@ import timKiemRoutes from './src/routes/timKiemRoutes.js';
 import tinNhanRoutes from './src/routes/tinNhanRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import nguoiDungRoutes from './src/routes/nguoiDungRoutes.js';
+import phongRoutes from './src/routes/phongRoutes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -68,6 +69,7 @@ app.use('/api/tim-kiem', timKiemRoutes);
 app.use('/api/chat', tinNhanRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/nguoi-dung', nguoiDungRoutes);
+app.use('/api/phong', phongRoutes);
 
 // 404 Handler
 app.use((req, res) => {

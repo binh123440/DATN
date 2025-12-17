@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ImagePlus, X, ChevronRight, Users, Trash2, Clock, User, FileText } from 'lucide-react';
 import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong } from '../services/apiService';
+import RoomComboBox from './RoomComboBox';
+import EventDateTimePicker from './EventDateTimePicker';
 
 const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const [activeType, setActiveType] = useState(null);
   const [content, setContent] = useState('');
-  const [eventDetails, setEventDetails] = useState({ 
-    name: '', location: '', date: '', time: '', maxParticipants: '', points: '' 
+  const [eventDetails, setEventDetails] = useState({
+    name: '',
+    room: null,         // selected room object
+    start: null,        // Date
+    end: null,          // Date
+    maxParticipants: '',
+    points: ''
   });
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
@@ -35,18 +42,17 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     }
   };
 
-  const initials = currentUser?.name
-    ?.trim()
-    .split(' ')
-    .filter(n => n.length > 0)
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'U';
-
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
     setEventDetails(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRoomChange = (room) => {
+    setEventDetails(prev => ({ ...prev, room }));
+  };
+
+  const handleDateRangeChange = ({ start, end }) => {
+    setEventDetails(prev => ({ ...prev, start, end }));
   };
 
   const handleFileSelect = (e) => {
@@ -116,7 +122,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     setActiveType(null);
     setSelectedFiles([]);
     setPreviewUrls([]);
-    setEventDetails({ name: '', location: '', date: '', time: '', maxParticipants: '', points: '' });
+    setEventDetails({ name: '', room: null, start: null, end: null, maxParticipants: '', points: '' });
     setEventPlan({ tasks: [], targetAudience: { voluntary: true, mandatory: [] } });
     setShowEventPlan(false);
   };
@@ -130,10 +136,12 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
           id_nguoi_tao: currentUserId,
           ten_su_kien: eventDetails.name,
           mo_ta: content || eventDetails.name,
-          dia_diem: eventDetails.location,
-          thoi_gian_bat_dau: `${eventDetails.date}T${eventDetails.time}:00`,
-          so_luong_toi_da: parseInt(eventDetails.maxParticipants),
-          diem_thuong: parseInt(eventDetails.points),
+          dia_diem: eventDetails.room ? eventDetails.room.ten_phong : (eventDetails.name || ''),
+          id_phong: eventDetails.room?.id || eventDetails.room?.id_phong || null,
+          thoi_gian_bat_dau: eventDetails.start ? eventDetails.start.toISOString() : null,
+          thoi_gian_ket_thuc: eventDetails.end ? eventDetails.end.toISOString() : null,
+          so_luong_toi_da: parseInt(eventDetails.maxParticipants) || null,
+          diem_thuong: parseInt(eventDetails.points) || null,
           noi_dung_bai_viet: content,
           ke_hoach_chi_tiet: JSON.stringify(eventPlan)
         };
@@ -142,13 +150,14 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
           alert('✅ Tạo sự kiện thành công! Đang chờ duyệt.');
           onCreatePost();
           resetForm();
+        } else {
+          alert('❌ ' + (response.message || 'Không thể tạo sự kiện.'));
         }
       } else {
         const formData = new FormData();
         formData.append('id_tac_gia', currentUserId);
         formData.append('noi_dung', content);
         selectedFiles.forEach(file => formData.append('media', file));
-
         const response = await taoBaiVietVoiMedia(formData);
         if (response.success) {
           alert('✅ Đăng bài thành công!');
@@ -163,8 +172,8 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     }
   };
 
-  const isSubmitDisabled = isSubmitting || (activeType === 'event' 
-    ? !eventDetails.name || !eventDetails.location || !eventDetails.date 
+  const isSubmitDisabled = isSubmitting || (activeType === 'event'
+    ? !eventDetails.name || !eventDetails.room || !eventDetails.start
     : !content.trim() && selectedFiles.length === 0);
 
   return (
@@ -172,23 +181,15 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       {/* Avatar + Input */}
       <div className="flex items-center space-x-3 mb-4">
         {currentUser?.anh_dai_dien_url ? (
-          <img 
-            src={currentUser.anh_dai_dien_url} 
-            alt={currentUser.name || 'User'}
-            className="w-10 h-10 rounded-full object-cover shadow-lg"
-          />
+          <img src={currentUser.anh_dai_dien_url} alt={currentUser.name || 'User'} className="w-10 h-10 rounded-full object-cover shadow-lg" />
         ) : (
           <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-            {initials}
+            { (currentUser?.ho_ten || currentUser?.name || 'U').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() }
           </div>
         )}
-        <input 
-          type="text" 
-          placeholder={activeType === 'event' ? "Mô tả về sự kiện..." : "Bạn đang nghĩ gì?"} 
-          value={content} 
-          onChange={(e) => setContent(e.target.value)} 
-          className="flex-1 bg-gray-100 rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300 transition-all" 
-        />
+        <input type="text" placeholder={activeType === 'event' ? "Mô tả về sự kiện..." : "Bạn đang nghĩ gì?"}
+          value={content} onChange={(e) => setContent(e.target.value)}
+          className="flex-1 bg-gray-100 rounded-full px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300 transition-all" />
       </div>
 
       {/* Preview files */}
@@ -216,12 +217,39 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
             <Calendar size={18} className="mr-2" />Thông tin sự kiện
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" name="name" value={eventDetails.name} onChange={handleEventDetailChange} placeholder="Tên sự kiện" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="text" name="location" value={eventDetails.location} onChange={handleEventDetailChange} placeholder="Địa điểm" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="date" name="date" value={eventDetails.date} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="time" name="time" value={eventDetails.time} onChange={handleEventDetailChange} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="number" name="maxParticipants" value={eventDetails.maxParticipants} onChange={handleEventDetailChange} placeholder="Số người tối đa" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="number" name="points" value={eventDetails.points} onChange={handleEventDetailChange} placeholder="Điểm thưởng" className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <input type="text" name="name" value={eventDetails.name} onChange={handleEventDetailChange} placeholder="Tên sự kiện"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+
+            {/* Room combo box */}
+            <div>
+              <RoomComboBox
+                value={eventDetails.room}
+                onChange={handleRoomChange}
+                placeholder="Tìm và chọn phòng trong trường..."
+              />
+              {eventDetails.room && <div className="text-xs text-gray-600 mt-1">Đã chọn: <strong>{eventDetails.room.ten_phong}</strong></div>}
+            </div>
+
+            {/* DateTime picker - hiển thị sau khi chọn phòng */}
+            <div className="md:col-span-2">
+              {eventDetails.room ? (
+                <EventDateTimePicker
+                  start={eventDetails.start}
+                  end={eventDetails.end}
+                  onChange={handleDateRangeChange}
+                  minDate={new Date()}
+                />
+              ) : (
+                <div className="p-3 border border-dashed border-gray-200 rounded text-sm text-gray-500">
+                  Vui lòng chọn phòng trước khi chọn thời gian.
+                </div>
+              )}
+            </div>
+
+            <input type="number" name="maxParticipants" value={eventDetails.maxParticipants} onChange={handleEventDetailChange} placeholder="Số người tối đa"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="points" value={eventDetails.points} onChange={handleEventDetailChange} placeholder="Điểm thưởng"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <button onClick={() => setShowEventPlan(true)} className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
             Tiếp theo: Tạo kế hoạch <ChevronRight size={18} />

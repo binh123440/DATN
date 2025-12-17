@@ -514,4 +514,15 @@ export const submitNhiemVu = async (idSuKien, taskIndex, ketQua) => {
   return response.data;
 };
 
+export const layDanhSachPhong = async (query = '', page = 1, limit = 20) => {
+  try {
+    const response = await apiClient.get('/phong', { params: { q: query, page, limit } });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách phòng:', error);
+    throw error;
+  }
+};
+
+
 export default apiClient;
