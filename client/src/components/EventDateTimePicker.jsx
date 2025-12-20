@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import CalendarModal from './CalendarModal';
 
 /**
  * Props:
@@ -15,10 +16,11 @@ const presetDurations = [
   { label: '2 giờ', minutes: 120 }
 ];
 
-const EventDateTimePicker = ({ start, end, onChange, minDate }) => {
+const EventDateTimePicker = ({ start, end, onChange, onApply, onCancel, minDate, roomId }) => {
   const [localStart, setLocalStart] = useState(start || null);
   const [localEnd, setLocalEnd] = useState(end || null);
   const [allDay, setAllDay] = useState(false);
+  const [openCalendar, setOpenCalendar] = useState(false);
 
   // sync incoming props -> local state
   useEffect(() => { setLocalStart(start || null); }, [start]);
@@ -89,66 +91,90 @@ const EventDateTimePicker = ({ start, end, onChange, minDate }) => {
     setLocalEnd(e);
   };
 
+  // when user applies in "calendar modal" -> set local and notify parent
+  const handleCalendarSelect = ({ start: s, end: e }) => {
+    setLocalStart(s);
+    setLocalEnd(e);
+    setAllDay(false);
+    onChange?.({ start: s, end: e, allDay: false });
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 max-w-full">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm font-medium text-gray-700">Chọn thời gian</div>
-        <div className="flex items-center gap-3 text-xs">
-          <button type="button" onClick={handleQuickNow}
-            className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">Bây giờ +1h</button>
-          {presetDurations.map(p => (
-            <button key={p.label} type="button" onClick={() => applyPreset(p.minutes)}
-              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">{p.label}</button>
-          ))}
-          <label className="ml-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={allDay} onChange={handleAllDayToggle} />
-            <span>Suốt ngày</span>
-          </label>
+    <>
+      <div className="bg-white border border-gray-200 rounded-lg p-3 max-w-full">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm font-medium text-gray-700">Chọn thời gian</div>
+          <div className="flex items-center gap-3 text-xs">
+            <button type="button" onClick={handleQuickNow}
+              className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">Bây giờ +1h</button>
+            {presetDurations.map(p => (
+              <button key={p.label} type="button" onClick={() => applyPreset(p.minutes)}
+                className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200">{p.label}</button>
+            ))}
+            <label className="ml-2 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={allDay} onChange={handleAllDayToggle} />
+              <span>Suốt ngày</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Bắt đầu</div>
+            <DatePicker
+              selected={localStart}
+              onChange={handleStartChange}
+              showTimeSelect={!allDay}
+              timeIntervals={15}
+              timeFormat="HH:mm"
+              dateFormat={allDay ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm"}
+              minDate={minDate}
+              placeholderText="Chọn ngày bắt đầu"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              selectsStart
+              startDate={localStart}
+              endDate={localEnd}
+            />
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Kết thúc</div>
+            <DatePicker
+              selected={localEnd}
+              onChange={handleEndChange}
+              showTimeSelect={!allDay}
+              timeIntervals={15}
+              timeFormat="HH:mm"
+              dateFormat={allDay ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm"}
+              minDate={localStart || minDate}
+              placeholderText="Chọn ngày kết thúc"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              selectsEnd
+              startDate={localStart}
+              endDate={localEnd}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-3">
+          <button onClick={() => setOpenCalendar(true)} className="px-3 py-1 rounded bg-gray-100 text-sm hover:bg-gray-200">Mở lịch</button>
+          <button onClick={() => {
+            // rollback to incoming props when cancelling
+            setLocalStart(start || null);
+            setLocalEnd(end || null);
+            setAllDay(false);
+            onCancel?.();
+          }} className="px-3 py-1 rounded bg-red-100 text-sm hover:bg-red-200">Hủy</button>
+          <button onClick={() => onApply?.({ start: localStart, end: localEnd, allDay })} className="px-3 py-1 rounded bg-blue-100 text-sm hover:bg-blue-200">Lưu</button>
+        </div>
+
+        <div className="text-xs text-gray-500 mt-2">
+          Lưu ý: hệ thống sẽ kiểm tra trùng giờ trên phòng sau khi bạn chọn phòng và thời gian.
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <div className="text-xs text-gray-500 mb-1">Bắt đầu</div>
-          <DatePicker
-            selected={localStart}
-            onChange={handleStartChange}
-            showTimeSelect={!allDay}
-            timeIntervals={15}
-            timeFormat="HH:mm"
-            dateFormat={allDay ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm"}
-            minDate={minDate}
-            placeholderText="Chọn ngày bắt đầu"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            selectsStart
-            startDate={localStart}
-            endDate={localEnd}
-          />
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500 mb-1">Kết thúc</div>
-          <DatePicker
-            selected={localEnd}
-            onChange={handleEndChange}
-            showTimeSelect={!allDay}
-            timeIntervals={15}
-            timeFormat="HH:mm"
-            dateFormat={allDay ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm"}
-            minDate={localStart || minDate}
-            placeholderText="Chọn ngày kết thúc"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            selectsEnd
-            startDate={localStart}
-            endDate={localEnd}
-          />
-        </div>
-      </div>
-
-      <div className="text-xs text-gray-500 mt-2">
-        Lưu ý: hệ thống sẽ kiểm tra trùng giờ trên phòng sau khi bạn chọn phòng và thời gian.
-      </div>
-    </div>
+      <CalendarModal open={openCalendar} onClose={() => setOpenCalendar(false)} roomId={roomId} onSelect={handleCalendarSelect} />
+    </>
   );
 };
 

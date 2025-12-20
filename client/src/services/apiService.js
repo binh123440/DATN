@@ -524,5 +524,16 @@ export const layDanhSachPhong = async (query = '', page = 1, limit = 20) => {
   }
 };
 
+export const laySuKienTheoKhoang = async ({ startISO, endISO, id_phong } = {}) => {
+  try {
+    const response = await apiClient.get('/su-kien/range', {
+      params: { start: startISO, end: endISO, id_phong }
+    });
+    return response.data;
+  } catch (err) {
+    console.error('Lỗi khi lấy sự kiện theo khoảng:', err);
+    throw err;
+  }
+};
 
 export default apiClient;

@@ -237,6 +237,12 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
                   start={eventDetails.start}
                   end={eventDetails.end}
                   onChange={handleDateRangeChange}
+                  onApply={({ start, end }) => handleDateRangeChange({ start, end })}
+                  onCancel={() => {
+                    // optional: keep current selection or reset to previous
+                    // here we do nothing
+                  }}
+                  roomId={eventDetails.room?.id}
                   minDate={new Date()}
                 />
               ) : (

@@ -1,6 +1,6 @@
 // client/src/components/QuanLyBaiViet.jsx
 import React, { useState, useEffect } from 'react';
-import { layBaiVietNguoiDung, xoaBaiViet, capNhatBaiViet, capNhatSuKien, layDanhSachNguoiPhanCong } from '../services/apiService';
+import { layBaiVietNguoiDung, xoaBaiViet, capNhatBaiViet, capNhatSuKien, layDanhSachNguoiPhanCong, dangSuKienCongKhai } from '../services/apiService'; // ✅ Thêm dangSuKienCongKhai
 import { Edit2, Trash2, Calendar, FileText, X, Save, MapPin, Clock, Users, Award, CheckCircle, XCircle } from 'lucide-react';
 
 const QuanLyBaiViet = () => {
@@ -167,6 +167,19 @@ const QuanLyBaiViet = () => {
         <Icon size={14} /> {taskStatus.text}
       </span>
     );
+  };
+
+  // Thêm hàm xử lý đăng công khai
+  const handlePublishEvent = async (eventId) => {
+    if (!window.confirm('Bạn có chắc muốn đăng sự kiện này lên trang chủ công khai?')) return;
+    
+    try {
+      await dangSuKienCongKhai(eventId);
+      alert('✅ Sự kiện đã được đăng công khai!');
+      fetchBaiViets(); // Refresh danh sách
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || 'Không thể đăng công khai'));
+    }
   };
 
   if (loading) {
@@ -469,6 +482,18 @@ const QuanLyBaiViet = () => {
                         <span>{item.su_kien.diem_thuong} điểm</span>
                       </div>
                     </div>
+
+                    {/* ✅ Nút đăng công khai nếu trạng thái là da_duyet */}
+                    {item.su_kien.trang_thai === 'da_duyet' && (
+                      <div className="mb-4">
+                        <button
+                          onClick={() => handlePublishEvent(item.su_kien.id)}
+                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+                        >
+                          🌐 Đăng công khai
+                        </button>
+                      </div>
+                    )}
 
                     {/* Hiển thị kế hoạch chi tiết */}
                     {item.su_kien.ke_hoach_chi_tiet?.tasks?.length > 0 && (

@@ -26,6 +26,15 @@ const SuKien = sequelize.define('SuKien', {
     },
     onDelete: 'CASCADE'
   },
+    id_phong: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Phong',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
+  },
   ten_su_kien: {
     type: DataTypes.STRING(255),
     allowNull: false
@@ -46,6 +55,10 @@ const SuKien = sequelize.define('SuKien', {
   thoi_gian_bat_dau: {
     type: DataTypes.DATE,
     allowNull: false
+  },
+  thoi_gian_ket_thuc: {
+  type: DataTypes.DATE,
+  allowNull: true
   },
   so_luong_toi_da: {
     type: DataTypes.INTEGER,

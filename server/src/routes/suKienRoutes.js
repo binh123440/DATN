@@ -18,7 +18,8 @@ import {
   dangSuKienCongKhai,
   layDanhSachNguoiPhanCong,
   layNhiemVuCuaToi,
-  submitNhiemVu
+  submitNhiemVu,
+  laySuKienTheoKhoang
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 
@@ -37,8 +38,24 @@ router.post('/nhiem-vu/:id_su_kien/:task_index/submit', xacThucToken, submitNhie
 router.get('/duyet', xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'), layDanhSachChoDuyet);
 router.post('/duyet/cap-nhat-trang-thai', xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'), capNhatTrangThai);
 
+// Hỗ trợ GET tạm thời để tránh 404 khi client/browser vô tình request bằng GET
+router.get(
+  '/duyet/cap-nhat-trang-thai',
+  xacThucToken,
+  kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'),
+  (req, res) => {
+    return res.status(405).json({
+      success: false,
+      message: 'Endpoint này chỉ hỗ trợ POST. Vui lòng sử dụng POST /su-kien/duyet/cap-nhat-trang-thai',
+      hint: 'Controller: capNhatTrangThai'
+    });
+  }
+);
+
 // GET /api/su-kien - Lấy danh sách sự kiện
 router.get('/', layDanhSachSuKien);
+
+router.get('/range', laySuKienTheoKhoang);
 
 // POST /api/su-kien - Tạo sự kiện mới
 router.post('/', xacThucToken, taoSuKien);

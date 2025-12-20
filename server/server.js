@@ -56,6 +56,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Trả 204 cho favicon để tránh 404 logs từ browser
+app.get('/favicon.ico', (req, res) => res.sendStatus(204));
+
 // API Routes
 app.use('/api/auth', dangNhapRoutes);
 app.use('/api/bai-viet', baiVietRoutes);

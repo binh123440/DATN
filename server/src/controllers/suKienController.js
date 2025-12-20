@@ -70,7 +70,9 @@ export const taoSuKien = async (req, res) => {
       mo_ta,
       dia_diem,
       thoi_gian_bat_dau,
+      thoi_gian_ket_thuc,
       so_luong_toi_da,
+      id_phong,
       diem_thuong,
       noi_dung_bai_viet,
       ke_hoach_chi_tiet
@@ -110,8 +112,10 @@ export const taoSuKien = async (req, res) => {
       mo_ta,
       dia_diem,
       thoi_gian_bat_dau,
+      thoi_gian_ket_thuc,
       so_luong_toi_da,
       diem_thuong,
+      id_phong,
       trang_thai: 'ban_nhap', // Kế hoạch đang soạn thảo
       ke_hoach_chi_tiet: keHoachData || {}
     }, { transaction });
@@ -557,7 +561,7 @@ export const layDanhSachChoDuyet = async (req, res) => {
 
 // Cập nhật trạng thái của một nội dung (Bài viết hoặc Sự kiện)
 export const capNhatTrangThai = async (req, res) => {
-  const { id, loai, trang_thai_moi } = req.body; // loai: 'bai_viet' | 'su_kien'
+  const { id, loai, trang_thai_moi } = req.body; // loai: 'bai_viet' | 'su_kien' | 'bai_viet_su_kien'
 
   if (!id || !loai || !['da_duyet', 'bi_tu_choi'].includes(trang_thai_moi)) {
     return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ.' });
@@ -566,10 +570,16 @@ export const capNhatTrangThai = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    if (loai === 'bai_viet') {
-      // ✅ Cập nhật trạng thái bài viết
+    // ✅ Xử lý 'bai_viet_su_kien' như 'bai_viet'
+    const actualLoai = loai === 'bai_viet_su_kien' ? 'bai_viet' : loai;
+
+    if (actualLoai === 'bai_viet') {
+      // ✅ Cập nhật trạng thái bài viết và id_nguoi_duyet
       const [updatedCount] = await BaiViet.update(
-        { trang_thai: trang_thai_moi },
+        { 
+          trang_thai: trang_thai_moi,
+          id_nguoi_duyet: req.user?.id // ✅ Thêm cập nhật id_nguoi_duyet
+        },
         { where: { id }, transaction }
       );
 
@@ -581,10 +591,12 @@ export const capNhatTrangThai = async (req, res) => {
       // ✅ Nếu có sự kiện liên kết với bài viết này, cập nhật luôn trạng thái sự kiện
       const suKienLienKet = await SuKien.findOne({ where: { id_bai_viet: id }, transaction });
       if (suKienLienKet) {
-        await suKienLienKet.update({ trang_thai: trang_thai_moi }, { transaction });
+        await suKienLienKet.update({ 
+          trang_thai: trang_thai_moi,
+          id_nguoi_duyet: req.user?.id // ✅ Thêm cập nhật id_nguoi_duyet cho sự kiện liên kết
+        }, { transaction });
       }
-
-    } else if (loai === 'su_kien') {
+    } else if (actualLoai === 'su_kien') {
       // ✅ Lấy thông tin sự kiện để tìm bài viết liên kết
       const suKien = await SuKien.findByPk(id, { transaction });
       
@@ -593,17 +605,22 @@ export const capNhatTrangThai = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Không tìm thấy sự kiện để cập nhật.' });
       }
 
-      // ✅ Cập nhật trạng thái sự kiện
-      await suKien.update({ trang_thai: trang_thai_moi }, { transaction });
+      // ✅ Cập nhật trạng thái sự kiện và id_nguoi_duyet
+      await suKien.update({ 
+        trang_thai: trang_thai_moi,
+        id_nguoi_duyet: req.user?.id // ✅ Thêm cập nhật id_nguoi_duyet
+      }, { transaction });
 
       // ✅ Nếu sự kiện có bài viết liên kết, cập nhật luôn trạng thái bài viết
       if (suKien.id_bai_viet) {
         await BaiViet.update(
-          { trang_thai: trang_thai_moi },
+          { 
+            trang_thai: trang_thai_moi,
+            id_nguoi_duyet: req.user?.id // ✅ Thêm cập nhật id_nguoi_duyet cho bài viết liên kết
+          },
           { where: { id: suKien.id_bai_viet }, transaction }
         );
       }
-
     } else {
       await transaction.rollback();
       return res.status(400).json({ success: false, message: 'Loại nội dung không hợp lệ.' });
@@ -613,13 +630,12 @@ export const capNhatTrangThai = async (req, res) => {
 
     // ✅ Thông báo rõ ràng hơn
     const thongBao = trang_thai_moi === 'da_duyet' ? 'duyệt' : 'từ chối';
-    const loaiNoiDung = loai === 'bai_viet' ? 'bài viết' : 'sự kiện';
+    const loaiNoiDung = actualLoai === 'bai_viet' ? 'bài viết' : 'sự kiện';
     
     res.json({ 
       success: true, 
-      message: `${loaiNoiDung.charAt(0).toUpperCase() + loaiNoiDung.slice(1)} đã được ${thongBao} thành công${loai === 'su_kien' ? ' (bao gồm bài viết liên kết)' : ''}.` 
+      message: `${loaiNoiDung.charAt(0).toUpperCase() + loaiNoiDung.slice(1)} đã được ${thongBao} thành công${actualLoai === 'su_kien' ? ' (bao gồm bài viết liên kết)' : ''}.` 
     });
-
   } catch (error) {
     await transaction.rollback();
     console.error('Lỗi khi cập nhật trạng thái:', error);
@@ -1070,7 +1086,7 @@ export const dangSuKienCongKhai = async (req, res) => {
 
     // ✅ 2. Cập nhật trạng thái bài viết để công khai
     await BaiViet.update(
-      { trang_thai: 'da_duyet' },
+      { trang_thai: 'da_dang' },
       { where: { id: suKien.id_bai_viet }, transaction }
     );
 
@@ -1360,5 +1376,36 @@ export const submitNhiemVu = async (req, res) => {
       message: 'Lỗi server',
       error: error.message
     });
+  }
+};
+
+export const laySuKienTheoKhoang = async (req, res) => {
+  const { start, end, id_phong } = req.query;
+  if (!start || !end) {
+    return res.status(400).json({ success: false, message: 'Thiếu tham số start hoặc end (ISO)' });
+  }
+
+  const startDt = new Date(start);
+  const endDt = new Date(end);
+  if (isNaN(startDt) || isNaN(endDt)) {
+    return res.status(400).json({ success: false, message: 'start hoặc end không hợp lệ' });
+  }
+
+  try {
+    const where = {
+      thoi_gian_bat_dau: { [Op.lt]: endDt },
+      thoi_gian_ket_thuc: { [Op.gt]: startDt }
+    };
+    if (id_phong) where.id_phong = parseInt(id_phong, 10);
+
+    const rows = await db.SuKien.findAll({
+      where,
+      order: [['thoi_gian_bat_dau', 'ASC']]
+    });
+
+    return res.json({ success: true, message: 'Lấy sự kiện theo khoảng thành công', data: rows });
+  } catch (error) {
+    console.error('suKienController.laySuKienTheoKhoang error:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi lấy sự kiện' });
   }
 };

@@ -45,8 +45,8 @@ export const layDanhSachBaiViet = async (req, res) => {
     // - VÀ chỉ lấy bài viết đã duyệt
     const whereClause = {
       [Op.and]: [
-        // ✅ Chỉ lấy bài viết đã duyệt
-        { trang_thai: 'da_duyet' },
+        // ✅ Chỉ lấy bài viết đã duyệt   todo
+        { trang_thai: 'da_dang' }, 
         // ✅ Bài viết công khai hoặc trong nhóm của user
         {
           [Op.or]: [
@@ -105,8 +105,8 @@ export const layDanhSachBaiViet = async (req, res) => {
         { 
           model: db.SuKien, 
           as: 'su_kien', 
-          // ✅ Chỉ join với sự kiện đã duyệt
-          where: { trang_thai: 'da_dang' },
+          // ✅ Chỉ join với sự kiện đã duyệt, ----------------------------------- todo
+          where: { trang_thai: { [Op.in]: ['da_dang'] } },
           required: false // LEFT JOIN để vẫn lấy bài viết không có sự kiện
         }
       ],
@@ -183,7 +183,7 @@ export const taoBaiViet = async (req, res) => {
       id_cuoc_hoi_thoai: id_cuoc_hoi_thoai || null,
       media_urls: media_urls.length > 0 ? media_urls : [], // ✅ Lưu array object
       media_type, // ✅ Thêm media_type
-      trang_thai: 'da_duyet',
+      trang_thai: 'da_dang',
       ngay_tao: new Date()
     });
 
