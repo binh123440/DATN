@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import WeekCalendar from './WeekCalendar';
 
-const CalendarModal = ({ open, onClose, roomId, onSelect }) => {
+const CalendarModal = ({ open, onClose, roomId, onSelect, onSelecting: parentOnSelecting }) => {
   if (!open) return null;
+
+  const [currentSelection, setCurrentSelection] = useState(null); // { start: Date, end: Date, dayIndex }
+
   const handleSelect = ({ start, end }) => {
     onSelect?.({ start, end });
     onClose?.();
+    setCurrentSelection(null);
   };
+
+  const handleSelecting = (sel) => {
+    setCurrentSelection(sel || null);
+    if (typeof parentOnSelecting === 'function') parentOnSelecting(sel || null);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-6">
       <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
@@ -15,7 +25,19 @@ const CalendarModal = ({ open, onClose, roomId, onSelect }) => {
           <div className="text-lg font-medium text-gray-100">Chọn khung giờ</div>
           <button className="text-sm text-gray-300" onClick={onClose}>Đóng</button>
         </div>
-        <WeekCalendar roomId={roomId} onSelectRange={handleSelect} />
+
+        {/* Hiển thị chọn tạm thời khi kéo */}
+        {currentSelection && (
+          <div className="mb-3 text-sm text-gray-200 flex items-center gap-4">
+            <div>Chọn: <strong>{currentSelection.start.toLocaleString('vi-VN')}</strong> → <strong>{currentSelection.end.toLocaleString('vi-VN')}</strong></div>
+            <div className="ml-auto flex gap-2">
+              <button onClick={() => handleSelect({ start: currentSelection.start, end: currentSelection.end })} className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm">Áp dụng</button>
+              <button onClick={() => setCurrentSelection(null)} className="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 text-sm">Bỏ chọn</button>
+            </div>
+          </div>
+        )}
+
+        <WeekCalendar roomId={roomId} onSelectRange={handleSelect} onSelecting={handleSelecting} />
       </div>
     </div>
   );
