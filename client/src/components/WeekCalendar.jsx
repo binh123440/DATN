@@ -10,8 +10,10 @@ import { laySuKienTheoKhoang } from '../services/apiService';
  * - slotMinutes?: number (15)
  * - onSelectRange: ({ start: Date, end: Date }) => void
  */
-const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMinutes = 15, onSelectRange, onSelecting }) => {
+const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMinutes = 15, onSelectRange, onSelecting, clearKey }) => {
   const containerRef = useRef(null);
+  // persistent selection kept after mouseup
+  const [persistentSelection, setPersistentSelection] = useState(null); // { dayIndex, startMin, endMin }
   const [weekStart, setWeekStart] = useState(() => {
     if (startOfWeek) return new Date(startOfWeek);
     const d = new Date();
@@ -31,6 +33,10 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
   useEffect(() => {
     if (startOfWeek) setWeekStart(new Date(startOfWeek));
   }, [startOfWeek]);
+  // clear persistent selection if parent requests
+  useEffect(() => {
+    if (typeof clearKey !== 'undefined') setPersistentSelection(null);
+  }, [clearKey]);
   
   // navigation helpers: prev / next / today
   const changeWeek = (deltaWeeks) => {
@@ -110,6 +116,8 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
 
   const onMouseDownColumn = (e, dayIndex) => {
     if (e.button !== 0) return; // only left click
+    // start new selection: remove previous persistent highlight
+    setPersistentSelection(null);
     const col = e.currentTarget;
     const startMin = yToMinutes(e.clientY, col);
     selectingRef.current = true;
@@ -151,30 +159,49 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
     }
   };
 
-  const onWindowMouseUp = () => {
+  // Accept event so we can compute end position immediately (handles case where `selection` state
+  // hasn't been flushed yet). This ensures persistentSelection is set reliably on mouseup.
+  const onWindowMouseUp = (e) => {
     if (!selectingRef.current) return;
     selectingRef.current = false;
     window.removeEventListener('mousemove', onWindowMouseMove);
     window.removeEventListener('mouseup', onWindowMouseUp);
-    const sel = pageMouse.current && selection;
+
+    // Try to use current transient selection; if it's not set yet, compute using mouse event
+    let sel = selection;
+    const { col, dayIndex, startMin } = pageMouse.current || {};
+    if (!sel && col && typeof e?.clientY === 'number') {
+      const endMinRaw = yToMinutes(e.clientY, col);
+      let s = Math.min(startMin, endMinRaw);
+      let t = Math.max(startMin, endMinRaw);
+      if (t === s) t = s + slotMinutes;
+      const minAllowed = startHour * 60;
+      const maxAllowed = endHour * 60;
+      s = Math.max(minAllowed, Math.min(s, maxAllowed - slotMinutes));
+      t = Math.max(minAllowed + slotMinutes, Math.min(t, maxAllowed));
+      sel = { dayIndex, startMin: s, endMin: t };
+    }
+
     if (sel && onSelectRange) {
       const day = days[sel.dayIndex];
       const start = toDateFromMinute(day, sel.startMin);
       const end = toDateFromMinute(day, sel.endMin);
-      // ensure start < end
       if (end <= start) end.setMinutes(start.getMinutes() + slotMinutes);
       onSelectRange({ start, end });
     }
 
-    // final live callback (also informs parent)
     if (sel && typeof onSelecting === 'function') {
       const day = days[sel.dayIndex];
       onSelecting({ start: toDateFromMinute(day, sel.startMin), end: toDateFromMinute(day, sel.endMin), dayIndex: sel.dayIndex });
     }
 
+    if (sel) setPersistentSelection({ dayIndex: sel.dayIndex, startMin: sel.startMin, endMin: sel.endMin });
     setSelection(null);
     pageMouse.current = {};
   };
+
+  // show transient (dragging) OR persistent (after mouseup)
+  const selToShow = selection || persistentSelection;
 
   // helper to render events inside day column
   const renderEventsForDay = (day, dayIndex) => {
@@ -283,11 +310,14 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
         <div className="w-14 text-xs text-gray-500">
           <div className="h-6">&nbsp;</div>
           <div className="relative" style={{ height: totalHeight }}>
-            {Array.from({ length: hourCount }).map((_, i) => (
-              <div key={i} className="flex items-start" style={{ height: hourHeight, borderTop: '1px solid rgba(55,65,81,0.6)' }}>
-                <div className="w-full text-right pr-2">{String(startHour + i).padStart(2,'0')}:00</div>
-              </div>
-            ))}
+            {Array.from({ length: hourCount }).map((_, i) => {
+              const hour = startHour + i;
+              return (
+                <div key={i} className="flex items-start" style={{ height: hourHeight, borderTop: '1px solid rgba(55,65,81,0.6)' }}>
+                  <div className="w-full text-right pr-2">{String(hour).padStart(2,'0')}:00</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -320,22 +350,22 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
                 {renderHighlightsForDay(d, dayIndex)}
                 {renderEventsForDay(d, dayIndex)}
 
-                {/* selection overlay */}
-                {selection && selection.dayIndex === dayIndex && (
+                {/* selection overlay (transient or persistent) */}
+                {(selToShow && selToShow.dayIndex === dayIndex) && (
                   <div className="absolute left-1 right-1 bg-blue-600/40 border-2 border-blue-500 rounded"
                     style={{
-                      top: minutesToPx(selection.startMin - startHour * 60),
-                      height: minutesToPx(selection.endMin - selection.startMin),
+                      top: minutesToPx(selToShow.startMin - startHour * 60),
+                      height: minutesToPx(selToShow.endMin - selToShow.startMin),
                       zIndex: 15
                     }} />
                 )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default WeekCalendar;
+               </div>
+             </div>
+           ))}
+         </div>
+       </div>
+     </div>
+   );
+ };
+ 
+ export default WeekCalendar;
