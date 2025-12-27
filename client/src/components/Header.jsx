@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, MessageCircle, User } from 'lucide-react';
+import { Search } from 'lucide-react';
 import NotificationDropdown from './NotificationDropdown';
 import MessageDropdown from './MessageDropdown';
 import UserMenuDropdown from './UserMenuDropdown';
+import PostModal from './PostModal';
+import PostCard from './PostCard';
+import EventPostCard from './EventPostCard';
 import { timKiemTongHop } from '../services/apiService';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,12 +13,28 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimeout = useRef(null);
   const searchWrapperRef = useRef(null);
   const navigate = useNavigate();
+
+  // ✅ Modal bài viết/sự kiện: dùng PostModal có sẵn
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [selectedCommentId, setSelectedCommentId] = useState(null);
+  const isModalOpen = !!selectedPostId;
+
+  const handleCloseModal = () => {
+    setSelectedPostId(null);
+    setSelectedCommentId(null);
+  };
+
+  const closeSearch = () => {
+    setSearchResults(null);
+    setSearchValue('');
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -47,38 +66,12 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
   }, [searchValue]);
 
   const handleMobileMenuToggle = () => {
-    if (onToggleSidebar) {
-      onToggleSidebar();
-    }
-  };
-
-  const toggleNotification = () => {
-    setIsNotificationOpen(!isNotificationOpen);
-    setIsMessageOpen(false); // Close message dropdown
-    setIsUserMenuOpen(false); // Close user menu
-  };
-
-  const toggleMessage = () => {
-    setIsMessageOpen(!isMessageOpen);
-    setIsNotificationOpen(false); // Close notification dropdown
-    setIsUserMenuOpen(false); // Close user menu
-  };
-
-  const toggleUserMenu = () => {
-    setIsUserMenuOpen(!isUserMenuOpen);
-    setIsNotificationOpen(false); // Close notification dropdown
-    setIsMessageOpen(false); // Close message dropdown
-  };
-
-  const handleSearchChange = (e) => {
-    setSearchValue(e.target.value);
+    if (onToggleSidebar) onToggleSidebar();
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (searchValue.trim()) {
-      navigate(`/search/${searchValue}`);
-    }
+    if (searchValue.trim()) navigate(`/search/${searchValue}`);
   };
 
   const getBadge = (section, item) => {
@@ -97,7 +90,7 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
       case 'events':
         return item.ten_su_kien;
       default:
-        return item.noi_dung.slice(0, 80) + (item.noi_dung.length > 80 ? '...' : '');
+        return item.noi_dung?.slice(0, 80) + (item.noi_dung?.length > 80 ? '...' : '');
     }
   };
 
@@ -108,23 +101,24 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
       case 'groups':
         return `${item.so_thanh_vien || 0} thành viên`;
       case 'events':
-        return new Date(item.thoi_gian_bat_dau).toLocaleString('vi-VN');
+        return item.thoi_gian_bat_dau ? new Date(item.thoi_gian_bat_dau).toLocaleString('vi-VN') : '';
       default:
         return item.nhom ? `Thuộc nhóm ${item.nhom.ten_hoi_thoai}` : 'Bài viết công khai';
     }
   };
 
+  // ✅ users/groups -> route, posts/events -> modal
   const handleNavigateResult = (section, item) => {
-    setSearchResults(null);
-    setSearchValue('');
-    if (section === 'users') {
-      navigate(`/ho-so/${item.id}`);
-    } else if (section === 'groups') {
-      navigate(`/nhom/${item.id}`);
-    } else if (section === 'events') {
-      navigate(`/su-kien?highlight=${item.id}`);
-    } else {
-      navigate(`/bai-viet/${item.id}`);
+    closeSearch();
+
+    if (section === 'users') return navigate(`/profile/${item.id}`);
+    if (section === 'groups') return navigate(`/nhom/${item.id}`);
+
+    if (section === 'posts') return setSelectedPostId(item.id);
+    if (section === 'events') {
+      // timKiemTongHop trả về SuKien, cần id_bai_viet để mở bài viết sự kiện
+      if (item.id_bai_viet) return setSelectedPostId(item.id_bai_viet);
+      return navigate(`/su-kien?highlight=${item.id}`);
     }
   };
 
@@ -229,19 +223,23 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
             <UserMenuDropdown currentUser={currentUser} />
           </div>
         </div>
-
-        {/* Mobile Search (hidden on md and up) */}
-        {/* <div className="block md:hidden mt-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm..."
-              className="w-full bg-white text-gray-900 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            />
-          </div>
-        </div> */}
       </div>
+
+      {/* ✅ Modal có sẵn: PostModal (dùng chung cho bài viết & bài viết sự kiện) */}
+      <PostModal
+        postId={selectedPostId}
+        commentId={selectedCommentId}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        currentUser={currentUser}
+        PostCardComponent={({ post, ...props }) => {
+          return post?.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
+            <EventPostCard post={post} {...props} isInModal={true} />
+          ) : (
+            <PostCard post={post} {...props} isInModal={true} />
+          );
+        }}
+      />
     </header>
   );
 };

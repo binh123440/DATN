@@ -234,7 +234,7 @@ INSERT INTO "Nganh" ("ten_nganh", "id_khoa") VALUES
 
 -- Thêm thêm một số người dùng để có nhiều tác giả khác nhau
 INSERT INTO "NguoiDung" (
-    "ho_ten", "ma_sinh_vien", "email", "mat_khau_bam", "vai_tro", 
+    "ho_ten", "ma_sinh_vien", "email", "mat_khau_bam", "vai_tro", "ngay_sinh"
     "id_nganh", "lop_sh", "tong_diem"
 ) VALUES
     ('Phạm Minh Tuấn', '21115053120101', 'tuanpm@student.ute.edu.vn', '$2y$10$nKyZ7Pitflx.hkwgc4fbXOHJGwsx8Wnv3fX3PSzpHbRku.oeGGRu.', ARRAY['sinh_vien']::vai_tro_nguoi_dung_enum[], 1, '21DTHD1', 850),
@@ -347,7 +347,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🎓 Hội thảo "AI và Machine Learning trong thời đại số" sẽ diễn ra vào tuần tới. Đây là cơ hội tuyệt vời để các bạn sinh viên được học hỏi từ các chuyên gia hàng đầu trong lĩnh vực AI. Đăng ký ngay để nhận 60 điểm hoạt động!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '1 hour'
 );
@@ -375,7 +375,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '💻 Workshop "Xây dựng ứng dụng web hiện đại với React.js" - Học từ cơ bản đến nâng cao. Phù hợp cho sinh viên đang học lập trình web và muốn nâng cao kỹ năng frontend!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '2 hours'
 );
@@ -403,7 +403,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '⚽ Giải bóng đá UTE Cup 2024 chính thức khai mạc! Đăng ký tham gia để thể hiện kỹ năng và giành điểm hoạt động cao!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '3 hours'
 );
@@ -431,7 +431,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🚀 UTE Hackathon 2024 - Sân chơi dành cho các tài năng lập trình! 48 giờ code marathon với giải thưởng lên đến 50 triệu đồng!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '4 hours'
 );
@@ -459,7 +459,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '💼 Ngày hội việc làm UTE 2024 với sự tham gia của hơn 50 doanh nghiệp lớn. Cơ hội tìm việc làm và thực tập cho sinh viên!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '5 hours'
 );
@@ -487,7 +487,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🌱 Chiến dịch "Mùa đông ấm cho em" - Hành trình tình nguyện đến với trẻ em vùng cao. Cùng góp sức mang yêu thương đến những em nhỏ!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '6 hours'
 );
@@ -515,7 +515,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🔗 Workshop "Blockchain và Cryptocurrency" - Tìm hiểu công nghệ đang thay đổi tương lai tài chính toàn cầu!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '7 hours'
 );
@@ -543,7 +543,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '💡 Cuộc thi Ý tưởng Khởi nghiệp UTE Startup Challenge 2024. Biến ý tưởng thành hiện thực với hỗ trợ từ các mentor chuyên nghiệp!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '8 hours'
 );
@@ -571,7 +571,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🏃‍♂️ UTE Marathon 2024 - Chạy vì sức khỏe, chạy vì cộng đồng! Cự ly: 5km, 10km, 21km. Đăng ký sớm để nhận áo đấu miễn phí!',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '9 hours'
 );
@@ -599,7 +599,7 @@ INSERT INTO "BaiViet" ("id_tac_gia", "noi_dung", "trang_thai", "id_nguoi_duyet",
 VALUES (
   10,
   '🌏 Hội thảo "Định hướng du học - Con đường phát triển bản thân". Tư vấn miễn phí về học bổng Nhật Bản, Hàn Quốc, Đức, Úc...',
-  'da_duyet',
+  'da_dang',
   2,
   NOW() - INTERVAL '10 hours'
 );

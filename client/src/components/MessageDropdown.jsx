@@ -232,7 +232,7 @@ const MessageDropdown = () => {
           <div className="p-2 border-t border-gray-200">
             <button
               onClick={() => {
-                navigate('/tin-nhan');
+                navigate('/chat');
                 setIsOpen(false);
               }}
               className="w-full py-2 text-center text-blue-600 hover:bg-gray-100 rounded-md text-sm font-semibold transition-colors"

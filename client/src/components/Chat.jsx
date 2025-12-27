@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Send, Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   layDanhSachCuocHoiThoai,
   layTinNhanTrongCuocHoiThoai,
@@ -9,6 +9,7 @@ import {
 import socketService from '../services/tinNhanService';
 
 const Chat = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -40,9 +41,9 @@ const Chat = () => {
   useEffect(() => {
     // Chuyển hướng nếu không có user ID
     if (!currentUserId) {
-      window.location.href = '/login'; // Hoặc trang đăng nhập tương ứng
+      navigate('/login', { replace: true });
     }
-  }, [currentUserId]);
+  }, [currentUserId, navigate]);
 
   useEffect(() => {
     socketService.connect();

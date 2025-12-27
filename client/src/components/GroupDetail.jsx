@@ -198,7 +198,7 @@ const GroupDetail = () => {
 
   const handleOpenChat = () => {
     // Navigate to chat with this group's conversation
-    navigate(`/tin-nhan?conversation=${id}`);
+    navigate(`/chat?conversation=${id}`);
   };
 
   if (loading) {

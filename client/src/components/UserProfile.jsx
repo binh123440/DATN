@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   User, 
   Calendar, 
@@ -12,16 +12,19 @@ import {
   Save,
   X,
   Loader,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Send
 } from 'lucide-react';
 import { 
   layThongTinNguoiDung, 
   capNhatThongTinCaNhan,
-  capNhatAnhNguoiDung
+  capNhatAnhNguoiDung,
+  taoCuocHoiThoaiRiengTu
 } from '../services/apiService';
 
 const UserProfile = ({ currentUser }) => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -30,6 +33,8 @@ const UserProfile = ({ currentUser }) => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [showCoverHover, setShowCoverHover] = useState(false);
+
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   const isOwnProfile = currentUser?.id === parseInt(id);
 
@@ -111,6 +116,33 @@ const UserProfile = ({ currentUser }) => {
         setUploadingCover(false);
       }
       e.target.value = '';
+    }
+  };
+
+  const handleStartChat = async () => {
+    if (!currentUser?.id) {
+      alert('Vui lòng đăng nhập để nhắn tin');
+      return;
+    }
+
+    const otherUserId = parseInt(id, 10);
+    if (!otherUserId || Number.isNaN(otherUserId)) return;
+    if (currentUser.id === otherUserId) return;
+
+    try {
+      setCreatingConversation(true);
+      const resp = await taoCuocHoiThoaiRiengTu(otherUserId);
+      const convId = resp?.data?.id;
+      if (!convId) {
+        alert(resp?.message || 'Không thể tạo cuộc hội thoại');
+        return;
+      }
+      navigate(`/chat?conversation=${convId}`);
+    } catch (error) {
+      console.error('❌ Lỗi tạo cuộc hội thoại riêng tư:', error);
+      alert(error.response?.data?.message || 'Không thể tạo cuộc hội thoại');
+    } finally {
+      setCreatingConversation(false);
     }
   };
 
@@ -266,6 +298,24 @@ const UserProfile = ({ currentUser }) => {
               >
                 <Edit2 size={18} />
                 Chỉnh sửa thông tin
+              </button>
+            </div>
+          )}
+
+          {/* Message Button */}
+          {!isOwnProfile && currentUser?.id && (
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={handleStartChat}
+                disabled={creatingConversation}
+                className="px-6 py-2.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingConversation ? (
+                  <Loader size={18} className="animate-spin" />
+                ) : (
+                  <Send size={18} />
+                )}
+                Nhắn tin
               </button>
             </div>
           )}

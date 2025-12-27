@@ -69,7 +69,7 @@ export const timKiemTongHop = async (req, res) => {
       // Tìm sự kiện
       SuKien.findAll({
         where: { ten_su_kien: likeCond },
-        attributes: ['id', 'ten_su_kien', 'thoi_gian_bat_dau', 'dia_diem'],
+        attributes: ['id', 'id_bai_viet', 'ten_su_kien', 'thoi_gian_bat_dau', 'dia_diem'],
         limit: 5
       })
     ]);

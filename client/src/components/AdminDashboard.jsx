@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   layDanhSachNguoiDung, 
-  capNhatVaiTroNguoiDung
+  capNhatVaiTroNguoiDung,
+  resetMatKhauNguoiDung
 } from '../services/apiService';
 import { User, Shield, Search } from 'lucide-react';
 
@@ -9,6 +10,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [resettingUserId, setResettingUserId] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -37,6 +39,29 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("❌ Lỗi khi cập nhật vai trò:", error);
       alert('Không thể cập nhật. Vui lòng thử lại.');
+    }
+  };
+
+  const handleResetPassword = async (user) => {
+    if (!confirm(`Reset mật khẩu cho "${user.ho_ten}"?`)) return;
+
+    try {
+      setResettingUserId(user.id);
+      const res = await resetMatKhauNguoiDung(user.id);
+      const tempPassword = res?.data?.data?.temp_password;
+
+      if (tempPassword) {
+        alert(
+          `✅ Reset mật khẩu thành công!\n\nMật khẩu tạm thời: ${tempPassword}\n\nVui lòng yêu cầu người dùng đổi mật khẩu sau khi đăng nhập.`
+        );
+      } else {
+        alert('✅ Reset mật khẩu thành công!');
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi reset mật khẩu:', error);
+      alert(error?.response?.data?.message || 'Không thể reset mật khẩu. Vui lòng thử lại.');
+    } finally {
+      setResettingUserId(null);
     }
   };
 
@@ -109,6 +134,9 @@ const AdminDashboard = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Vai trò
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Hành động
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -153,6 +181,16 @@ const AdminDashboard = () => {
                           <option value="dieu_phoi_vien">Điều phối viên</option>
                           <option value="admin">Admin</option>
                         </select>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(user)}
+                          disabled={resettingUserId === user.id}
+                          className="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {resettingUserId === user.id ? 'Đang reset...' : 'Reset mật khẩu'}
+                        </button>
                       </td>
                     </tr>
                   ))}

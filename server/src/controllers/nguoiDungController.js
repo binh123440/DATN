@@ -116,6 +116,7 @@ export const layBaiVietNguoiDung = async (req, res) => {
             'mo_ta',
             'dia_diem',
             'thoi_gian_bat_dau',
+            'thoi_gian_ket_thuc',
             'so_luong_toi_da',
             'diem_thuong',
             'trang_thai',

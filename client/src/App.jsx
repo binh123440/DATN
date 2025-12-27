@@ -7,7 +7,6 @@ import Feed from './components/Feed'
 import Groups from './components/Groups'
 import Events from './components/Events'
 import Chat from './components/Chat'
-import Profile from './components/Profile'
 import Login from './components/Login'
 import ThongKeDiemDanh from './components/ThongKeDiemDanh'
 import DuyetBai from './components/DuyetBai';
@@ -34,7 +33,7 @@ const MainLayout = ({ children, currentUser, isMobileSidebarOpen, toggleMobileSi
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <Header onToggleSidebar={toggleMobileSidebar} isSidebarOpen={isMobileSidebarOpen} />
+      <Header onToggleSidebar={toggleMobileSidebar} isSidebarOpen={isMobileSidebarOpen} currentUser={currentUser} />
       
       {/* Left Sidebar - Fixed */}
       <Sidebar isOpen={isMobileSidebarOpen} onClose={closeMobileSidebar} />

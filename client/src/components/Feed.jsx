@@ -140,10 +140,21 @@ const Feed = ({ currentUser }) => {
         currentUser={currentUser}
         PostCardComponent={({ post, ...props }) => {
           // ✅ Đồng bộ logic trong Modal
-          return post.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
-            <EventPostCard post={post} {...props} isModalView={true} />
+          return post?.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
+            <EventPostCard
+              post={post}
+              {...props}
+              currentUserId={currentUserId}
+              userRole={userRole}
+              isInModal={true}
+            />
           ) : (
-            <PostCard post={post} {...props} isModalView={true} />
+            <PostCard
+              post={post}
+              {...props}
+              currentUserId={currentUserId}
+              isInModal={true}
+            />
           );
         }}
       />

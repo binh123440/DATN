@@ -4,15 +4,20 @@ import WeekCalendar from './WeekCalendar';
 const CalendarModal = ({ open, onClose, roomId, onSelect, onSelecting: parentOnSelecting }) => {
   if (!open) return null;
 
-  const [currentSelection, setCurrentSelection] = useState(null); // { start: Date, end: Date, dayIndex }
+  const [currentSelection, setCurrentSelection] = useState(null); // { start: Date, end: Date, dayIndex, isValid }
   const [clearKey, setClearKey] = useState(0); // used to request WeekCalendar to clear persistent selection
 
-  // Khi WeekCalendar gọi (kéo-thả xong) -> chỉ emit dữ liệu, KHÔNG đóng modal.
-  // Nếu muốn vừa chọn vừa đóng (khi bấm nút "Áp dụng"), truyền close=true.
-  const handleSelect = ({ start, end }, close = false) => {
-    onSelect?.({ start, end });
+  // Khi WeekCalendar gọi (kéo-thả xong) -> chỉ ghi nhận khung giờ đã chọn để hiển thị.
+  // Chỉ khi bấm "Áp dụng" mới commit (gọi onSelect) và đóng modal.
+  const handleSelect = ({ start, end }) => {
+    setCurrentSelection({ start, end, isValid: true });
+  };
+
+  const handleApply = () => {
+    if (!currentSelection || currentSelection.isValid === false) return;
+    onSelect?.({ start: currentSelection.start, end: currentSelection.end });
     setCurrentSelection(null);
-    if (close) onClose?.();
+    onClose?.();
   };
 
   const handleSelecting = (sel) => {
@@ -32,10 +37,28 @@ const CalendarModal = ({ open, onClose, roomId, onSelect, onSelecting: parentOnS
         {/* Hiển thị chọn tạm thời khi kéo */}
         {currentSelection && (
           <div className="mb-3 text-sm text-gray-200 flex items-center gap-4">
-            <div>Chọn: <strong>{currentSelection.start.toLocaleString('vi-VN')}</strong> → <strong>{currentSelection.end.toLocaleString('vi-VN')}</strong></div>
+            <div>
+              Chọn: <strong>{currentSelection.start.toLocaleString('vi-VN')}</strong> → <strong>{currentSelection.end.toLocaleString('vi-VN')}</strong>
+              {currentSelection.isValid === false && (
+                <div className="mt-1 text-xs text-red-300">
+                  Khung giờ này trùng với lịch đã có. Vui lòng chọn khung giờ khác.
+                </div>
+              )}
+            </div>
             <div className="ml-auto flex gap-2">
-              <button onClick={() => handleSelect({ start: currentSelection.start, end: currentSelection.end }, true)} className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm">Áp dụng</button>
-              <button onClick={() => { setCurrentSelection(null); setClearKey(k => k + 1); }} className="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 text-sm">Bỏ chọn</button>
+              <button
+                onClick={handleApply}
+                disabled={currentSelection.isValid === false}
+                className="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Áp dụng
+              </button>
+              <button
+                onClick={() => { setCurrentSelection(null); setClearKey(k => k + 1); }}
+                className="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 text-sm"
+              >
+                Bỏ chọn
+              </button>
             </div>
           </div>
         )}

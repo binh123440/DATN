@@ -91,8 +91,73 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
     return () => { mounted = false; };
   }, [roomId, weekStart]);
 
+  // --- Busy intervals (to prevent overlap selections) ---
+  const dayStartMidnight = (day) => {
+    const d = new Date(day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const mergeIntervals = (intervals) => {
+    if (!intervals.length) return [];
+    const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+    const res = [sorted[0].slice()];
+    for (let i = 1; i < sorted.length; i++) {
+      const [s, e] = sorted[i];
+      const last = res[res.length - 1];
+      if (s <= last[1]) {
+        last[1] = Math.max(last[1], e);
+      } else {
+        res.push([s, e]);
+      }
+    }
+    return res;
+  };
+
+  const busyByDayIndex = useMemo(() => {
+    if (!roomId || !Array.isArray(events) || !days?.length) return Array.from({ length: 7 }, () => []);
+    const minAllowed = startHour * 60;
+    const maxAllowed = endHour * 60;
+
+    return days.map((day) => {
+      const day0 = dayStartMidnight(day);
+      const day1 = new Date(day0);
+      day1.setDate(day1.getDate() + 1);
+
+      const intervals = events
+        .filter((ev) => Number(ev.id_phong) === Number(roomId))
+        .map((ev) => {
+          const evStart = new Date(ev.thoi_gian_bat_dau);
+          const evEnd = new Date(ev.thoi_gian_ket_thuc || ev.thoi_gian_bat_dau);
+          if (!(evStart < day1 && evEnd > day0)) return null; // no intersection with day
+
+          const sDate = evStart < day0 ? day0 : evStart;
+          const eDate = evEnd > day1 ? day1 : evEnd;
+          let sMin = Math.floor((sDate - day0) / 60000);
+          let eMin = Math.ceil((eDate - day0) / 60000);
+
+          // clamp to visible hours
+          sMin = Math.max(minAllowed, Math.min(sMin, maxAllowed));
+          eMin = Math.max(minAllowed, Math.min(eMin, maxAllowed));
+          if (eMin <= sMin) return null;
+          return [sMin, eMin];
+        })
+        .filter(Boolean);
+
+      return mergeIntervals(intervals);
+    });
+  }, [events, days, roomId, startHour, endHour]);
+
+  const isOverlappingBusy = (dayIndex, startMin, endMin) => {
+    const busy = busyByDayIndex?.[dayIndex] || [];
+    for (const [bs, be] of busy) {
+      if (startMin < be && endMin > bs) return true;
+    }
+    return false;
+  };
+
   // selection state
-  const [selection, setSelection] = useState(null); // { dayIndex, startMin, endMin }
+  const [selection, setSelection] = useState(null); // { dayIndex, startMin, endMin, isValid }
   const selectingRef = useRef(false);
   const pageMouse = useRef({}); // { col, dayIndex, startMin }
 
@@ -122,13 +187,21 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
     const startMin = yToMinutes(e.clientY, col);
     selectingRef.current = true;
     pageMouse.current = { col, dayIndex, startMin };
-    const initial = { dayIndex, startMin, endMin: startMin + slotMinutes };
+    const initialStart = startMin;
+    const initialEnd = startMin + slotMinutes;
+    const isValid = !isOverlappingBusy(dayIndex, initialStart, initialEnd);
+    const initial = { dayIndex, startMin: initialStart, endMin: initialEnd, isValid };
     setSelection(initial); // show minimal
 
     // live callback
     if (typeof onSelecting === 'function') {
       const day = days[dayIndex];
-      onSelecting({ start: toDateFromMinute(day, initial.startMin), end: toDateFromMinute(day, initial.endMin), dayIndex });
+      onSelecting({
+        start: toDateFromMinute(day, initial.startMin),
+        end: toDateFromMinute(day, initial.endMin),
+        dayIndex,
+        isValid
+      });
     }
 
     window.addEventListener('mousemove', onWindowMouseMove);
@@ -149,13 +222,19 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
     const maxAllowed = endHour * 60;
     s = Math.max(minAllowed, Math.min(s, maxAllowed - slotMinutes));
     t = Math.max(minAllowed + slotMinutes, Math.min(t, maxAllowed));
-    const sel = { dayIndex, startMin: s, endMin: t };
+    const isValid = !isOverlappingBusy(dayIndex, s, t);
+    const sel = { dayIndex, startMin: s, endMin: t, isValid };
     setSelection(sel);
 
     // live callback
     if (typeof onSelecting === 'function') {
       const day = days[dayIndex];
-      onSelecting({ start: toDateFromMinute(day, sel.startMin), end: toDateFromMinute(day, sel.endMin), dayIndex });
+      onSelecting({
+        start: toDateFromMinute(day, sel.startMin),
+        end: toDateFromMinute(day, sel.endMin),
+        dayIndex,
+        isValid
+      });
     }
   };
 
@@ -179,23 +258,33 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
       const maxAllowed = endHour * 60;
       s = Math.max(minAllowed, Math.min(s, maxAllowed - slotMinutes));
       t = Math.max(minAllowed + slotMinutes, Math.min(t, maxAllowed));
-      sel = { dayIndex, startMin: s, endMin: t };
+      const isValid = !isOverlappingBusy(dayIndex, s, t);
+      sel = { dayIndex, startMin: s, endMin: t, isValid };
     }
 
-    if (sel && onSelectRange) {
+    if (sel && typeof onSelecting === 'function') {
+      const day = days[sel.dayIndex];
+      onSelecting({
+        start: toDateFromMinute(day, sel.startMin),
+        end: toDateFromMinute(day, sel.endMin),
+        dayIndex: sel.dayIndex,
+        isValid: !!sel.isValid
+      });
+    }
+
+    // If overlaps existing events => do NOT accept selection
+    if (sel && sel.isValid && onSelectRange) {
       const day = days[sel.dayIndex];
       const start = toDateFromMinute(day, sel.startMin);
       const end = toDateFromMinute(day, sel.endMin);
       if (end <= start) end.setMinutes(start.getMinutes() + slotMinutes);
       onSelectRange({ start, end });
+      setPersistentSelection({ dayIndex: sel.dayIndex, startMin: sel.startMin, endMin: sel.endMin, isValid: true });
+    } else {
+      // keep a persistent invalid overlay so user sees it's blocked
+      if (sel) setPersistentSelection({ dayIndex: sel.dayIndex, startMin: sel.startMin, endMin: sel.endMin, isValid: false });
     }
 
-    if (sel && typeof onSelecting === 'function') {
-      const day = days[sel.dayIndex];
-      onSelecting({ start: toDateFromMinute(day, sel.startMin), end: toDateFromMinute(day, sel.endMin), dayIndex: sel.dayIndex });
-    }
-
-    if (sel) setPersistentSelection({ dayIndex: sel.dayIndex, startMin: sel.startMin, endMin: sel.endMin });
     setSelection(null);
     pageMouse.current = {};
   };
@@ -224,7 +313,8 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
       return (
         <div key={ev.id}
           className="absolute left-1 right-1 bg-emerald-500/90 text-white rounded-md px-2 py-1 text-xs cursor-pointer overflow-hidden"
-          style={{ top, height, zIndex: 10 }}>
+          style={{ top, height, zIndex: 10 }}
+          onMouseDown={(e) => e.stopPropagation()}>
           <div className="font-medium truncate">{ev.ten_su_kien}</div>
           <div className="text-[10px] opacity-80 truncate">
             {new Date(ev.thoi_gian_bat_dau).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.thoi_gian_ket_thuc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -232,23 +322,6 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
         </div>
       );
     });
-  };
-
-  // helper to merge overlapping intervals
-  const mergeIntervals = (intervals) => {
-    if (!intervals.length) return [];
-    intervals.sort((a, b) => a[0] - b[0]);
-    const res = [intervals[0].slice()];
-    for (let i = 1; i < intervals.length; i++) {
-      const [s, e] = intervals[i];
-      const last = res[res.length - 1];
-      if (s <= last[1]) {
-        last[1] = Math.max(last[1], e);
-      } else {
-        res.push([s, e]);
-      }
-    }
-    return res;
   };
 
   // render highlight overlays for busy hours in a day
@@ -352,7 +425,8 @@ const WeekCalendar = ({ roomId, startOfWeek, startHour = 8, endHour = 22, slotMi
 
                 {/* selection overlay (transient or persistent) */}
                 {(selToShow && selToShow.dayIndex === dayIndex) && (
-                  <div className="absolute left-1 right-1 bg-blue-600/40 border-2 border-blue-500 rounded"
+                  <div
+                    className={`absolute left-1 right-1 rounded border-2 ${selToShow.isValid === false ? 'bg-red-600/35 border-red-500' : 'bg-blue-600/40 border-blue-500'}`}
                     style={{
                       top: minutesToPx(selToShow.startMin - startHour * 60),
                       height: minutesToPx(selToShow.endMin - selToShow.startMin),

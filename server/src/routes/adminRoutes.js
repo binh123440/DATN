@@ -3,6 +3,7 @@ import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js
 import {
   layTatCaNguoiDung,
   capNhatVaiTroNguoiDung,
+  resetMatKhauNguoiDung,
 } from '../controllers/adminController.js';
 import {
   layDanhSachChoDuyet,
@@ -17,6 +18,7 @@ router.use(xacThucToken, kiemTraVaiTro('quan_tri_vien'));
 // ==================== QUẢN LÝ NGƯỜI DÙNG ====================
 router.get('/users', layTatCaNguoiDung);
 router.put('/users/:id/role', capNhatVaiTroNguoiDung);
+router.post('/users/:id/reset-password', resetMatKhauNguoiDung);
 
 // ==================== DUYỆT NỘI DUNG ====================
 router.get('/pending-content', layDanhSachChoDuyet);

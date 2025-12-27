@@ -407,6 +407,9 @@ export const layDanhSachNguoiDung = () => apiClient.get('/admin/users');
 export const capNhatVaiTroNguoiDung = (userId, vai_tro) => 
   apiClient.put(`/admin/users/${userId}/role`, { vai_tro });
 
+export const resetMatKhauNguoiDung = (userId, mat_khau_moi) =>
+  apiClient.post(`/admin/users/${userId}/reset-password`, mat_khau_moi ? { mat_khau_moi } : {});
+
 export const layNoiDungChoDuyet = () => apiClient.get('/admin/pending-content');
 
 export const duyetNoiDung = (id, loai, trang_thai_moi) => 
