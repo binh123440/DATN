@@ -11,13 +11,22 @@ const PostModal = ({ postId, commentId, isOpen, onClose, currentUser, PostCardCo
   const [post, setPost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // ✅ Cho phép điều hướng sang bài khác ngay trong modal (vd: Xem bài gốc)
+  const [activePostId, setActivePostId] = useState(postId);
+
   const scrollPositionRef = useRef(0);
 
   useEffect(() => {
-    if (isOpen && postId) {
-      fetchPost();
-    }
+    if (isOpen && postId) setActivePostId(postId);
   }, [isOpen, postId]);
+
+  useEffect(() => {
+    if (isOpen && activePostId) {
+      fetchPost(activePostId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activePostId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -28,11 +37,11 @@ const PostModal = ({ postId, commentId, isOpen, onClose, currentUser, PostCardCo
     };
   }, [isOpen]);
   
-  const fetchPost = async () => {
+  const fetchPost = async (idToFetch) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await layChiTietBaiViet(postId);
+      const response = await layChiTietBaiViet(idToFetch);
       if (response.success) {
         setPost(response.data);
       } else {
@@ -46,6 +55,13 @@ const PostModal = ({ postId, commentId, isOpen, onClose, currentUser, PostCardCo
     }
   };
 
+  const handleOpenPostInModal = (nextId) => {
+    if (!nextId || nextId === activePostId) return;
+    setPost(null);
+    setError(null);
+    setIsLoading(true);
+    setActivePostId(nextId);
+  };
 
   // ✅ Xử lý keyboard
   useEffect(() => {
@@ -117,10 +133,12 @@ const PostModal = ({ postId, commentId, isOpen, onClose, currentUser, PostCardCo
                 currentUserId={currentUser?.id}
                 userRole={currentUser?.vai_tro}
                 onPostDeleted={onClose}
-                onRefresh={fetchPost} 
+                onRefresh={() => fetchPost(activePostId)} 
                 isInModal={true}
                 highlightCommentId={commentId}
                 autoOpenComments={!!commentId}
+                // ✅ Quan trọng: để SharedPostPreview trong modal bấm "Xem bài gốc" được
+                onOpenModal={handleOpenPostInModal}
               />
             </div>
           ) : null}

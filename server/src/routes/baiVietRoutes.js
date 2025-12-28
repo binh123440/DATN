@@ -1,7 +1,7 @@
 import express from 'express';
 import upload from '../middleware/upload.js';
 import { xacThucToken } from '../middleware/dangNhapMiddleware.js';
-import { layDanhSachBaiViet, taoBaiViet, thichBaiViet, xoaBaiViet, capNhatBaiViet, layChiTietBaiViet } from '../controllers/baiVietController.js';
+import { layDanhSachBaiViet, taoBaiViet, thichBaiViet, xoaBaiViet, capNhatBaiViet, layChiTietBaiViet, chiaSeBaiViet } from '../controllers/baiVietController.js';
 
 const router = express.Router();
 
@@ -21,6 +21,9 @@ router.put('/:id', xacThucToken, upload.array('media', 5), capNhatBaiViet);
 
 // POST /api/bai-viet/:id/thich - Thích/bỏ thích bài viết
 router.post('/:id/thich', xacThucToken, thichBaiViet);
+
+// ✅ Đặt route cụ thể trước route /:id
+router.post('/:id/chia-se', xacThucToken, chiaSeBaiViet);
 
 // DELETE /api/bai-viet/:id - Xóa bài viết
 router.delete('/:id', xacThucToken, xoaBaiViet);

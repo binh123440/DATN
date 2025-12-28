@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, Smile, Image as ImageIcon, Paperclip } from 'lucide-react';
+import { Search, Send, MoreVertical, Smile, Image as ImageIcon, Paperclip, FileText, ExternalLink } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   layDanhSachCuocHoiThoai,
@@ -7,6 +7,30 @@ import {
   guiTinNhan
 } from '../services/apiService';
 import socketService from '../services/tinNhanService';
+import PostModal from './PostModal';
+import PostCard from './PostCard';
+import EventPostCard from './EventPostCard';
+
+// ✅ Token chuẩn cho share bài viết qua chat (phương án 1)
+const SHARE_POST_TOKEN_REGEX = /\bUTEPOST:(\d+)\b/;
+
+const extractSharedPostId = (text) => {
+  if (!text) return null;
+  const m = String(text).match(SHARE_POST_TOKEN_REGEX);
+  return m ? parseInt(m[1], 10) : null;
+};
+
+const stripShareToken = (text) => {
+  if (!text) return '';
+  return String(text).replace(SHARE_POST_TOKEN_REGEX, '').trim();
+};
+
+// ✅ Switcher để PostModal render đúng loại (bài thường vs sự kiện)
+const PostCardSwitcher = (props) => {
+  const isEvent = !!props?.post?.su_kien;
+  if (isEvent) return <EventPostCard {...props} />;
+  return <PostCard {...props} />;
+};
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -22,24 +46,26 @@ const Chat = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  
-  // ✅ Lấy user ID từ đối tượng user trong localStorage
-  const currentUserId = useMemo(() => {
+
+  // ✅ PostModal state (mở bài viết từ chat)
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [modalPostId, setModalPostId] = useState(null);
+
+  const currentUser = useMemo(() => {
     try {
       const userString = localStorage.getItem('user');
-      if (userString) {
-        const user = JSON.parse(userString);
-        // Trả về id của user, hoặc null nếu không có
-        return user?.id ? parseInt(user.id, 10) : null;
-      }
-    } catch (error) {
-      console.error("Lỗi khi đọc thông tin người dùng từ localStorage:", error);
+      return userString ? JSON.parse(userString) : null;
+    } catch {
+      return null;
     }
-    return null; // Trả về null nếu có lỗi hoặc không tìm thấy
   }, []);
 
+  const currentUserId = useMemo(() => {
+    const id = currentUser?.id;
+    return id ? parseInt(id, 10) : null;
+  }, [currentUser]);
+
   useEffect(() => {
-    // Chuyển hướng nếu không có user ID
     if (!currentUserId) {
       navigate('/login', { replace: true });
     }
@@ -185,6 +211,12 @@ const Chat = () => {
     getConversationName(conv).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const openPostFromChat = (postId) => {
+    if (!postId) return;
+    setModalPostId(postId);
+    setIsPostModalOpen(true);
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-white">
       {/* ✅ Hiển thị trạng thái kết nối */}
@@ -276,12 +308,6 @@ const Chat = () => {
               </div>
               <div className="flex items-center gap-1">
                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <Phone size={18} className="text-gray-600" />
-                </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <Video size={18} className="text-gray-600" />
-                </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <MoreVertical size={18} className="text-gray-600" />
                 </button>
               </div>
@@ -290,42 +316,84 @@ const Chat = () => {
             {/* Tin nhắn */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((msg, index) => {
-                // Xác định tin nhắn này có phải của người dùng hiện tại không
                 const isOwnMessage = msg.nguoi_gui?.id === currentUserId || msg.id_nguoi_gui === currentUserId;
-                
+
+                const sharedPostId = extractSharedPostId(msg.noi_dung);
+                const noteText = stripShareToken(msg.noi_dung);
+
                 return (
                   <div
-                    key={msg.id || index} // Ưu tiên dùng msg.id nếu có
+                    key={msg.id || index}
                     className={`flex w-full ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`flex items-end gap-2 max-w-[70%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
-                      {/* Hiển thị avatar cho người khác */}
                       {!isOwnMessage && (
                         <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
                           {msg.nguoi_gui?.ho_ten?.[0]?.toUpperCase() || 'U'}
                         </div>
                       )}
-                      
+
                       <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-                        {/* Hiển thị tên cho người khác trong group chat */}
                         {!isOwnMessage && selectedConversation?.loai === 'nhom' && (
                           <p className="text-xs text-gray-500 mb-1 px-3">
                             {msg.nguoi_gui?.ho_ten}
                           </p>
                         )}
 
-                        {/* Khung tin nhắn */}
-                        <div
-                          className={`px-4 py-2 rounded-2xl shadow-sm ${
-                            isOwnMessage
-                              ? 'bg-blue-500 text-white rounded-br-lg' // Tin nhắn của bạn
-                              : 'bg-white text-gray-800 border border-gray-200 rounded-bl-lg' // Tin nhắn của người khác
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.noi_dung}</p>
-                        </div>
+                        {/* ✅ Nếu là tin nhắn share bài viết (UTEPOST:<id>) thì render card */}
+                        {sharedPostId ? (
+                          <div
+                            className={[
+                              'rounded-2xl shadow-sm px-4 py-3',
+                              'bg-white text-gray-800 border border-gray-200',
+                              isOwnMessage ? 'ring-1 ring-blue-200' : ''
+                            ].join(' ')}
+                          >
+                            {noteText && (
+                              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed mb-2">
+                                {noteText}
+                              </p>
+                            )}
 
-                        {/* Thời gian gửi */}
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText size={16} className="text-blue-600 shrink-0" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-gray-800 truncate">
+                                      Bài viết được chia sẻ
+                                    </div>
+                                    <div className="text-[11px] text-gray-500">
+                                      ID: {sharedPostId}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openPostFromChat(sharedPostId)}
+                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                  title="Xem bài viết"
+                                >
+                                  <ExternalLink size={14} />
+                                  Xem
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // ...existing code... (tin nhắn text bình thường)
+                          <div
+                            className={`px-4 py-2 rounded-2xl shadow-sm ${
+                              isOwnMessage
+                                ? 'bg-blue-500 text-white rounded-br-lg'
+                                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-lg'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.noi_dung}</p>
+                          </div>
+                        )}
+
                         <p className="text-xs text-gray-400 mt-1.5 px-2">
                           {new Date(msg.thoi_gian_gui).toLocaleTimeString('vi-VN', {
                             hour: '2-digit',
@@ -400,6 +468,16 @@ const Chat = () => {
           </div>
         )}
       </div>
+
+      {/* ✅ PostModal để xem bài viết ngay trong trang Chat */}
+      <PostModal
+        postId={modalPostId}
+        commentId={null}
+        isOpen={isPostModalOpen}
+        onClose={() => setIsPostModalOpen(false)}
+        currentUser={currentUser}
+        PostCardComponent={PostCardSwitcher}
+      />
     </div>
   );
 };

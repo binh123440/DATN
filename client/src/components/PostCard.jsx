@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MoreHorizontal, Trash2, Edit, X, Image as ImageIcon } from 'lucide-react';
 import PostActions from './PostActions';
 import ImageGalleryModal from './ImageGalleryModal';
+import SharedPostPreview from './SharedPostPreview';
 import { xoaBaiViet, capNhatBaiViet } from '../services/apiService';
 
 const PostCard = ({ 
@@ -129,6 +130,10 @@ const PostCard = ({
   };
 
   const isOwner = currentUserId === post.id_tac_gia;
+
+  // ✅ Share detection
+  const isShared = !!(post.bai_viet_goc && post.bai_viet_goc.id);
+
   const mediaCount = post.media_urls?.length || 0;
   const displayMedia = post.media_urls?.slice(0, 2) || [];
   const remainingCount = mediaCount - 2;
@@ -252,51 +257,66 @@ const PostCard = ({
             </div>
           ) : (
             <>
-              {post.noi_dung && (
-                <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>
-              )}
+              {/* ✅ Nếu là bài share: hiển thị text chia sẻ (nếu có) + preview bài gốc */}
+              {isShared ? (
+                <>
+                  {post.noi_dung && (
+                    <p className="text-gray-800 mb-2 leading-relaxed whitespace-pre-wrap">{post.noi_dung}</p>
+                  )}
+                  <SharedPostPreview
+                    originalPost={post.bai_viet_goc}
+                    onOpenModal={onOpenModal}
+                    isInModal={isInModal}
+                  />
+                </>
+              ) : (
+                <>
+                  {post.noi_dung && <p className="text-gray-800 mb-4 leading-relaxed">{post.noi_dung}</p>}
 
-              {/* ✅ Hiển thị preview 2 ảnh đầu */}
-              {mediaCount > 0 && (
-                <div className={`mb-4 grid gap-2 ${displayMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                  {displayMedia.map((media, index) => (
-                    <div 
-                      key={index} 
-                      className="relative overflow-hidden rounded-lg cursor-pointer group"
-                      onClick={(e) => handleImageClick(index, e)}
-                    >
-                      {media.resource_type === 'video' ? (
-                        <video 
-                          src={media.url} 
-                          className="w-full h-64 object-cover transition-transform group-hover:scale-105" 
-                        />
-                      ) : (
-                        <img 
-                          src={media.url} 
-                          alt="" 
-                          className="w-full h-64 object-cover transition-transform group-hover:scale-105" 
-                          loading="lazy"
-                        />
-                      )}
-                      
-                      {/* Overlay hiển thị số ảnh còn lại */}
-                      {index === 1 && remainingCount > 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-3xl font-bold">+{remainingCount}</span>
+                  {/* ✅ Hiển thị preview 2 ảnh đầu */}
+                  {mediaCount > 0 && (
+                    <div className={`mb-4 grid gap-2 ${displayMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                      {displayMedia.map((media, index) => (
+                        <div
+                          key={index}
+                          className="relative overflow-hidden rounded-lg cursor-pointer group"
+                          onClick={(e) => handleImageClick(index, e)}
+                        >
+                          {media.resource_type === 'video' ? (
+                            <video src={media.url} className="w-full h-64 object-cover transition-transform group-hover:scale-105" />
+                          ) : (
+                            <img
+                              src={media.url}
+                              alt=""
+                              className="w-full h-64 object-cover transition-transform group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          )}
+
+                          {index === 1 && remainingCount > 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-white text-3xl font-bold">+{remainingCount}</span>
+                            </div>
+                          )}
+
+                          <div className="absolute inset-0 group-hover:bg-opacity-20 transition-all" />
                         </div>
-                      )}
-                      
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 group-hover:bg-opacity-20 transition-all" />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </>
           )}
         </div>
 
-        {!isEditing && <PostActions post={post} currentUserId={currentUserId} />}
+        {!isEditing && (
+          <PostActions
+            post={post}
+            currentUserId={currentUserId}
+            onShared={onPostDeleted} // ✅ chia sẻ xong refresh list
+          />
+        )}
       </div>
 
       {/* ✅ Modal xem ảnh full size */}

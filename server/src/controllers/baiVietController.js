@@ -108,6 +108,22 @@ export const layDanhSachBaiViet = async (req, res) => {
           // ✅ Chỉ join với sự kiện đã duyệt, ----------------------------------- todo
           where: { trang_thai: { [Op.in]: ['da_dang'] } },
           required: false // LEFT JOIN để vẫn lấy bài viết không có sự kiện
+        },
+        {
+          model: BaiViet,
+          as: 'bai_viet_goc',
+          required: false,
+          attributes: ['id', 'noi_dung', 'ngay_tao', 'media_urls', 'id_tac_gia', 'id_cuoc_hoi_thoai'],
+          include: [
+            { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'], required: false },
+            { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
+            {
+              model: db.SuKien,
+              as: 'su_kien',
+              where: { trang_thai: { [Op.in]: ['da_dang'] } },
+              required: false
+            }
+          ]
         }
       ],
       order: [['ngay_tao', 'DESC']],
@@ -687,7 +703,18 @@ export const layChiTietBaiViet = async (req, res) => {
       include: [
         { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
         { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
-        { model: db.SuKien, as: 'su_kien', required: false }
+        { model: db.SuKien, as: 'su_kien', required: false },
+        {
+          model: BaiViet,
+          as: 'bai_viet_goc',
+          required: false,
+          attributes: ['id', 'noi_dung', 'ngay_tao', 'media_urls', 'id_tac_gia', 'id_cuoc_hoi_thoai'],
+          include: [
+            { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'], required: false },
+            { model: CuocHoiThoai, as: 'nhom', attributes: ['id', 'ten_hoi_thoai'], required: false },
+            { model: db.SuKien, as: 'su_kien', required: false }
+          ]
+        }
       ]
     });
 
@@ -704,5 +731,58 @@ export const layChiTietBaiViet = async (req, res) => {
   } catch (error) {
     console.error('❌ Lỗi khi lấy chi tiết bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+/**
+ * ✅ Chia sẻ bài viết (tạo bài viết mới trỏ về bài gốc)
+ * POST /api/bai-viet/:id/chia-se
+ * Body: { noi_dung?: string, id_cuoc_hoi_thoai?: number|null }
+ */
+export const chiaSeBaiViet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { noi_dung = '', id_cuoc_hoi_thoai = null } = req.body || {};
+
+    const idNguoiDung = req.user?.id;
+    if (!idNguoiDung) {
+      return res.status(401).json({ success: false, message: 'Chưa đăng nhập.' });
+    }
+
+    const baiVietGoc = await BaiViet.findByPk(id);
+    if (!baiVietGoc) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết gốc.' });
+    }
+
+    const idBaiVietGocThuc = baiVietGoc.id_bai_viet_goc || baiVietGoc.id;
+
+    // ✅ Tạo bài share: KHÔNG set media_type (enum) = 'text' vì enum của DB không có giá trị này
+    // ✅ Đồng thời tránh set media_urls để không bị insert '[]' dạng string nếu schema/model đang map khác kiểu
+    const baiVietMoi = await BaiViet.create({
+      id_tac_gia: idNguoiDung,
+      id_bai_viet_goc: idBaiVietGocThuc,
+      id_cuoc_hoi_thoai: id_cuoc_hoi_thoai || null,
+      noi_dung: String(noi_dung || '').trim(),
+      trang_thai: "da_dang",
+      // theo yêu cầu: media_type_enum = null
+      media_type: null,
+      media_urls: null
+    });
+
+    const data = await BaiViet.findByPk(baiVietMoi.id, {
+      include: [
+        { model: NguoiDung, as: 'tac_gia', attributes: ['id', 'ho_ten', 'anh_dai_dien_url'] },
+        { model: BaiViet, as: 'bai_viet_goc' }
+      ]
+    });
+
+    return res.json({
+      success: true,
+      message: 'Chia sẻ bài viết thành công.',
+      data: data || baiVietMoi
+    });
+  } catch (error) {
+    console.error('❌ Lỗi chiaSeBaiViet:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi server.', error: error.message });
   }
 };

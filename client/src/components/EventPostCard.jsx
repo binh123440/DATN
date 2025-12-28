@@ -1,9 +1,39 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { MoreHorizontal, Trash2, Edit, Calendar, Image as ImageIcon, X } from 'lucide-react';
 import PostActions from './PostActions';
 import EventCard from './EventCard';
 import ImageGalleryModal from './ImageGalleryModal';
+import SharedPostPreview from './SharedPostPreview';
 import { xoaBaiViet, capNhatBaiViet, capNhatSuKien } from '../services/apiService';
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+const parseDateAny = (v) => {
+  if (!v) return null;
+
+  // hỗ trợ "YYYY-MM-DD HH:mm:ss" => "YYYY-MM-DDTHH:mm:ss"
+  const s = typeof v === 'string' ? v.replace(' ', 'T') : v;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const toLocalDateValue = (v) => {
+  const d = parseDateAny(v);
+  if (!d) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+const toLocalTimeValue = (v) => {
+  const d = parseDateAny(v);
+  if (!d) return '';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+const parseIntOrNull = (v) => {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+};
 
 const EventPostCard = ({ 
   post, 
@@ -18,27 +48,42 @@ const EventPostCard = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(post.noi_dung || '');
+  const [editedContent, setEditedContent] = useState(post?.noi_dung || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const [editedEvent, setEditedEvent] = useState({
-    ten_su_kien: post.su_kien?.ten_su_kien || '',
-    dia_diem: post.su_kien?.dia_diem || '',
-    thoi_gian_bat_dau: post.su_kien?.thoi_gian_bat_dau || '',
-    so_luong_toi_da: post.su_kien?.so_luong_toi_da || '',
-    diem_thuong: post.su_kien?.diem_thuong || ''
+    ten_su_kien: post?.su_kien?.ten_su_kien || '',
+    dia_diem: post?.su_kien?.dia_diem || '',
+    thoi_gian_bat_dau: post?.su_kien?.thoi_gian_bat_dau || '',
+    so_luong_toi_da: post?.su_kien?.so_luong_toi_da ?? '',
+    diem_thuong: post?.su_kien?.diem_thuong ?? ''
   });
+
   const [mediaFiles, setMediaFiles] = useState([]);
-  const [mediaPreviews, setMediaPreviews] = useState(post.media_urls || []);
+  const [mediaPreviews, setMediaPreviews] = useState(post?.media_urls || []);
+
   const dropdownRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const authorName = post?.tac_gia?.ho_ten || 'Ẩn danh';
+  const initials = useMemo(() => {
+    const parts = String(authorName).trim().split(' ').filter(Boolean);
+    return (parts.map((n) => n[0]).join('').slice(0, 2) || 'U').toUpperCase();
+  }, [authorName]);
+
+  const isOwner = currentUserId === post?.id_tac_gia;
+
+  const isShared = !!(post?.bai_viet_goc && post.bai_viet_goc.id);
+
+  const mediaCount = post?.media_urls?.length || 0;
+  const displayMedia = post?.media_urls?.slice(0, 2) || [];
+  const remainingCount = Math.max(0, mediaCount - 2);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setShowDropdown(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -50,10 +95,12 @@ const EventPostCard = ({
     setIsDeleting(true);
     try {
       const response = await xoaBaiViet(post.id);
-      if (response.success) {
+      if (response?.success) {
         alert('Đã xóa bài viết và sự kiện thành công!');
         setShowDropdown(false);
         onRefresh?.();
+      } else {
+        alert(response?.message || 'Không thể xóa.');
       }
     } catch (error) {
       alert('Lỗi khi xóa: ' + (error.response?.data?.message || error.message));
@@ -63,15 +110,15 @@ const EventPostCard = ({
   };
 
   const handleEditClick = () => {
-    setEditedContent(post.noi_dung || '');
+    setEditedContent(post?.noi_dung || '');
     setEditedEvent({
-      ten_su_kien: post.su_kien?.ten_su_kien || '',
-      dia_diem: post.su_kien?.dia_diem || '',
-      thoi_gian_bat_dau: post.su_kien?.thoi_gian_bat_dau || '',
-      so_luong_toi_da: post.su_kien?.so_luong_toi_da || '',
-      diem_thuong: post.su_kien?.diem_thuong || ''
+      ten_su_kien: post?.su_kien?.ten_su_kien || '',
+      dia_diem: post?.su_kien?.dia_diem || '',
+      thoi_gian_bat_dau: post?.su_kien?.thoi_gian_bat_dau || '',
+      so_luong_toi_da: post?.su_kien?.so_luong_toi_da ?? '',
+      diem_thuong: post?.su_kien?.diem_thuong ?? ''
     });
-    setMediaPreviews(post.media_urls || []);
+    setMediaPreviews(post?.media_urls || []);
     setMediaFiles([]);
     setIsEditing(true);
     setShowDropdown(false);
@@ -79,13 +126,12 @@ const EventPostCard = ({
 
   const handleEventFieldChange = (e) => {
     const { name, value } = e.target;
-    setEditedEvent(prev => ({ ...prev, [name]: value }));
+    setEditedEvent((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Xử lý chọn ảnh/video
   const handleMediaSelect = (e) => {
-    const files = Array.from(e.target.files);
-    const validFiles = files.filter(file => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter((file) => {
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
       const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
@@ -101,67 +147,69 @@ const EventPostCard = ({
       return true;
     });
 
-    setMediaFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length === 0) return;
 
-    // Tạo preview
-    validFiles.forEach(file => {
+    setMediaFiles((prev) => [...prev, ...validFiles]);
+
+    validFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setMediaPreviews(prev => [...prev, {
-          url: reader.result,
-          resource_type: file.type.startsWith('image/') ? 'image' : 'video',
-          isNew: true
-        }]);
+        setMediaPreviews((prev) => [
+          ...prev,
+          { url: reader.result, resource_type: file.type.startsWith('image/') ? 'image' : 'video', isNew: true }
+        ]);
       };
       reader.readAsDataURL(file);
     });
   };
 
-  // ✅ Xóa ảnh/video
   const handleRemoveMedia = (index) => {
     const mediaToRemove = mediaPreviews[index];
-    
+    if (!mediaToRemove) return;
+
     if (mediaToRemove.isNew) {
-      // Xóa file mới (chưa upload)
-      const fileIndex = mediaPreviews.slice(0, index).filter(m => m.isNew).length;
-      setMediaFiles(prev => prev.filter((_, i) => i !== fileIndex));
+      const fileIndex = mediaPreviews.slice(0, index).filter((m) => m.isNew).length;
+      setMediaFiles((prev) => prev.filter((_, i) => i !== fileIndex));
     }
-    
-    setMediaPreviews(prev => prev.filter((_, i) => i !== index));
+
+    setMediaPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleUpdatePost = async () => {
+    if (!post?.id || !post?.su_kien?.id) return;
+
     setIsUpdating(true);
     try {
-      // ✅ Cập nhật bài viết
+      // ✅ cập nhật bài viết
       const formData = new FormData();
-      formData.append('noi_dung', editedContent);
-      
-      mediaFiles.forEach(file => formData.append('media', file));
+      formData.append('noi_dung', editedContent || '');
 
-      const oldMedia = mediaPreviews.filter(m => !m.isNew);
-      if (oldMedia.length > 0) {
-        formData.append('existing_media_urls', JSON.stringify(oldMedia));
-      }
+      mediaFiles.forEach((file) => formData.append('media', file));
+
+      const oldMedia = mediaPreviews.filter((m) => !m.isNew);
+      if (oldMedia.length > 0) formData.append('existing_media_urls', JSON.stringify(oldMedia));
 
       await capNhatBaiViet(post.id, formData);
 
-      // ✅ Cập nhật sự kiện
+      // ✅ cập nhật sự kiện (chuẩn hoá thời gian sang ISO nếu parse được)
+      const dt = parseDateAny(editedEvent.thoi_gian_bat_dau);
       const eventData = {
         ten_su_kien: editedEvent.ten_su_kien,
         dia_diem: editedEvent.dia_diem,
-        thoi_gian_bat_dau: editedEvent.thoi_gian_bat_dau,
-        so_luong_toi_da: parseInt(editedEvent.so_luong_toi_da),
-        diem_thuong: parseInt(editedEvent.diem_thuong),
+        thoi_gian_bat_dau: dt ? dt.toISOString() : editedEvent.thoi_gian_bat_dau,
+        so_luong_toi_da: parseIntOrNull(editedEvent.so_luong_toi_da),
+        diem_thuong: parseIntOrNull(editedEvent.diem_thuong),
         noi_dung_bai_viet: editedContent
       };
 
       const response = await capNhatSuKien(post.su_kien.id, eventData);
-      
-      if (response.success) {
+
+      if (response?.success) {
         alert('Cập nhật thành công!');
         setIsEditing(false);
         onRefresh?.();
+      } else {
+        alert(response?.message || 'Không thể cập nhật sự kiện.');
       }
     } catch (error) {
       alert('Lỗi: ' + (error.response?.data?.message || error.message));
@@ -170,25 +218,20 @@ const EventPostCard = ({
     }
   };
 
-  const getDateValue = () => editedEvent.thoi_gian_bat_dau?.split(' ')[0] || '';
-  const getTimeValue = () => editedEvent.thoi_gian_bat_dau?.split(' ')[1] || '';
-
   const handleDateChange = (e) => {
-    const newDate = e.target.value;
-    const currentTime = getTimeValue() || '00:00:00';
-    setEditedEvent(prev => ({ ...prev, thoi_gian_bat_dau: `${newDate} ${currentTime}` }));
+    const date = e.target.value; // yyyy-mm-dd
+    const time = toLocalTimeValue(editedEvent.thoi_gian_bat_dau) || '00:00';
+    setEditedEvent((prev) => ({ ...prev, thoi_gian_bat_dau: `${date}T${time}:00` }));
   };
 
   const handleTimeChange = (e) => {
-    const newTime = e.target.value + ':00';
-    const currentDate = getDateValue();
-    setEditedEvent(prev => ({ ...prev, thoi_gian_bat_dau: `${currentDate} ${newTime}` }));
+    const time = e.target.value; // HH:mm
+    const date = toLocalDateValue(editedEvent.thoi_gian_bat_dau) || toLocalDateValue(new Date()) || '';
+    setEditedEvent((prev) => ({ ...prev, thoi_gian_bat_dau: date ? `${date}T${time}:00` : prev.thoi_gian_bat_dau }));
   };
 
   const handleContentClick = () => {
-    if (!isInModal && onOpenModal && !isEditing) {
-      onOpenModal(post.id);
-    }
+    if (!isInModal && onOpenModal && !isEditing) onOpenModal(post.id);
   };
 
   const handleImageClick = (index, e) => {
@@ -196,18 +239,6 @@ const EventPostCard = ({
     setSelectedImageIndex(index);
     setShowImageModal(true);
   };
-
-  const isOwner = currentUserId === post.id_tac_gia;
-  const initials = post.tac_gia.ho_ten
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  const mediaCount = post.media_urls?.length || 0;
-  const displayMedia = post.media_urls?.slice(0, 2) || [];
-  const remainingCount = mediaCount - 2;
 
   return (
     <>
@@ -217,15 +248,18 @@ const EventPostCard = ({
           <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
             {initials}
           </div>
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten}</h4>
-            <p className="text-sm text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-gray-900 truncate">{authorName}</h4>
+            <p className="text-sm text-gray-500">
+              {post?.ngay_tao ? new Date(post.ngay_tao).toLocaleString('vi-VN') : ''}
+            </p>
           </div>
 
           {isOwner && !isEditing && (
             <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setShowDropdown(!showDropdown)}
+              <button
+                type="button"
+                onClick={() => setShowDropdown((v) => !v)}
                 className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
               >
                 <MoreHorizontal size={20} />
@@ -234,6 +268,7 @@ const EventPostCard = ({
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-10">
                   <button
+                    type="button"
                     onClick={handleEditClick}
                     className="w-full flex items-center space-x-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                   >
@@ -241,6 +276,7 @@ const EventPostCard = ({
                     <span>Chỉnh sửa sự kiện</span>
                   </button>
                   <button
+                    type="button"
                     onClick={handleDeletePost}
                     disabled={isDeleting}
                     className="w-full flex items-center space-x-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -267,20 +303,16 @@ const EventPostCard = ({
               />
             </div>
 
-            {/* ✅ Phần upload ảnh/video */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Ảnh/Video sự kiện</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {mediaPreviews.map((media, index) => (
                   <div key={index} className="relative group">
                     {media.resource_type === 'video' ? (
-                      <video 
-                        src={media.url} 
-                        className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
-                      />
+                      <video src={media.url} className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200" />
                     ) : (
-                      <img 
-                        src={media.url} 
+                      <img
+                        src={media.url}
                         alt={`Preview ${index}`}
                         className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
                       />
@@ -293,12 +325,13 @@ const EventPostCard = ({
                       <X size={14} />
                     </button>
                     {media.isNew && (
-                      <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">Mới</span>
+                      <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">
+                        Mới
+                      </span>
                     )}
                   </div>
                 ))}
 
-                {/* Button thêm ảnh */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -306,7 +339,7 @@ const EventPostCard = ({
                 >
                   <ImageIcon size={24} className="text-gray-400" />
                 </button>
-                
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -324,6 +357,7 @@ const EventPostCard = ({
                 <Calendar size={16} className="mr-2" />
                 Thông tin sự kiện
               </h3>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Tên sự kiện</label>
@@ -335,6 +369,7 @@ const EventPostCard = ({
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Địa điểm</label>
                   <input
@@ -345,24 +380,27 @@ const EventPostCard = ({
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Ngày</label>
                   <input
                     type="date"
-                    value={getDateValue()}
+                    value={toLocalDateValue(editedEvent.thoi_gian_bat_dau)}
                     onChange={handleDateChange}
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Giờ</label>
                   <input
                     type="time"
-                    value={getTimeValue().slice(0, 5)}
+                    value={toLocalTimeValue(editedEvent.thoi_gian_bat_dau)}
                     onChange={handleTimeChange}
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Số người tối đa</label>
                   <input
@@ -373,6 +411,7 @@ const EventPostCard = ({
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-300 outline-none"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Điểm thưởng</label>
                   <input
@@ -388,6 +427,7 @@ const EventPostCard = ({
 
             <div className="flex justify-end space-x-2">
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsEditing(false);
@@ -397,6 +437,7 @@ const EventPostCard = ({
                 Hủy
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleUpdatePost();
@@ -410,61 +451,63 @@ const EventPostCard = ({
           </div>
         ) : (
           <>
-            {post.noi_dung && (
-              <div 
-                onClick={handleContentClick}
-                className={!isInModal ? 'cursor-pointer mb-4' : 'mb-4'}
-              >
-                <p className="text-gray-800 leading-relaxed">{post.noi_dung}</p>
+            {isShared ? (
+              <div onClick={handleContentClick} className={!isInModal ? 'cursor-pointer mb-4' : 'mb-4'}>
+                {post?.noi_dung && (
+                  <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{post.noi_dung}</p>
+                )}
+                <SharedPostPreview originalPost={post.bai_viet_goc} onOpenModal={onOpenModal} isInModal={isInModal} />
               </div>
+            ) : (
+              <>
+                {post?.noi_dung && (
+                  <div onClick={handleContentClick} className={!isInModal ? 'cursor-pointer mb-4' : 'mb-4'}>
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{post.noi_dung}</p>
+                  </div>
+                )}
+
+                {mediaCount > 0 && (
+                  <div className={`mb-4 grid gap-2 ${displayMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {displayMedia.map((media, index) => (
+                      <div
+                        key={index}
+                        className="relative overflow-hidden rounded-lg cursor-pointer group"
+                        onClick={(e) => handleImageClick(index, e)}
+                      >
+                        {media.resource_type === 'video' ? (
+                          <video src={media.url} className="w-full h-64 object-cover transition-transform group-hover:scale-105" />
+                        ) : (
+                          <img
+                            src={media.url}
+                            alt=""
+                            className="w-full h-64 object-cover transition-transform group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        )}
+
+                        {index === 1 && remainingCount > 0 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                            <span className="text-white text-3xl font-bold">+{remainingCount}</span>
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 group-hover:bg-opacity-20 transition-all" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
-            {/* ✅ Hiển thị preview 2 ảnh đầu */}
-            {mediaCount > 0 && (
-              <div className={`mb-4 grid gap-2 ${displayMedia.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                {displayMedia.map((media, index) => (
-                  <div 
-                    key={index} 
-                    className="relative overflow-hidden rounded-lg cursor-pointer group"
-                    onClick={(e) => handleImageClick(index, e)}
-                  >
-                    {media.resource_type === 'video' ? (
-                      <video 
-                        src={media.url} 
-                        className="w-full h-64 object-cover transition-transform group-hover:scale-105" 
-                      />
-                    ) : (
-                      <img 
-                        src={media.url} 
-                        alt="" 
-                        className="w-full h-64 object-cover transition-transform group-hover:scale-105" 
-                        loading="lazy"
-                      />
-                    )}
-                    
-                    {index === 1 && remainingCount > 0 && (
-                      <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                        <span className="text-white text-3xl font-bold">+{remainingCount}</span>
-                      </div>
-                    )}
-                    
-                    <div className="absolute inset-0 group-hover:bg-opacity-20 transition-all" />
-                  </div>
-                ))}
-              </div>
+            {post?.su_kien && (
+              <EventCard event={post.su_kien} currentUserId={currentUserId} userRole={userRole} onRefresh={onRefresh} />
             )}
-            
-            <EventCard 
-              event={post.su_kien} 
-              currentUserId={currentUserId}
-              userRole={userRole}
-              onRefresh={onRefresh}
-            />
 
             <div className="mt-4">
-              <PostActions 
-                post={post} 
+              <PostActions
+                post={post}
                 currentUserId={currentUserId}
+                onShared={onRefresh}
                 highlightCommentId={highlightCommentId}
                 autoOpenComments={autoOpenComments}
               />
@@ -472,15 +515,14 @@ const EventPostCard = ({
           </>
         )}
 
-        {post.nhom && (
+        {post?.nhom && (
           <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100 mt-2">
             Thuộc nhóm: {post.nhom.ten_hoi_thoai}
           </span>
         )}
       </div>
 
-      {/* ✅ Modal xem ảnh full size */}
-      {showImageModal && post.media_urls && (
+      {showImageModal && post?.media_urls && (
         <ImageGalleryModal
           media={post.media_urls}
           initialIndex={selectedImageIndex}

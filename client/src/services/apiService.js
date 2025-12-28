@@ -539,4 +539,7 @@ export const laySuKienTheoKhoang = async ({ startISO, endISO, id_phong } = {}) =
   }
 };
 
+export const chiaSeBaiViet = (postId, payload) =>
+  apiClient.post(`/bai-viet/${postId}/chia-se`, payload);
+
 export default apiClient;
