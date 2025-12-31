@@ -28,6 +28,7 @@ const UserMenuDropdown = ({ currentUser }) => {
   const userId = userInfo?.id || currentUser?.id || localStorage.getItem('userId');
   const userName = userInfo?.ho_ten || userInfo?.name || 'Người dùng';
   const userEmail = userInfo?.email || 'user@example.com';
+  const userAvatar = userInfo?.anh_dai_dien_url || currentUser?.anh_dai_dien_url || null;
 
   const getInitials = () =>
     userName
@@ -52,9 +53,20 @@ const UserMenuDropdown = ({ currentUser }) => {
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2 p-1 rounded-full hover:bg-blue-700 transition-colors"
       >
-        <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold">
-          {getInitials()}
-        </div>
+        {userAvatar ? (
+          <img
+            src={userAvatar}
+            alt={userName}
+            className="w-8 h-8 rounded-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = '/default-avatar.png';
+            }}
+          />
+        ) : (
+          <div className="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-semibold">
+            {getInitials()}
+          </div>
+        )}
         <span className="hidden md:block font-medium">{userName}</span>
       </button>
 

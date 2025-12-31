@@ -123,7 +123,6 @@ function App() {
                   <Route path="/quan-ly-bai-viet" element={<QuanLyBaiViet />} />
 
 
-                  {/* <Route path="/admin/event-approvals" element={<EventApprovalList />} /> */}
 
                   <Route path="/nhiem-vu" element={<NhiemVu />} />
                   {/* Redirect về trang chủ nếu route không tồn tại */}

@@ -1,8 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Calendar, ImagePlus, X, ChevronRight, Users, Trash2, Clock, User, FileText } from 'lucide-react';
-import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong } from '../services/apiService';
+import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong, layBaiVietNguoiDung, layDanhSachPhong } from '../services/apiService';
 import RoomComboBox from './RoomComboBox';
 import EventDateTimePicker from './EventDateTimePicker';
+
+const useDebounce = (value, delay = 250) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+};
+
+const parseKeHoachChiTiet = (raw) => {
+  if (!raw) return { tasks: [], targetAudience: { voluntary: true, mandatory: [] } };
+
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw);
+    } catch {
+      obj = null;
+    }
+  }
+  if (!obj || typeof obj !== 'object') return { tasks: [], targetAudience: { voluntary: true, mandatory: [] } };
+
+  const target = obj.targetAudience || obj.target_audience || { voluntary: true, mandatory: [] };
+  const tasks = Array.isArray(obj.tasks) ? obj.tasks : [];
+
+  return {
+    tasks: tasks.map((t, idx) => ({
+      id: t.id || `t${Date.now()}_${idx}`,
+      title: t.title || '',
+      description: t.description || '',
+      assignee: t.assignee || null,
+      deadline: t.deadline || '',
+      order: t.order ?? (idx + 1),
+      status: t.status || 'todo',
+      attachments: t.attachments || [],
+      result: t.result ?? null,
+      completed_at: t.completed_at ?? null,
+      approved: t.approved ?? null,
+      feedback: t.feedback ?? null
+    })),
+    targetAudience: {
+      voluntary: target.voluntary !== false,
+      mandatory: Array.isArray(target.mandatory) ? target.mandatory : []
+    }
+  };
+};
 
 const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const [activeType, setActiveType] = useState(null);
@@ -15,6 +62,14 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     maxParticipants: '',
     points: ''
   });
+
+  // ✅ Gợi ý sự kiện đã đăng trước đó (của chính user)
+  const [eventTemplates, setEventTemplates] = useState([]); // items: { post, su_kien }
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateQuery, setTemplateQuery] = useState('');
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const templateRef = useRef(null);
+  const debouncedQuery = useDebounce(templateQuery, 250);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,6 +88,15 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     }
   }, [activeType]);
 
+  // ✅ click outside để đóng dropdown gợi ý
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (templateRef.current && !templateRef.current.contains(e.target)) setTemplateOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
   const fetchUsers = async () => {
     try {
       const response = await layDanhSachNguoiPhanCong({ type: 'all' });
@@ -45,6 +109,98 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
     setEventDetails(prev => ({ ...prev, [name]: value }));
+  };
+
+  const fetchEventTemplatesOnce = async () => {
+    if (!currentUserId) return;
+    if (templateLoading) return;
+    if (eventTemplates.length > 0) return;
+
+    setTemplateLoading(true);
+    try {
+      const resp = await layBaiVietNguoiDung(currentUserId, 1, 100);
+      const list = resp?.data?.data?.bai_viets || [];
+      const onlyEvents = (Array.isArray(list) ? list : [])
+        .filter((p) => p?.su_kien && typeof p.su_kien === 'object' && p.su_kien.id)
+        .map((p) => ({ post: p, su_kien: p.su_kien }));
+      setEventTemplates(onlyEvents);
+    } catch (e) {
+      console.error('Lỗi tải gợi ý sự kiện:', e);
+      setEventTemplates([]);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const filteredTemplates = useMemo(() => {
+    const q = (debouncedQuery || '').trim().toLowerCase();
+    if (!q) return eventTemplates.slice(0, 8);
+
+    return eventTemplates
+      .filter(({ su_kien }) => {
+        const name = String(su_kien?.ten_su_kien || '').toLowerCase();
+        const place = String(su_kien?.dia_diem || '').toLowerCase();
+        return name.includes(q) || place.includes(q);
+      })
+      .slice(0, 8);
+  }, [eventTemplates, debouncedQuery]);
+
+  const resolveRoomFromTemplate = async (su_kien) => {
+    const idPhong = su_kien?.id_phong ?? null;
+    const tenPhong = (su_kien?.dia_diem || '').trim();
+
+    // Nếu event đã lưu id_phong => dùng luôn
+    if (idPhong) {
+      return {
+        id: idPhong,
+        id_phong: idPhong,
+        ten_phong: tenPhong
+      };
+    }
+
+    // Nếu chỉ có text (dia_diem) => cố gắng tra danh sách phòng để lấy id
+    if (!tenPhong) return null;
+
+    try {
+      const resp = await layDanhSachPhong(tenPhong);
+      const rooms = resp?.success ? (resp.data || []) : [];
+      if (!Array.isArray(rooms) || rooms.length === 0) {
+        // fallback: vẫn trả object có tên để hiển thị, nhưng roomId sẽ không có
+        return { id: null, id_phong: null, ten_phong: tenPhong };
+      }
+
+      const lower = tenPhong.toLowerCase();
+      const exact = rooms.find((r) => String(r?.ten_phong || '').trim().toLowerCase() === lower);
+      return exact || rooms[0];
+    } catch {
+      return { id: null, id_phong: null, ten_phong: tenPhong };
+    }
+  };
+
+  const handleSelectTemplate = async ({ post, su_kien }) => {
+    // ✅ Điền sẵn phòng, số người, điểm + kế hoạch
+    const roomResolved = await resolveRoomFromTemplate(su_kien);
+
+    setEventDetails((prev) => ({
+      ...prev,
+      name: su_kien?.ten_su_kien || prev.name,
+      room: roomResolved?.ten_phong ? roomResolved : prev.room,
+      maxParticipants: su_kien?.so_luong_toi_da ?? prev.maxParticipants,
+      points: su_kien?.diem_thuong ?? prev.points
+    }));
+
+    setEventPlan(parseKeHoachChiTiet(su_kien?.ke_hoach_chi_tiet));
+
+    setTemplateQuery(su_kien?.ten_su_kien || '');
+    setTemplateOpen(false);
+  };
+
+  const handleEventNameInput = async (e) => {
+    const text = e.target.value;
+    setEventDetails((prev) => ({ ...prev, name: text }));
+    setTemplateQuery(text);
+    setTemplateOpen(true);
+    await fetchEventTemplatesOnce();
   };
 
   const handleRoomChange = (room) => {
@@ -217,8 +373,55 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
             <Calendar size={18} className="mr-2" />Thông tin sự kiện
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" name="name" value={eventDetails.name} onChange={handleEventDetailChange} placeholder="Tên sự kiện"
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <div className="relative" ref={templateRef}>
+              <input
+                type="text"
+                name="name"
+                value={eventDetails.name}
+                onChange={handleEventNameInput}
+                onFocus={async () => {
+                  setTemplateOpen(true);
+                  setTemplateQuery(eventDetails.name || '');
+                  await fetchEventTemplatesOnce();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setTemplateOpen(false);
+                }}
+                placeholder="Tên sự kiện (gõ để gợi ý từ sự kiện bạn đã đăng)"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+
+              {templateOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-64 overflow-auto">
+                  <div className="p-2 text-xs text-gray-500">
+                    Chọn sự kiện đã đăng để tự điền phòng, số người tối đa, điểm thưởng và kế hoạch.
+                  </div>
+
+                  {templateLoading && <div className="p-2 text-sm text-gray-500">Đang tải...</div>}
+
+                  {!templateLoading && filteredTemplates.length === 0 && (
+                    <div className="p-2 text-sm text-gray-500">Không có gợi ý phù hợp</div>
+                  )}
+
+                  {!templateLoading &&
+                    filteredTemplates.map(({ post, su_kien }) => (
+                      <button
+                        key={su_kien.id}
+                        type="button"
+                        onClick={() => handleSelectTemplate({ post, su_kien })}
+                        className="w-full text-left px-3 py-2 hover:bg-cyan-50"
+                      >
+                        <div className="font-medium text-gray-900 truncate">{su_kien.ten_su_kien}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {su_kien.dia_diem ? `📍 ${su_kien.dia_diem}` : ''}
+                          {su_kien.so_luong_toi_da ? ` • 👥 ${su_kien.so_luong_toi_da}` : ''}
+                          {su_kien.diem_thuong ? ` • ⭐ ${su_kien.diem_thuong}` : ''}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
 
             {/* Room combo box */}
             <div>
@@ -242,7 +445,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
                     // optional: keep current selection or reset to previous
                     // here we do nothing
                   }}
-                  roomId={eventDetails.room?.id}
+                  roomId={eventDetails.room?.id || eventDetails.room?.id_phong}
                   minDate={new Date()}
                 />
               ) : (

@@ -999,6 +999,43 @@ export const duyetSuKien = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Sự kiện chưa được gửi duyệt' });
     }
 
+    // ✅ Chỉ cho phép duyệt khi tất cả nhiệm vụ đã hoàn thành và đã được duyệt
+    const parseKeHoach = (raw) => {
+      if (!raw) return {};
+      if (typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try {
+          const obj = JSON.parse(raw);
+          return obj && typeof obj === 'object' ? obj : {};
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    };
+
+    const keHoachParsed = parseKeHoach(suKien.ke_hoach_chi_tiet);
+    const tasks = Array.isArray(keHoachParsed.tasks) ? keHoachParsed.tasks : [];
+
+    const isTaskDone = (t) => {
+      if (!t || typeof t !== 'object') return false;
+      if (t.status === 'done') return true;
+      if (t.completed_at) return true;
+      if (t.result) return true;
+      return false;
+    };
+
+    if (action === 'duyet' && tasks.length > 0) {
+      const notReady = tasks.filter((t) => !(isTaskDone(t) && t.approved === true));
+      if (notReady.length > 0) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ được duyệt sự kiện khi tất cả nhiệm vụ trong kế hoạch đã hoàn thành và đã được duyệt.'
+        });
+      }
+    }
+
     // ✅ Cập nhật trạng thái phê duyệt
     const newStatusSuKien = action === 'duyet' ? 'da_duyet' : 'tu_choi';
     await suKien.update({ 
@@ -1007,7 +1044,7 @@ export const duyetSuKien = async (req, res) => {
     }, { transaction });
 
     // Lưu lịch sử
-    const keHoach = suKien.ke_hoach_chi_tiet || {};
+    const keHoach = keHoachParsed || {};
     keHoach.history = keHoach.history || [];
     keHoach.history.push({
       action: action === 'duyet' ? 'duyet_khoa' : 'tu_choi',

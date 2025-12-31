@@ -315,6 +315,41 @@ const DuyetBai = () => {
             const eventData = item.loai === 'su_kien' ? item : item.su_kien;
             const isExpanded = expandedId === item.id;
 
+            const parseKeHoach = (raw) => {
+              if (!raw) return {};
+              if (typeof raw === 'object') return raw;
+              if (typeof raw === 'string') {
+                try {
+                  const obj = JSON.parse(raw);
+                  return obj && typeof obj === 'object' ? obj : {};
+                } catch {
+                  return {};
+                }
+              }
+              return {};
+            };
+
+            // ✅ Parse kế hoạch an toàn
+            const keHoach = parseKeHoach(eventData?.ke_hoach_chi_tiet);
+            const tasks = Array.isArray(keHoach?.tasks) ? keHoach.tasks : [];
+
+            // ✅ Một task được xem là "đã làm" nếu done/completed_at/result
+            const isTaskDone = (t) => {
+              if (!t || typeof t !== 'object') return false;
+              if (t.status === 'done') return true;
+              if (t.completed_at) return true;
+              if (t.result) return true;
+              return false;
+            };
+
+            // ✅ Chỉ cho duyệt khi: (nếu có tasks) tất cả tasks đều đã làm + approved === true
+            const canApproveEventPlan =
+              tasks.length === 0 ? true : tasks.every((t) => isTaskDone(t) && t.approved === true);
+
+            // ✅ Chặn duyệt cho cả "KẾ HOẠCH SỰ KIỆN" và "BÀI VIẾT SỰ KIỆN"
+            const approveDisabled =
+              isEventRelated && item.loai !== 'bai_viet' && !canApproveEventPlan;
+
             return (
               <div key={`${item.loai}-${item.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
                 <div className="p-6">
@@ -384,14 +419,33 @@ const DuyetBai = () => {
                   </div>
 
                   <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAction(item.id, item.loai, item.loai === 'su_kien' ? 'duyet' : 'da_duyet'); }}
-                      className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-lg hover:bg-green-600 transition-colors font-medium shadow-sm"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (approveDisabled) {
+                          alert('Chỉ được duyệt khi tất cả nhiệm vụ trong kế hoạch đã hoàn thành và đã được duyệt.');
+                          return;
+                        }
+                        handleAction(item.id, item.loai, item.loai === 'su_kien' ? 'duyet' : 'da_duyet');
+                      }}
+                      disabled={approveDisabled}
+                      title={
+                        approveDisabled
+                          ? 'Chỉ được duyệt khi tất cả nhiệm vụ đã hoàn thành và đã được duyệt'
+                          : 'Duyệt'
+                      }
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium shadow-sm ${
+                        approveDisabled ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600'
+                      }`}
                     >
                       <Check size={18} /> <span>Duyệt</span>
                     </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAction(item.id, item.loai, item.loai === 'su_kien' ? 'tu_choi' : 'bi_tu_choi'); }}
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(item.id, item.loai, item.loai === 'su_kien' ? 'tu_choi' : 'bi_tu_choi');
+                      }}
                       className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-lg hover:bg-red-600 transition-colors font-medium shadow-sm"
                     >
                       <X size={18} /> <span>Từ chối</span>
@@ -400,12 +454,13 @@ const DuyetBai = () => {
                 </div>
 
                 {isExpanded && isEventRelated && (
-                  <KeHoachChiTiet 
-                    keHoach={eventData?.ke_hoach_chi_tiet}
+                  <KeHoachChiTiet
+                    // ✅ dùng bản đã parse để UI hiển thị đúng tasks + status
+                    keHoach={keHoach}
                     phanHoi={phanHoi[item.id] || ''}
                     onPhanHoiChange={(e) => {
                       e.stopPropagation();
-                      setPhanHoi(prev => ({ ...prev, [item.id]: e.target.value }));
+                      setPhanHoi((prev) => ({ ...prev, [item.id]: e.target.value }));
                     }}
                     onAction={handleAction}
                     itemId={eventData?.id || item.id}

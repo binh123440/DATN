@@ -56,9 +56,14 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
       try {
         setSearchLoading(true);
         const response = await timKiemTongHop(searchValue);
-        setSearchResults(response.data);
+        if (response.data?.success) {
+          setSearchResults(response.data.data);
+        } else {
+          setSearchResults(null);
+        }
       } catch (error) {
         console.error('Lỗi tìm kiếm:', error);
+        setSearchResults(null);
       } finally {
         setSearchLoading(false);
       }
@@ -195,9 +200,20 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
                           onClick={() => handleNavigateResult(section, item)}
                           className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-start gap-3"
                         >
-                          <div className="w-10 h-10 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">
-                            {getBadge(section, item)}
-                          </div>
+                          {section === 'users' && item.anh_dai_dien_url ? (
+                            <img
+                              src={item.anh_dai_dien_url}
+                              alt={item.ho_ten || item.name || 'User'}
+                              className="w-10 h-10 flex-shrink-0 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-avatar.png';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+                              {getBadge(section, item)}
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{getTitle(section, item)}</p>
                             <p className="text-xs text-gray-500">{getSubtitle(section, item)}</p>
