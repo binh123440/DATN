@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { MoreHorizontal, Trash2, Edit, Calendar, Image as ImageIcon, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PostActions from './PostActions';
 import EventCard from './EventCard';
 import ImageGalleryModal from './ImageGalleryModal';
@@ -35,12 +36,12 @@ const parseIntOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const EventPostCard = ({ 
-  post, 
-  currentUserId, 
-  userRole, 
-  onRefresh, 
-  isInModal = false, 
+const EventPostCard = ({
+  post,
+  currentUserId,
+  userRole,
+  onRefresh,
+  isInModal = false,
   onOpenModal,
   highlightCommentId,
   autoOpenComments
@@ -66,6 +67,7 @@ const EventPostCard = ({
 
   const dropdownRef = useRef(null);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const authorName = post?.tac_gia?.ho_ten || 'Ẩn danh';
   const initials = useMemo(() => {
@@ -240,20 +242,38 @@ const EventPostCard = ({
     setShowImageModal(true);
   };
 
+  const handleOpenAuthorProfile = (e) => {
+    e?.stopPropagation?.();
+
+    const authorId = post?.id_tac_gia ?? post?.tac_gia?.id;
+    if (authorId == null) return;
+
+    // ✅ Luôn điều hướng theo dạng /profile/:id (kể cả chính mình)
+    navigate(`/profile/${authorId}`);
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4 hover:shadow-md transition-shadow">
         {/* Header */}
         <div className="flex items-center space-x-3 mb-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-gray-900 truncate">{authorName}</h4>
-            <p className="text-sm text-gray-500">
-              {post?.ngay_tao ? new Date(post.ngay_tao).toLocaleString('vi-VN') : ''}
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={handleOpenAuthorProfile}
+            className="flex items-center space-x-3 text-left flex-1 min-w-0 cursor-pointer"
+            aria-label="Xem trang cá nhân"
+          >
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+              {initials}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900 truncate">{authorName}</h4>
+              <p className="text-sm text-gray-500">
+                {post?.ngay_tao ? new Date(post.ngay_tao).toLocaleString('vi-VN') : ''}
+              </p>
+            </div>
+          </button>
 
           {isOwner && !isEditing && (
             <div className="relative" ref={dropdownRef}>

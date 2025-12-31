@@ -56,11 +56,13 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const [content, setContent] = useState('');
   const [eventDetails, setEventDetails] = useState({
     name: '',
-    room: null,         // selected room object
-    start: null,        // Date
-    end: null,          // Date
+    room: null, // selected room object
+    start: null, // Date
+    end: null, // Date
     maxParticipants: '',
-    points: ''
+    points: '',
+    locationMode: 'in_school', // ✅ 'in_school' | 'outside'
+    locationText: '' // ✅ địa điểm ngoài trường (nhập tay)
   });
 
   // ✅ Gợi ý sự kiện đã đăng trước đó (của chính user)
@@ -108,7 +110,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
 
   const handleEventDetailChange = (e) => {
     const { name, value } = e.target;
-    setEventDetails(prev => ({ ...prev, [name]: value }));
+    setEventDetails((prev) => ({ ...prev, [name]: value }));
   };
 
   const fetchEventTemplatesOnce = async () => {
@@ -178,16 +180,23 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   };
 
   const handleSelectTemplate = async ({ post, su_kien }) => {
-    // ✅ Điền sẵn phòng, số người, điểm + kế hoạch
+    // ✅ Điền sẵn phòng, số người, điểm thưởng và kế hoạch
     const roomResolved = await resolveRoomFromTemplate(su_kien);
 
-    setEventDetails((prev) => ({
-      ...prev,
-      name: su_kien?.ten_su_kien || prev.name,
-      room: roomResolved?.ten_phong ? roomResolved : prev.room,
-      maxParticipants: su_kien?.so_luong_toi_da ?? prev.maxParticipants,
-      points: su_kien?.diem_thuong ?? prev.points
-    }));
+    setEventDetails((prev) => {
+      const hasRoom = !!(roomResolved?.ten_phong);
+      const locationMode = hasRoom ? 'in_school' : 'outside';
+
+      return {
+        ...prev,
+        name: su_kien?.ten_su_kien || prev.name,
+        room: hasRoom ? roomResolved : null,
+        locationMode,
+        locationText: !hasRoom ? (su_kien?.dia_diem || prev.locationText) : '',
+        maxParticipants: su_kien?.so_luong_toi_da ?? prev.maxParticipants,
+        points: su_kien?.diem_thuong ?? prev.points
+      };
+    });
 
     setEventPlan(parseKeHoachChiTiet(su_kien?.ke_hoach_chi_tiet));
 
@@ -204,11 +213,30 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   };
 
   const handleRoomChange = (room) => {
-    setEventDetails(prev => ({ ...prev, room }));
+    setEventDetails((prev) => ({
+      ...prev,
+      room,
+      locationMode: 'in_school',
+      locationText: ''
+    }));
   };
 
   const handleDateRangeChange = ({ start, end }) => {
-    setEventDetails(prev => ({ ...prev, start, end }));
+    setEventDetails((prev) => ({ ...prev, start, end }));
+  };
+
+  // ✅ Fallback chọn lịch khi địa điểm ngoài trường (không có phòng/roomId)
+  const handleOutsideDateChange = (key, value) => {
+    const dt = value ? new Date(value) : null;
+    setEventDetails((prev) => {
+      const next = { ...prev, [key]: dt };
+
+      // Nếu end < start thì reset end cho hợp lệ (tránh lỗi UI)
+      if (key === 'start' && next.end && dt && next.end.getTime() < dt.getTime()) {
+        next.end = null;
+      }
+      return next;
+    });
   };
 
   const handleFileSelect = (e) => {
@@ -218,48 +246,54 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       return;
     }
 
-    setSelectedFiles(prev => [...prev, ...files]);
+    setSelectedFiles((prev) => [...prev, ...files]);
 
-    files.forEach(file => {
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrls(prev => [...prev, {
-          url: reader.result,
-          type: file.type.startsWith('image/') ? 'image' : 'video',
-          name: file.name
-        }]);
+        setPreviewUrls((prev) => [
+          ...prev,
+          {
+            url: reader.result,
+            type: file.type.startsWith('image/') ? 'image' : 'video',
+            name: file.name
+          }
+        ]);
       };
       reader.readAsDataURL(file);
     });
   };
 
   const removeFile = (index) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addTask = () => {
-    setEventPlan(prev => ({
+    setEventPlan((prev) => ({
       ...prev,
-      tasks: [...prev.tasks, {
-        id: `t${Date.now()}`,
-        title: '',
-        description: '',
-        assignee: null,
-        deadline: '',
-        order: prev.tasks.length + 1,
-        status: 'todo',
-        attachments: [],
-        result: null,
-        completed_at: null,
-        approved: null,
-        feedback: null
-      }]
+      tasks: [
+        ...prev.tasks,
+        {
+          id: `t${Date.now()}`,
+          title: '',
+          description: '',
+          assignee: null,
+          deadline: '',
+          order: prev.tasks.length + 1,
+          status: 'todo',
+          attachments: [],
+          result: null,
+          completed_at: null,
+          approved: null,
+          feedback: null
+        }
+      ]
     }));
   };
 
   const updateTask = (index, field, value) => {
-    setEventPlan(prev => {
+    setEventPlan((prev) => {
       const newTasks = [...prev.tasks];
       newTasks[index][field] = value;
       return { ...prev, tasks: newTasks };
@@ -267,7 +301,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   };
 
   const removeTask = (index) => {
-    setEventPlan(prev => ({
+    setEventPlan((prev) => ({
       ...prev,
       tasks: prev.tasks.filter((_, i) => i !== index)
     }));
@@ -278,7 +312,16 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     setActiveType(null);
     setSelectedFiles([]);
     setPreviewUrls([]);
-    setEventDetails({ name: '', room: null, start: null, end: null, maxParticipants: '', points: '' });
+    setEventDetails({
+      name: '',
+      room: null,
+      start: null,
+      end: null,
+      maxParticipants: '',
+      points: '',
+      locationMode: 'in_school',
+      locationText: ''
+    });
     setEventPlan({ tasks: [], targetAudience: { voluntary: true, mandatory: [] } });
     setShowEventPlan(false);
   };
@@ -288,20 +331,33 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     setIsSubmitting(true);
     try {
       if (activeType === 'event') {
-        const eventData = {
-          id_nguoi_tao: currentUserId,
-          ten_su_kien: eventDetails.name,
-          mo_ta: content || eventDetails.name,
-          dia_diem: eventDetails.room ? eventDetails.room.ten_phong : (eventDetails.name || ''),
-          id_phong: eventDetails.room?.id || eventDetails.room?.id_phong || null,
-          thoi_gian_bat_dau: eventDetails.start ? eventDetails.start.toISOString() : null,
-          thoi_gian_ket_thuc: eventDetails.end ? eventDetails.end.toISOString() : null,
-          so_luong_toi_da: parseInt(eventDetails.maxParticipants) || null,
-          diem_thuong: parseInt(eventDetails.points) || null,
-          noi_dung_bai_viet: content,
-          ke_hoach_chi_tiet: JSON.stringify(eventPlan)
-        };
-        const response = await taoSuKien(eventData);
+        const diaDiem =
+          eventDetails.room?.ten_phong ||
+          (eventDetails.locationText || '').trim() ||
+          (eventDetails.name || '');
+
+        const idPhong = eventDetails.room?.id || eventDetails.room?.id_phong || null;
+
+        // ✅ gửi multipart để kèm media cho bài viết liên kết sự kiện
+        const formData = new FormData();
+        formData.append('id_nguoi_tao', String(currentUserId));
+        formData.append('ten_su_kien', String(eventDetails.name || ''));
+        formData.append('mo_ta', String(content || eventDetails.name || ''));
+        formData.append('dia_diem', String(diaDiem || ''));
+        if (idPhong != null) formData.append('id_phong', String(idPhong));
+
+        if (eventDetails.start) formData.append('thoi_gian_bat_dau', eventDetails.start.toISOString());
+        if (eventDetails.end) formData.append('thoi_gian_ket_thuc', eventDetails.end.toISOString());
+
+        if (eventDetails.maxParticipants) formData.append('so_luong_toi_da', String(parseInt(eventDetails.maxParticipants, 10)));
+        if (eventDetails.points) formData.append('diem_thuong', String(parseInt(eventDetails.points, 10)));
+
+        formData.append('noi_dung_bai_viet', String(content || ''));
+        formData.append('ke_hoach_chi_tiet', JSON.stringify(eventPlan));
+
+        selectedFiles.forEach((file) => formData.append('media', file));
+
+        const response = await taoSuKien(formData);
         if (response.success) {
           alert('✅ Tạo sự kiện thành công! Đang chờ duyệt.');
           onCreatePost();
@@ -313,7 +369,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
         const formData = new FormData();
         formData.append('id_tac_gia', currentUserId);
         formData.append('noi_dung', content);
-        selectedFiles.forEach(file => formData.append('media', file));
+        selectedFiles.forEach((file) => formData.append('media', file));
         const response = await taoBaiVietVoiMedia(formData);
         if (response.success) {
           alert('✅ Đăng bài thành công!');
@@ -328,9 +384,14 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
     }
   };
 
-  const isSubmitDisabled = isSubmitting || (activeType === 'event'
-    ? !eventDetails.name || !eventDetails.room || !eventDetails.start
-    : !content.trim() && selectedFiles.length === 0);
+  const hasLocation =
+    !!eventDetails.room || (eventDetails.locationMode === 'outside' && (eventDetails.locationText || '').trim().length > 0);
+
+  const isSubmitDisabled =
+    isSubmitting ||
+    (activeType === 'event'
+      ? !eventDetails.name || !hasLocation || !eventDetails.start
+      : !content.trim() && selectedFiles.length === 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -372,6 +433,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
           <h3 className="text-md font-semibold text-cyan-800 flex items-center mb-4">
             <Calendar size={18} className="mr-2" />Thông tin sự kiện
           </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative" ref={templateRef}>
               <input
@@ -423,44 +485,138 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
               )}
             </div>
 
-            {/* Room combo box */}
-            <div>
-              <RoomComboBox
-                value={eventDetails.room}
-                onChange={handleRoomChange}
-                placeholder="Tìm và chọn phòng trong trường..."
-              />
-              {eventDetails.room && <div className="text-xs text-gray-600 mt-1">Đã chọn: <strong>{eventDetails.room.ten_phong}</strong></div>}
+            {/* ✅ Chọn loại địa điểm */}
+            <div className="md:col-span-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEventDetails((prev) => ({
+                      ...prev,
+                      locationMode: 'in_school',
+                      locationText: ''
+                    }))
+                  }
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    eventDetails.locationMode === 'in_school'
+                      ? 'bg-cyan-600 text-white border-cyan-600'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  Trong trường (chọn phòng)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEventDetails((prev) => ({
+                      ...prev,
+                      locationMode: 'outside',
+                      room: null // ✅ ngoài trường thì không cần room
+                    }))
+                  }
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    eventDetails.locationMode === 'outside'
+                      ? 'bg-cyan-600 text-white border-cyan-600'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  Ngoài trường (nhập địa điểm)
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Nếu sự kiện tổ chức ngoài trường, bạn vẫn có thể chọn lịch bình thường.
+              </p>
             </div>
 
-            {/* DateTime picker - hiển thị sau khi chọn phòng */}
-            <div className="md:col-span-2">
-              {eventDetails.room ? (
-                <EventDateTimePicker
-                  start={eventDetails.start}
-                  end={eventDetails.end}
-                  onChange={handleDateRangeChange}
-                  onApply={({ start, end }) => handleDateRangeChange({ start, end })}
-                  onCancel={() => {
-                    // optional: keep current selection or reset to previous
-                    // here we do nothing
-                  }}
-                  roomId={eventDetails.room?.id || eventDetails.room?.id_phong}
-                  minDate={new Date()}
+            {/* Room combo box hoặc địa điểm ngoài trường */}
+            {eventDetails.locationMode === 'in_school' ? (
+              <div className="md:col-span-2">
+                <RoomComboBox value={eventDetails.room} onChange={handleRoomChange} placeholder="Tìm và chọn phòng trong trường..." />
+                {eventDetails.room && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    Đã chọn: <strong>{eventDetails.room.ten_phong}</strong>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  name="locationText"
+                  value={eventDetails.locationText}
+                  onChange={handleEventDetailChange}
+                  placeholder="Nhập địa điểm ngoài trường (VD: Nhà văn hoá Q.9, Công ty ABC...)"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
+              </div>
+            )}
+
+            {/* ✅ Chọn lịch: dùng EventDateTimePicker khi có phòng, fallback khi ngoài trường */}
+            <div className="md:col-span-2">
+              {eventDetails.locationMode === 'in_school' ? (
+                eventDetails.room ? (
+                  <EventDateTimePicker
+                    start={eventDetails.start}
+                    end={eventDetails.end}
+                    onChange={handleDateRangeChange}
+                    onApply={({ start, end }) => handleDateRangeChange({ start, end })}
+                    onCancel={() => {}}
+                    roomId={eventDetails.room?.id || eventDetails.room?.id_phong}
+                    minDate={new Date()}
+                  />
+                ) : (
+                  <div className="p-3 border border-dashed border-gray-200 rounded text-sm text-gray-500">
+                    Vui lòng chọn phòng trước khi chọn thời gian.
+                  </div>
+                )
               ) : (
-                <div className="p-3 border border-dashed border-gray-200 rounded text-sm text-gray-500">
-                  Vui lòng chọn phòng trước khi chọn thời gian.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Thời gian bắt đầu</label>
+                    <input
+                      type="datetime-local"
+                      value={eventDetails.start ? new Date(eventDetails.start).toISOString().slice(0, 16) : ''}
+                      onChange={(e) => handleOutsideDateChange('start', e.target.value)}
+                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Thời gian kết thúc (tuỳ chọn)</label>
+                    <input
+                      type="datetime-local"
+                      value={eventDetails.end ? new Date(eventDetails.end).toISOString().slice(0, 16) : ''}
+                      min={eventDetails.start ? new Date(eventDetails.start).toISOString().slice(0, 16) : undefined}
+                      onChange={(e) => handleOutsideDateChange('end', e.target.value)}
+                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
               )}
             </div>
 
-            <input type="number" name="maxParticipants" value={eventDetails.maxParticipants} onChange={handleEventDetailChange} placeholder="Số người tối đa"
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-            <input type="number" name="points" value={eventDetails.points} onChange={handleEventDetailChange} placeholder="Điểm thưởng"
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <input
+              type="number"
+              name="maxParticipants"
+              value={eventDetails.maxParticipants}
+              onChange={handleEventDetailChange}
+              placeholder="Số người tối đa"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              type="number"
+              name="points"
+              value={eventDetails.points}
+              onChange={handleEventDetailChange}
+              placeholder="Điểm thưởng"
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
           </div>
-          <button onClick={() => setShowEventPlan(true)} className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
+
+          <button
+            onClick={() => setShowEventPlan(true)}
+            className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2"
+          >
             Tiếp theo: Tạo kế hoạch <ChevronRight size={18} />
           </button>
         </div>

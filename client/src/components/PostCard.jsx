@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreHorizontal, Trash2, Edit, X, Image as ImageIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PostActions from './PostActions';
 import ImageGalleryModal from './ImageGalleryModal';
 import SharedPostPreview from './SharedPostPreview';
@@ -25,6 +26,7 @@ const PostCard = ({
 
   const dropdownRef = useRef(null);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -138,26 +140,39 @@ const PostCard = ({
   const displayMedia = post.media_urls?.slice(0, 2) || [];
   const remainingCount = mediaCount - 2;
 
+  const handleOpenAuthorProfile = (e) => {
+    e?.stopPropagation?.();
+
+    // ✅ Ưu tiên id chuẩn từ post.id_tac_gia, fallback sang post.tac_gia.id
+    const authorId = post?.id_tac_gia ?? post?.tac_gia?.id;
+    if (authorId == null) return;
+
+    // ✅ Luôn điều hướng theo dạng /profile/:id để không phụ thuộc route /profile có tồn tại hay không
+    navigate(`/profile/${authorId}`);
+  };
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4 hover:shadow-md transition-shadow">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={handleOpenAuthorProfile}
+            className="flex items-center space-x-3 text-left group cursor-pointer"
+            aria-label="Xem trang cá nhân"
+          >
             <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
               {post.tac_gia.ho_ten.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
             </div>
-          
+
             <div>
-              <h4 className="font-semibold text-gray-900">{post.tac_gia.ho_ten} </h4>
+              <h4 className="font-semibold text-gray-900">
+                {post.tac_gia.ho_ten}
+              </h4>
               <p className="text-xs text-gray-500">{new Date(post.ngay_tao).toLocaleString('vi-VN')}</p>
             </div>
-            {post.nhom && (
-              <div className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100 mt-2">
-                Thuộc nhóm: {post.nhom.ten_hoi_thoai}
-              </div>
-            )}
-          </div>
+          </button>
 
           {isOwner && (
             <div className="relative" ref={dropdownRef}>

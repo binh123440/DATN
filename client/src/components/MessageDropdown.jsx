@@ -3,12 +3,41 @@ import { Search, MoreHorizontal, Edit, Video, Phone, MessageCircle } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { layDanhSachCuocHoiThoai } from '../services/apiService';
 
+const STORAGE_KEY_LAST_SEEN = 'chat:lastSeenByConversation';
+
+const loadLastSeenMap = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LAST_SEEN);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveLastSeenMap = (map) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_LAST_SEEN, JSON.stringify(map || {}));
+  } catch {
+    // ignore
+  }
+};
+
+const toMs = (value) => {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+};
+
 const MessageDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSeenMap, setLastSeenMap] = useState(() => loadLastSeenMap());
   const dropdownRef = useRef(null);
+  const isMountedRef = useRef(true);
   const navigate = useNavigate();
 
   const currentUser = useMemo(() => {
@@ -19,6 +48,25 @@ const MessageDropdown = () => {
       return null;
     }
   }, []);
+
+  const isConversationUnread = (conversation) => {
+    const uid = currentUser?.id ? parseInt(currentUser.id, 10) : null;
+    if (!uid) return false;
+
+    const lastMessage = conversation?.tin_nhan?.[0];
+    if (!lastMessage) return false;
+
+    // Tin nhắn do mình gửi thì không tính là chưa đọc
+    if (lastMessage?.nguoi_gui?.id === uid) return false;
+
+    const convId = String(conversation?.id ?? '');
+    const lastSeen = toMs(lastSeenMap?.[convId]);
+    const lastMsgTime = toMs(lastMessage?.thoi_gian_gui);
+
+    // Nếu không có lastSeen => xem như chưa đọc
+    if (!lastSeen || !lastMsgTime) return true;
+    return lastMsgTime > lastSeen;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,42 +80,109 @@ const MessageDropdown = () => {
   }, []);
 
   useEffect(() => {
-    if (isOpen) fetchConversations();
-  }, [isOpen]);
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  const fetchConversations = async () => {
+  // ✅ Mở dropdown = xem hết: cập nhật lastSeen cho tất cả cuộc hội thoại theo tin nhắn mới nhất
+  const markAllAsSeen = (convs = []) => {
+    const list = Array.isArray(convs) ? convs : [];
+    const nowIso = new Date().toISOString();
+
+    setLastSeenMap((prev) => {
+      const next = { ...(prev || {}) };
+
+      for (const conv of list) {
+        const convId = String(conv?.id ?? '');
+        if (!convId) continue;
+
+        const lastMessage = conv?.tin_nhan?.[0];
+        next[convId] = lastMessage?.thoi_gian_gui || nowIso;
+      }
+
+      saveLastSeenMap(next);
+      return next;
+    });
+
+    // badge về 0 ngay, tránh nhấp nháy trong lúc chờ state lastSeenMap cập nhật
+    setUnreadCount(0);
+  };
+
+  const fetchConversations = async ({ silent = false, markSeen = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+
       const res = await layDanhSachCuocHoiThoai();
       // API trả về { success: true, data: [...] }
       const data = res?.success ? res.data : (res?.data ?? []);
-      setConversations(data || []);
-      computeUnread(data || []);
+      if (!isMountedRef.current) return;
+
+      const list = data || [];
+
+      if (!silent) setConversations(list);
+
+      // ✅ Nếu đang mở dropdown thì coi như đã xem hết ngay
+      if (markSeen) {
+        markAllAsSeen(list);
+      } else {
+        computeUnread(list);
+      }
     } catch (err) {
       console.error('Lỗi lấy cuộc hội thoại:', err);
-      setConversations([]);
-      setUnreadCount(0);
+      if (!isMountedRef.current) return;
+
+      if (!silent) {
+        setConversations([]);
+        setUnreadCount(0);
+      }
     } finally {
-      setLoading(false);
+      if (!silent && isMountedRef.current) setLoading(false);
     }
   };
 
+  // Polling: cập nhật badge tin nhắn mỗi 5 giây
+  useEffect(() => {
+    // ✅ mở dropdown = xem hết => markSeen: true
+    fetchConversations({ silent: !isOpen, markSeen: isOpen });
+
+    const intervalId = setInterval(() => {
+      fetchConversations({ silent: !isOpen, markSeen: isOpen });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Khi lastSeenMap đổi (do mở dropdown hoặc click) => cập nhật badge lại (an toàn)
+  useEffect(() => {
+    computeUnread(conversations);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSeenMap]);
+
   // Heuristic: nếu tin nhắn cuối cùng được gửi bởi người khác => có khả năng chưa đọc
   const computeUnread = (convs = []) => {
-    const uid = currentUser?.id ? parseInt(currentUser.id, 10) : null;
-    if (!uid) {
-      setUnreadCount(0);
-      return;
-    }
-    const count = convs.reduce((acc, c) => {
-      const last = c.tin_nhan?.[0];
-      if (last && last.nguoi_gui && last.nguoi_gui.id !== uid) return acc + 1;
-      return acc;
+    const count = (Array.isArray(convs) ? convs : []).reduce((acc, c) => {
+      return isConversationUnread(c) ? acc + 1 : acc;
     }, 0);
     setUnreadCount(count);
   };
 
   const handleOpenConversation = (conv) => {
+    // Đánh dấu đã xem ngay khi click để badge cập nhật liền
+    const convId = String(conv?.id ?? '');
+    const lastMessage = conv?.tin_nhan?.[0];
+    const seenValue = lastMessage?.thoi_gian_gui || new Date().toISOString();
+
+    if (convId) {
+      setLastSeenMap((prev) => {
+        const next = { ...(prev || {}), [convId]: seenValue };
+        saveLastSeenMap(next);
+        return next;
+      });
+    }
+
     setIsOpen(false);
     navigate(`/chat?conversation=${conv.id}`);
   };
@@ -88,7 +203,7 @@ const MessageDropdown = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-2xl z-40 overflow-hidden">
+        <div className="absolute right-2 sm:right-0 mt-2 w-[calc(100vw-1rem)] max-w-sm sm:w-96 bg-white rounded-lg shadow-2xl z-40 overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-2xl font-bold text-gray-900">Chats</h2>
@@ -131,7 +246,7 @@ const MessageDropdown = () => {
             </div>
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[70vh] sm:max-h-96 overflow-y-auto">
             <div className="px-2 py-1">
               {loading ? (
                 <div className="flex items-center justify-center h-24">
@@ -142,19 +257,25 @@ const MessageDropdown = () => {
               ) : (
                 conversations.map((conversation) => {
                   const lastMessage = conversation.tin_nhan?.[0];
-                  const isUnread = lastMessage && lastMessage.nguoi_gui?.id !== (currentUser?.id ?? null);
+                  const isUnread = isConversationUnread(conversation);
                   const otherMember = conversation.thanh_vien?.find(tv => tv.nguoi_dung && tv.nguoi_dung.id !== (currentUser?.id ?? null));
-                  const displayUser = conversation.loai === 'nhom' ? { name: conversation.ten_hoi_thoai } : (otherMember?.nguoi_dung || { ho_ten: 'Người dùng' });
+                  const displayUser = conversation.loai === 'nhom'
+                    ? { name: conversation.ten_hoi_thoai }
+                    : (otherMember?.nguoi_dung || { ho_ten: 'Người dùng' });
 
                   return (
                     <button
                       key={conversation.id}
                       onClick={() => handleOpenConversation(conversation)}
-                      className={`flex items-center p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors ${isUnread ? 'bg-blue-50' : ''}`}
+                      className={`w-full flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors ${isUnread ? 'bg-blue-50' : ''}`}
                     >
                       <div className="relative flex-shrink-0">
                         {displayUser?.anh_dai_dien_url ? (
-                          <img src={displayUser.anh_dai_dien_url} alt={displayUser.ho_ten || displayUser.name} className="w-14 h-14 rounded-full object-cover" />
+                          <img
+                            src={displayUser.anh_dai_dien_url}
+                            alt={displayUser.ho_ten || displayUser.name}
+                            className="w-14 h-14 rounded-full object-cover"
+                          />
                         ) : (
                           <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-lg">
                             {(displayUser.ho_ten || displayUser.name || 'U')[0]?.toUpperCase()}
@@ -165,22 +286,25 @@ const MessageDropdown = () => {
                         )}
                       </div>
 
-                      <div className="ml-3 flex-1 min-w-0 text-left">
-                        <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center justify-between gap-2">
                           <h3 className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-normal'} text-gray-900`}>
                             {conversation.loai === 'nhom' ? conversation.ten_hoi_thoai : (displayUser.ho_ten || displayUser.name)}
                           </h3>
-                          <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                          <span className="text-xs text-gray-500 flex-shrink-0 hidden sm:inline">
                             {lastMessage ? new Date(lastMessage.thoi_gian_gui).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
+
                         <p className={`text-sm truncate ${isUnread ? 'font-semibold text-gray-900' : 'text-gray-600'} mt-0.5`}>
-                          {lastMessage ? (lastMessage.nguoi_gui?.id === currentUser?.id ? 'Bạn: ' : '') + lastMessage.noi_dung : 'Không có tin nhắn'}
+                          {lastMessage
+                            ? (lastMessage.nguoi_gui?.id === currentUser?.id ? 'Bạn: ' : '') + lastMessage.noi_dung
+                            : 'Không có tin nhắn'}
                         </p>
                       </div>
 
                       {isUnread && (
-                        <div className="ml-2">
+                        <div className="flex-shrink-0">
                           <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
                         </div>
                       )}

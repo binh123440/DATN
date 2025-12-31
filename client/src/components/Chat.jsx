@@ -87,6 +87,24 @@ const Chat = () => {
     };
   }, []);
 
+  // ✅ Khi socket reconnect, join lại phòng và sync lại messages để tránh "đứng" UI
+  useEffect(() => {
+    if (!socketConnected) return;
+    if (!selectedConversation?.id) return;
+
+    socketService.joinConversation(selectedConversation.id);
+
+    // Sync lại tin nhắn (đề phòng mất event trong lúc reconnect)
+    (async () => {
+      try {
+        const response = await layTinNhanTrongCuocHoiThoai(selectedConversation.id);
+        setMessages(response?.data?.tin_nhans || []);
+      } catch (error) {
+        console.error('Lỗi sync tin nhắn sau reconnect:', error);
+      }
+    })();
+  }, [socketConnected, selectedConversation?.id]);
+
   useEffect(() => {
     const conversationId = searchParams.get('conversation');
     if (conversationId && conversations.length > 0) {
@@ -144,13 +162,13 @@ const Chat = () => {
 
     socketService.onNewMessage(handleNewMessage);
 
-    socketService.onUserTyping(({ userId, conversationId }) => {
+    const handleUserTyping = ({ userId, conversationId }) => {
       if (selectedConversation?.id === conversationId && userId !== currentUserId) {
         setTypingUsers(prev => new Set(prev).add(userId));
       }
-    });
+    };
 
-    socketService.onUserStopTyping(({ userId, conversationId }) => {
+    const handleUserStopTyping = ({ userId, conversationId }) => {
       if (selectedConversation?.id === conversationId) {
         setTypingUsers(prev => {
           const newSet = new Set(prev);
@@ -158,13 +176,17 @@ const Chat = () => {
           return newSet;
         });
       }
-    });
+    };
+
+    socketService.onUserTyping(handleUserTyping);
+    socketService.onUserStopTyping(handleUserStopTyping);
 
     return () => {
       socketService.offNewMessage(handleNewMessage);
-      socketService.offNewMessage(); // safety: remove any remaining listeners if implementation hỗ trợ
+      socketService.offUserTyping(handleUserTyping);
+      socketService.offUserStopTyping(handleUserStopTyping);
     };
-  }, [selectedConversation, currentUserId, currentUser, selectedConversation?.id]);
+  }, [selectedConversation?.id, currentUserId, currentUser]);
 
   useEffect(() => {
     scrollToBottom();

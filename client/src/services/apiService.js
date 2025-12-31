@@ -111,7 +111,11 @@ export const layDanhSachSuKien = async (page = 1, limit = 10) => {
 
 export const taoSuKien = async (data) => {
   try {
-    const response = await apiClient.post('/su-kien', data);
+    const response = await apiClient.post('/su-kien', data, {
+      headers: {
+        'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Lỗi khi tạo sự kiện:', error);

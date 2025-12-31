@@ -22,6 +22,7 @@ import {
   laySuKienTheoKhoang
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
+import upload from '../middleware/upload.js';
 
 const router = Router();
 
@@ -58,7 +59,11 @@ router.get('/', layDanhSachSuKien);
 router.get('/range', laySuKienTheoKhoang);
 
 // POST /api/su-kien - Tạo sự kiện mới
-router.post('/', xacThucToken, taoSuKien);
+router.post(
+  '/',
+  upload.array('media', 10),
+  taoSuKien
+);
 
 // PUT /api/su-kien/:id - Cập nhật sự kiện
 router.put('/:id', xacThucToken, capNhatSuKien);

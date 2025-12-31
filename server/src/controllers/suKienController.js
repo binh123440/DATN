@@ -19,7 +19,7 @@ export const layDanhSachSuKien = async (req, res) => {
         {
           model: BaiViet,
           as: 'bai_viet',
-          where: { trang_thai: 'da_duyet' }, // ✅ Bài viết đã được duyệt
+          where: { trang_thai: 'da_dang' }, // ✅ Bài viết đã được duyệt
           required: true
         },
         {
@@ -90,35 +90,47 @@ export const taoSuKien = async (req, res) => {
       } catch (parseError) {
         console.error('❌ Lỗi parse JSON:', parseError);
         await transaction.rollback();
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Dữ liệu kế hoạch không hợp lệ' 
+        return res.status(400).json({
+          success: false,
+          message: 'Dữ liệu kế hoạch không hợp lệ'
         });
       }
     }
 
-    // ✅ 1. Tạo bài viết với trạng thái cho_duyet (chưa đăng)
-    const baiViet = await BaiViet.create({
-      id_tac_gia: id_nguoi_tao,
-      noi_dung: noi_dung_bai_viet || mo_ta || `Sự kiện: ${ten_su_kien}`,
-      trang_thai: 'cho_duyet' // Chưa được đăng công khai
-    }, { transaction });
+    // ✅ nhận media từ multipart (nếu có)
+    const media_urls = req.files && req.files.length > 0 ? buildMediaFromFiles(req.files) : [];
+    const media_type = detectMediaType(media_urls);
+
+    // ✅ 1. Tạo bài viết với trạng thái cho_duyet (chưa đăng) + media
+    const baiViet = await BaiViet.create(
+      {
+        id_tac_gia: id_nguoi_tao,
+        noi_dung: noi_dung_bai_viet || mo_ta || `Sự kiện: ${ten_su_kien}`,
+        trang_thai: 'cho_duyet',
+        media_urls: media_urls.length > 0 ? media_urls : [],
+        media_type
+      },
+      { transaction }
+    );
 
     // ✅ 2. Tạo sự kiện với trạng thái ban_nhap
-    const suKien = await SuKien.create({
-      id_nguoi_tao,
-      id_bai_viet: baiViet.id,
-      ten_su_kien,
-      mo_ta,
-      dia_diem,
-      thoi_gian_bat_dau,
-      thoi_gian_ket_thuc,
-      so_luong_toi_da,
-      diem_thuong,
-      id_phong,
-      trang_thai: 'ban_nhap', // Kế hoạch đang soạn thảo
-      ke_hoach_chi_tiet: keHoachData || {}
-    }, { transaction });
+    const suKien = await SuKien.create(
+      {
+        id_nguoi_tao,
+        id_bai_viet: baiViet.id,
+        ten_su_kien,
+        mo_ta,
+        dia_diem,
+        thoi_gian_bat_dau,
+        thoi_gian_ket_thuc,
+        so_luong_toi_da,
+        diem_thuong,
+        id_phong,
+        trang_thai: 'ban_nhap', // Kế hoạch đang soạn thảo
+        ke_hoach_chi_tiet: keHoachData || {}
+      },
+      { transaction }
+    );
 
     // ✅ 3. Gửi thông báo cho người được giao task
     if (keHoachData?.tasks?.length > 0) {
@@ -1445,4 +1457,23 @@ export const laySuKienTheoKhoang = async (req, res) => {
     console.error('suKienController.laySuKienTheoKhoang error:', error);
     return res.status(500).json({ success: false, message: 'Lỗi server khi lấy sự kiện' });
   }
+};
+
+// ✅ giữ cách build media giống baiVietController
+const buildMediaFromFiles = (files) => {
+  return (files || []).map((file) => ({
+    url: file.path,
+    public_id: file.filename,
+    resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image'
+  }));
+};
+
+const detectMediaType = (mediaArray) => {
+  if (!mediaArray || mediaArray.length === 0) return null;
+  const hasImage = mediaArray.some((m) => m.resource_type === 'image');
+  const hasVideo = mediaArray.some((m) => m.resource_type === 'video');
+  if (hasImage && hasVideo) return 'mixed';
+  if (hasVideo) return 'video';
+  if (hasImage) return 'image';
+  return null;
 };

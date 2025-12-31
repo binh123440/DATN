@@ -32,7 +32,9 @@ const io = new Server(httpServer, {
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  pingInterval: 25000,
+  pingTimeout: 60000
 });
 
 // Middleware
