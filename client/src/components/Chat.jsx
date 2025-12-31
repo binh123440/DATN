@@ -98,13 +98,51 @@ const Chat = () => {
   }, [searchParams, conversations]);
 
   useEffect(() => {
-    socketService.onNewMessage((message) => {
-      if (selectedConversation && message.id_cuoc_hoi_thoai === selectedConversation.id) {
-        setMessages(prev => [...prev, message]);
+    const handleNewMessage = (message) => {
+      const convId = message.id_cuoc_hoi_thoai;
+      const senderId = message.nguoi_gui?.id ?? message.id_nguoi_gui ?? null;
+      const normalized = {
+        ...message,
+        nguoi_gui: message.nguoi_gui ?? (senderId ? { id: senderId } : undefined),
+        thoi_gian_gui: message.thoi_gian_gui || new Date().toISOString()
+      };
+
+      setConversations(prevConvs => {
+        const idx = prevConvs.findIndex(c => c.id === convId);
+        if (idx === -1) {
+          // nếu chưa có conversation, thêm tạm
+          return [{ id: convId, tin_nhan: [normalized], ten_hoi_thoai: 'Cuộc trò chuyện mới' }, ...prevConvs];
+        } else {
+          // cập nhật last message của conversation, đẩy về đầu
+          const updated = [...prevConvs];
+          updated[idx] = { ...updated[idx], tin_nhan: [normalized] };
+          const [item] = updated.splice(idx, 1);
+          return [item, ...updated];
+        }
+      });
+
+      // Nếu đang xem conversation này -> thêm vào messages (không trùng)
+      if (selectedConversation && convId === selectedConversation.id) {
+        setMessages(prevMsgs => {
+          // dedupe nếu message đã tồn tại (dựa trên id nếu có, fallback trên thời gian + nội dung)
+          const exists = normalized.id
+            ? prevMsgs.some(m => m.id === normalized.id)
+            : prevMsgs.some(m => m.thoi_gian_gui === normalized.thoi_gian_gui && m.noi_dung === normalized.noi_dung);
+          if (exists) return prevMsgs;
+          return [...prevMsgs, normalized];
+        });
         scrollToBottom();
       }
-      fetchConversations();
-    });
+
+      // tăng badge chưa đọc chỉ khi người gửi khác user hiện tại
+      const uid = currentUser?.id ? parseInt(currentUser.id, 10) : null;
+      if (senderId && uid && senderId !== uid) {
+        // bạn có thể dùng logic tinh toán lại từ conversations, ở đây tạm tăng 1
+        // (MessageDropdown cũng nên lắng nghe socket để cập nhật tổng số)
+      }
+    };
+
+    socketService.onNewMessage(handleNewMessage);
 
     socketService.onUserTyping(({ userId, conversationId }) => {
       if (selectedConversation?.id === conversationId && userId !== currentUserId) {
@@ -121,7 +159,12 @@ const Chat = () => {
         });
       }
     });
-  }, [selectedConversation, currentUserId]);
+
+    return () => {
+      socketService.offNewMessage(handleNewMessage);
+      socketService.offNewMessage(); // safety: remove any remaining listeners if implementation hỗ trợ
+    };
+  }, [selectedConversation, currentUserId, currentUser, selectedConversation?.id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -218,7 +261,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-white">
+    <div className="flex h-[calc(100vh-6.5rem)] lg:h-[calc(100vh-5rem)] bg-white overflow-hidden">
       {/* ✅ Hiển thị trạng thái kết nối */}
       {!socketConnected && (
         <div className="absolute top-0 left-0 right-0 bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-800 text-center z-50">
@@ -288,7 +331,7 @@ const Chat = () => {
       </div>
 
       {/* Khu vực chat */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col bg-gray-50 min-h-0">
         {selectedConversation ? (
           <>
             {/* Header chat */}
@@ -314,7 +357,7 @@ const Chat = () => {
             </div>
 
             {/* Tin nhắn */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0">
               {messages.map((msg, index) => {
                 const isOwnMessage = msg.nguoi_gui?.id === currentUserId || msg.id_nguoi_gui === currentUserId;
 

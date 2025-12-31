@@ -88,8 +88,11 @@ class SocketService {
     }
   }
 
-  offNewMessage() {
-    if (this.socket) {
+  offNewMessage(callback) {
+    if (!this.socket) return;
+    if (callback) {
+      this.socket.off('new-message', callback);
+    } else {
       this.socket.off('new-message');
     }
   }

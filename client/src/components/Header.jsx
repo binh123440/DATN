@@ -56,8 +56,13 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
       try {
         setSearchLoading(true);
         const response = await timKiemTongHop(searchValue);
-        if (response.data?.success) {
-          setSearchResults(response.data.data);
+        const payload = response?.data ?? response; // hỗ trợ cả hai dạng
+
+        if (payload?.success) {
+          setSearchResults(payload.data);
+        } else if (payload && (payload.users || payload.groups || payload.posts || payload.events)) {
+          // nếu API trả trực tiếp object { users, groups, ... }
+          setSearchResults(payload);
         } else {
           setSearchResults(null);
         }
