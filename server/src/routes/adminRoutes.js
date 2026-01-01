@@ -4,6 +4,8 @@ import {
   layTatCaNguoiDung,
   capNhatVaiTroNguoiDung,
   resetMatKhauNguoiDung,
+  taoNguoiDungAdmin,
+  xoaNguoiDungAdmin
 } from '../controllers/adminController.js';
 import {
   layDanhSachChoDuyet,
@@ -19,6 +21,8 @@ router.use(xacThucToken, kiemTraVaiTro('quan_tri_vien'));
 router.get('/users', layTatCaNguoiDung);
 router.put('/users/:id/role', capNhatVaiTroNguoiDung);
 router.post('/users/:id/reset-password', resetMatKhauNguoiDung);
+router.post('/users', taoNguoiDungAdmin);
+router.delete('/users/:id', xoaNguoiDungAdmin);
 
 // ==================== DUYỆT NỘI DUNG ====================
 router.get('/pending-content', layDanhSachChoDuyet);

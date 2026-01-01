@@ -1,79 +1,80 @@
 import jwt from 'jsonwebtoken';
+import db from '../models/index.js';
 
-/**
- * Middleware xác thực JWT token
- */
-export const xacThucToken = (req, res, next) => {
+const { NguoiDung } = db;
+
+const normalizeRoles = (vai_tro) => {
+  if (!vai_tro) return [];
+
+  // Sequelize chuẩn sẽ là array: ['quan_tri_vien', ...]
+  if (Array.isArray(vai_tro)) return vai_tro;
+
+  // Một số trường hợp có thể dính dạng string kiểu "{quan_tri_vien}"
+  if (typeof vai_tro === 'string') {
+    const s = vai_tro.trim();
+    if (s.startsWith('{') && s.endsWith('}')) {
+      const inner = s.slice(1, -1).trim();
+      if (!inner) return [];
+      return inner.split(',').map((x) => x.trim()).filter(Boolean);
+    }
+    return [s];
+  }
+
+  return [];
+};
+
+export const xacThucToken = async (req, res, next) => {
   try {
-    // Lấy token từ header Authorization
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Không tìm thấy token xác thực'
+        message: 'Thiếu token xác thực'
       });
     }
 
-    const token = authHeader.substring(7); // Bỏ "Bearer "
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Verify token
-    const decoded = jwt.verify(
-      token, 
-      process.env.JWT_SECRET || 'ute-social-secret-key-2024'
-    );
+    // ✅ Load user từ DB để có vai_tro (vì token thường chỉ có id)
+    const nguoiDung = await NguoiDung.findByPk(decoded.id, {
+      attributes: ['id', 'vai_tro']
+    });
 
-    // Lưu toàn bộ thông tin đã giải mã vào req.user
-    req.user = decoded;
+    if (!nguoiDung) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ hoặc người dùng không tồn tại'
+      });
+    }
+
+    const roles = normalizeRoles(nguoiDung.vai_tro);
+
+    // ✅ Chuẩn hoá cho toàn project
+    req.user = { id: nguoiDung.id, vai_tro: roles };
+    req.userId = nguoiDung.id;
 
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token đã hết hạn'
-      });
-    }
-
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token không hợp lệ'
-      });
-    }
-
-    // Lỗi không xác định khác
-    console.error('Lỗi xác thực token:', error);
-    return res.status(500).json({
+    console.error('❌ xacThucToken error:', error);
+    return res.status(401).json({
       success: false,
-      message: 'Lỗi server khi xác thực token'
+      message: 'Token không hợp lệ hoặc đã hết hạn'
     });
   }
 };
 
-/**
- * Middleware kiểm tra vai trò
- */
 export const kiemTraVaiTro = (...allowedRoles) => {
-  // nếu truyền 1 mảng vào như kiemTraVaiTro(['a','b']) cũng hợp lệ
-  const rolesToCheck = Array.isArray(allowedRoles[0]) ? allowedRoles[0] : allowedRoles;
-
   return (req, res, next) => {
-    const userRoles = req.user?.vai_tro;
+    const roles = normalizeRoles(req.user?.vai_tro);
 
-    // nếu không có vai trò -> chặn
-    if (!userRoles) {
-      return res.status(403).json({ success: false, message: 'Không có quyền' });
-    }
-
-    // chuẩn hóa userRoles thành mảng
-    const userRolesArr = Array.isArray(userRoles) ? userRoles : [userRoles];
-
-    // kiểm tra giao nhau
-    const ok = userRolesArr.some(r => rolesToCheck.includes(r));
-
+    const ok = allowedRoles.some((r) => roles.includes(r));
     if (!ok) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền truy cập'
+      });
     }
 
     next();

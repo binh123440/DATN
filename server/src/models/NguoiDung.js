@@ -19,6 +19,12 @@ const NguoiDung = sequelize.define('NguoiDung', {
       isEmail: true
     }
   },
+  // Thông tin định danh (SV)
+  ma_sinh_vien: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    unique: true
+  },
   mat_khau_bam: {
     type: DataTypes.STRING(255),
     allowNull: false

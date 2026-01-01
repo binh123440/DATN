@@ -21,7 +21,7 @@ CREATE TYPE trang_thai_noi_dung_enum AS ENUM ('cho_duyet', 'da_duyet', 'bi_tu_ch
 CREATE TYPE trang_thai_dang_ky_enum AS ENUM ('da_dang_ky', 'da_huy');
 CREATE TYPE media_type_enum AS ENUM ('image', 'video', 'mixed');
 CREATE TYPE trang_thai_phong_enum AS ENUM ('maintenance', 'active', 'occupied');
-CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui','da_duyet','tu_choi','da_dang');
+CREATE TYPE trang_thai_su_kien_enum AS ENUM ('ban_nhap','da_gui','da_duyet','tu_choi','da_dang','bi_tu_choi');
 
 -- === TẠO CÁC BẢNG ===
 

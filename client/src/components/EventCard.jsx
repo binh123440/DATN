@@ -1,10 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom'; // Thêm Link
 import { Calendar, MapPin, Users, Gift, QrCode as QrCodeIcon, X, ScanLine, Check, BarChart3 } from 'lucide-react'; // Thêm BarChart3
 import QRCode from 'react-qr-code';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { dangKySuKien, kiemTraDangKySuKien, diemDanhSuKien } from '../services/apiService';
 import * as geolib from 'geolib';
+
+const parseTargetAudienceFromPlan = (raw) => {
+  if (!raw) return { voluntary: true, roles: [], khoa_ids: [] };
+
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw);
+    } catch {
+      obj = null;
+    }
+  }
+  if (!obj || typeof obj !== 'object') return { voluntary: true, roles: [], khoa_ids: [] };
+
+  const ta = obj.targetAudience || obj.target_audience || {};
+  const khoaIds =
+    Array.isArray(ta.khoa_ids) ? ta.khoa_ids :
+    Array.isArray(ta.khoaIds) ? ta.khoaIds : [];
+
+  return {
+    voluntary: ta.voluntary !== false,
+    roles: Array.isArray(ta.roles) ? ta.roles : [],
+    khoa_ids: khoaIds
+  };
+};
 
 // --- Component con: QrCodeScanner ---
 const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
@@ -33,7 +58,7 @@ const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
 
 
 // --- Component chính: EventCard ---
-const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) => {
+const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, onRefresh }) => {
   // ✅ BƯỚC 1: Tạo state cục bộ cho dữ liệu sự kiện
   const [event, setEvent] = useState(initialEvent);
 
@@ -52,7 +77,73 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
   const [isRegistering, setIsRegistering] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
-  const isEventOrganizer = event.id_nguoi_tao === currentUserId;
+  const toNumberOrNull = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const hasRole = (roleKey) => {
+    if (!userRole) return false;
+    if (Array.isArray(userRole)) return userRole.includes(roleKey);
+    return String(userRole) === roleKey;
+  };
+
+  // ✅ Fix: xác định đúng "người tổ chức"
+  const isEventOrganizer = useMemo(() => {
+    const creatorIdRaw =
+      event?.id_nguoi_tao ??
+      event?.nguoi_tao?.id ??
+      event?.bai_viet?.id_tac_gia ??
+      event?.id_tac_gia ??
+      null;
+
+    const creatorId = creatorIdRaw !== null && creatorIdRaw !== undefined ? Number(creatorIdRaw) : null;
+    const me = currentUserId !== null && currentUserId !== undefined ? Number(currentUserId) : null;
+
+    const isCreator = creatorId !== null && me !== null && creatorId === me;
+
+    // Nếu bạn muốn BGH/Trưởng phòng (admin/quan_tri_vien) cũng được quyền quét mã, giữ đoạn này:
+    const isPrivileged = hasRole('admin') || hasRole('quan_tri_vien') || hasRole('kiem_duyet_vien');
+
+    return isCreator || isPrivileged;
+  }, [event, currentUserId, userRole]);
+
+  const currentUserRole = currentUser?.vai_tro || userRole;
+  const currentUserKhoaId =
+    currentUser?.id_khoa ??
+    currentUser?.khoa?.id ??
+    currentUser?.nganh?.khoa?.id ??
+    null;
+
+  const targetAudience = useMemo(() => {
+    return parseTargetAudienceFromPlan(event?.ke_hoach_chi_tiet);
+  }, [event?.ke_hoach_chi_tiet]);
+
+  const { canRegisterByAudience, audienceBlockReason } = useMemo(() => {
+    const roles = targetAudience?.roles || [];
+    const khoaIds = (targetAudience?.khoa_ids || []).map((x) => Number(x)).filter((x) => Number.isFinite(x));
+
+    const hasRoleRule = roles.length > 0;
+    const hasKhoaRule = khoaIds.length > 0;
+
+    if (!hasRoleRule && !hasKhoaRule) {
+      return { canRegisterByAudience: true, audienceBlockReason: '' };
+    }
+
+    if (hasRoleRule && !roles.includes(currentUserRole)) {
+      return { canRegisterByAudience: false, audienceBlockReason: 'Không thuộc đối tượng (vai trò)' };
+    }
+
+    if (hasKhoaRule) {
+      const kId = Number(currentUserKhoaId);
+      if (!Number.isFinite(kId) || !khoaIds.includes(kId)) {
+        return { canRegisterByAudience: false, audienceBlockReason: 'Không thuộc đối tượng (khoa)' };
+      }
+    }
+
+    return { canRegisterByAudience: true, audienceBlockReason: '' };
+  }, [targetAudience, currentUserRole, currentUserKhoaId]);
   // // Giả sử bạn có thông tin vai trò từ context hoặc props
   // const isAdmin = userRole === 'admin'; 
 
@@ -275,7 +366,14 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
         <div className="flex space-x-3">
           {isEventOrganizer ? (
             <>
-              <button onClick={handleOpenScanner} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"><ScanLine size={18} /><span>Quét mã</span></button>
+              <button
+                onClick={handleOpenScanner}
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"
+              >
+                <ScanLine size={18} />
+                <span>Quét mã</span>
+              </button>
+
               <Link to={`/events/${event.id}/thong-ke`} className="bg-gray-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-700 transition-all shadow-lg font-medium">
                 <BarChart3 size={18} />
               </Link>
@@ -297,7 +395,20 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, onRefresh }) 
                   </button>
                 )
               ) : (
-                <button onClick={handleRegisterEvent} disabled={isRegistering || isFull || checkingRegistration} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">{isRegistering ? 'Đang đăng ký...' : isFull ? 'Đã hết chỗ' : 'Đăng ký tham gia'}</button>
+                <button
+                  onClick={handleRegisterEvent}
+                  disabled={isRegistering || isFull || checkingRegistration || !canRegisterByAudience}
+                  title={!canRegisterByAudience ? audienceBlockReason : undefined}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRegistering
+                    ? 'Đang đăng ký...'
+                    : isFull
+                      ? 'Đã hết chỗ'
+                      : !canRegisterByAudience
+                        ? 'Không thuộc đối tượng'
+                        : 'Đăng ký tham gia'}
+                </button>
               )}
             </>
           )}

@@ -40,6 +40,7 @@ const EventPostCard = ({
   post,
   currentUserId,
   userRole,
+  currentUser,
   onRefresh,
   isInModal = false,
   onOpenModal,
@@ -520,7 +521,13 @@ const EventPostCard = ({
             )}
 
             {post?.su_kien && (
-              <EventCard event={post.su_kien} currentUserId={currentUserId} userRole={userRole} onRefresh={onRefresh} />
+              <EventCard
+                event={post.su_kien}
+                currentUserId={currentUserId}
+                userRole={userRole}
+                currentUser={currentUser}
+                onRefresh={onRefresh}
+              />
             )}
 
             <div className="mt-4">

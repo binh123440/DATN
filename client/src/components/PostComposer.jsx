@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Calendar, ImagePlus, X, ChevronRight, Users, Trash2, Clock, User, FileText } from 'lucide-react';
-import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong, layBaiVietNguoiDung, layDanhSachPhong } from '../services/apiService';
+import { taoBaiVietVoiMedia, taoSuKien, layDanhSachNguoiPhanCong, layBaiVietNguoiDung, layDanhSachPhong, layDanhSachKhoa } from '../services/apiService';
 import RoomComboBox from './RoomComboBox';
 import EventDateTimePicker from './EventDateTimePicker';
 
@@ -14,20 +14,20 @@ const useDebounce = (value, delay = 250) => {
 };
 
 const parseKeHoachChiTiet = (raw) => {
-  if (!raw) return { tasks: [], targetAudience: { voluntary: true, mandatory: [] } };
+  if (!raw) return { tasks: [], targetAudience: { voluntary: true, mandatory: [], roles: [], khoa_ids: [] } };
 
   let obj = raw;
   if (typeof raw === 'string') {
-    try {
-      obj = JSON.parse(raw);
-    } catch {
-      obj = null;
-    }
+    try { obj = JSON.parse(raw); } catch { obj = null; }
   }
-  if (!obj || typeof obj !== 'object') return { tasks: [], targetAudience: { voluntary: true, mandatory: [] } };
+  if (!obj || typeof obj !== 'object') return { tasks: [], targetAudience: { voluntary: true, mandatory: [], roles: [], khoa_ids: [] } };
 
-  const target = obj.targetAudience || obj.target_audience || { voluntary: true, mandatory: [] };
+  const target = obj.targetAudience || obj.target_audience || {};
   const tasks = Array.isArray(obj.tasks) ? obj.tasks : [];
+
+  const khoaIds =
+    Array.isArray(target.khoa_ids) ? target.khoa_ids :
+    Array.isArray(target.khoaIds) ? target.khoaIds : [];
 
   return {
     tasks: tasks.map((t, idx) => ({
@@ -46,7 +46,9 @@ const parseKeHoachChiTiet = (raw) => {
     })),
     targetAudience: {
       voluntary: target.voluntary !== false,
-      mandatory: Array.isArray(target.mandatory) ? target.mandatory : []
+      mandatory: Array.isArray(target.mandatory) ? target.mandatory : [],
+      roles: Array.isArray(target.roles) ? target.roles : [],
+      khoa_ids: khoaIds
     }
   };
 };
@@ -79,14 +81,29 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   // State cho kế hoạch sự kiện
   const [showEventPlan, setShowEventPlan] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [khoaList, setKhoaList] = useState([]);
+  const [khoaLoading, setKhoaLoading] = useState(false);
   const [eventPlan, setEventPlan] = useState({
     tasks: [],
-    targetAudience: { voluntary: true, mandatory: [] }
+    targetAudience: { voluntary: true, mandatory: [], roles: [], khoa_ids: [] }
   });
+
+  const roleOptions = useMemo(() => ([
+    {
+      key: 'dieu_phoi_vien',
+      label: 'Cán bộ, nhân viên trong trường',
+      expandRoles: ['dieu_phoi_vien', 'giao_vien', 'quan_tri_vien']
+    },
+    { key: 'giao_vien', label: 'Giảng viên' },
+    { key: 'sinh_vien', label: 'Sinh viên' },
+    { key: 'doanh_nghiep', label: 'Doanh nghiệp' },
+    { key: 'quan_tri_vien', label: 'Quản trị viên' }
+  ]), []);
 
   useEffect(() => {
     if (activeType === 'event') {
       fetchUsers();
+      fetchKhoa();
     }
   }, [activeType]);
 
@@ -105,6 +122,20 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       if (response.success) setAvailableUsers(response.data);
     } catch (error) {
       console.error('Lỗi tải người dùng:', error);
+    }
+  };
+
+  const fetchKhoa = async () => {
+    if (khoaLoading) return;
+    setKhoaLoading(true);
+    try {
+      const resp = await layDanhSachKhoa();
+      if (resp?.success) setKhoaList(resp.data || []);
+    } catch (e) {
+      console.error('Lỗi tải danh sách khoa:', e);
+      setKhoaList([]);
+    } finally {
+      setKhoaLoading(false);
     }
   };
 
@@ -322,7 +353,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       locationMode: 'in_school',
       locationText: ''
     });
-    setEventPlan({ tasks: [], targetAudience: { voluntary: true, mandatory: [] } });
+    setEventPlan({ tasks: [], targetAudience: { voluntary: true, mandatory: [], roles: [], khoa_ids: [] } });
     setShowEventPlan(false);
   };
 
@@ -622,7 +653,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
         </div>
       )}
 
-      {/* Kế hoạch chi tiết - ✅ PHẦN NÀY ĐƯỢC CẢI THIỆN */}
+      {/* Kế hoạch chi tiết */}
       {activeType === 'event' && showEventPlan && (
         <div className="mt-4 p-5 bg-cyan-50/50 border border-cyan-200 rounded-lg">
           <div className="flex items-center justify-between mb-4">
@@ -724,31 +755,112 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
           </div>
 
           {/* Đối tượng tham gia */}
-          <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-            <h4 className="font-semibold mb-2 flex items-center gap-2 text-gray-700">
-              <Users size={16} />Đối tượng tham gia
+          <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200 space-y-3">
+            <h4 className="font-semibold flex items-center gap-2 text-gray-700">
+              <Users size={16} />Đối tượng nhắm đến
             </h4>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                eventPlan.targetAudience.voluntary 
-                  ? 'bg-cyan-500 border-cyan-500' 
-                  : 'bg-white border-gray-300 group-hover:border-cyan-400'
-              }`}>
-                {eventPlan.targetAudience.voluntary && <Users size={12} className="text-white" />}
-              </div>
-              <input 
-                type="checkbox" 
-                className="hidden" 
-                checked={eventPlan.targetAudience.voluntary} 
-                onChange={(e) => setEventPlan(prev => ({ 
-                  ...prev, 
-                  targetAudience: { ...prev.targetAudience, voluntary: e.target.checked } 
-                }))} 
+
+            {/* Tự nguyện / bắt buộc */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded"
+                checked={eventPlan.targetAudience.voluntary}
+                onChange={(e) =>
+                  setEventPlan((prev) => ({
+                    ...prev,
+                    targetAudience: { ...prev.targetAudience, voluntary: e.target.checked }
+                  }))
+                }
               />
-              <span className="text-sm text-gray-700 group-hover:text-cyan-700 transition-colors">
-                Cho phép đăng ký tự nguyện
-              </span>
+              <span className="text-sm text-gray-700">Cho phép đăng ký tự nguyện</span>
             </label>
+
+            {!eventPlan.targetAudience.voluntary && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                Chế độ bắt buộc: các đối tượng bạn chọn bên dưới sẽ là nhóm “nhắm đến” của sự kiện.
+              </div>
+            )}
+
+            {/* Vai trò */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-2">Theo vai trò</div>
+              <div className="flex flex-wrap gap-2">
+                {roleOptions.map((r) => {
+                  const roleSet = Array.isArray(r.expandRoles) && r.expandRoles.length > 0 ? r.expandRoles : [r.key];
+                  const checked = roleSet.every((rk) => eventPlan.targetAudience.roles.includes(rk));
+                  return (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() =>
+                        setEventPlan((prev) => {
+                          const roles = prev.targetAudience.roles || [];
+                          const nextRoles = checked
+                            ? roles.filter((x) => !roleSet.includes(x))
+                            : Array.from(new Set([...roles, ...roleSet]));
+                          return {
+                            ...prev,
+                            targetAudience: {
+                              ...prev.targetAudience,
+                              roles: nextRoles
+                            }
+                          };
+                        })
+                      }
+                      className={[
+                        'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                        checked ? 'bg-cyan-600 text-white border-cyan-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      ].join(' ')}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Khoa */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-2">Theo khoa</div>
+              {khoaLoading ? (
+                <div className="text-sm text-gray-500">Đang tải danh sách khoa...</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {khoaList.map((k) => {
+                    const id = Number(k.id);
+                    const checked = (eventPlan.targetAudience.khoa_ids || []).includes(id);
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() =>
+                          setEventPlan((prev) => {
+                            const khoa_ids = prev.targetAudience.khoa_ids || [];
+                            return {
+                              ...prev,
+                              targetAudience: {
+                                ...prev.targetAudience,
+                                khoa_ids: checked ? khoa_ids.filter((x) => x !== id) : [...khoa_ids, id]
+                              }
+                            };
+                          })
+                        }
+                        className={[
+                          'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                          checked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        ].join(' ')}
+                      >
+                        {k.ten_khoa}
+                      </button>
+                    );
+                  })}
+                  {khoaList.length === 0 && (
+                    <div className="text-sm text-gray-500">Chưa có dữ liệu khoa.</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <button 

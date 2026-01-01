@@ -1,11 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Home } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { layDanhSachBaiViet } from '../services/apiService';
+import { layDanhSachBaiViet, layDanhSachKhoa } from '../services/apiService';
 import PostComposer from './PostComposer';
 import PostCard from './PostCard';
 import EventPostCard from './EventPostCard';
 import PostModal from './PostModal';
+
+const parseTargetAudienceFromPlan = (raw) => {
+  if (!raw) return { roles: [], khoa_ids: [], voluntary: true };
+
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch { obj = null; }
+  }
+  if (!obj || typeof obj !== 'object') return { roles: [], khoa_ids: [], voluntary: true };
+
+  const ta = obj.targetAudience || obj.target_audience || {};
+  const khoaIds =
+    Array.isArray(ta.khoa_ids) ? ta.khoa_ids :
+    Array.isArray(ta.khoaIds) ? ta.khoaIds : [];
+
+  return {
+    voluntary: ta.voluntary !== false,
+    roles: Array.isArray(ta.roles) ? ta.roles : [],
+    khoa_ids: khoaIds
+  };
+};
 
 const Feed = ({ currentUser }) => {
   const [posts, setPosts] = useState([]);
@@ -15,7 +36,9 @@ const Feed = ({ currentUser }) => {
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [selectedCommentId, setSelectedCommentId] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  
+  const [audienceFilter, setAudienceFilter] = useState('all'); // all | role:* | khoa:*
+  const [khoaList, setKhoaList] = useState([]);
+
   // ✅ Ref để lưu vị trí scroll
   const scrollPositionRef = useRef(0);
 
@@ -61,6 +84,42 @@ const Feed = ({ currentUser }) => {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const fetchKhoa = async () => {
+      try {
+        const resp = await layDanhSachKhoa();
+        if (resp?.success) setKhoaList(resp.data || []);
+      } catch (e) {
+        console.error('Lỗi khi tải khoa:', e);
+        setKhoaList([]);
+      }
+    };
+    fetchKhoa();
+  }, []);
+
+  const filteredPosts = useMemo(() => {
+    if (audienceFilter === 'all') return posts;
+
+    return (posts || []).filter((post) => {
+      // Khi đang lọc theo đối tượng -> chỉ lọc các bài sự kiện
+      if (!post?.su_kien || typeof post.su_kien !== 'object' || !post.su_kien.id) return false;
+
+      const ta = parseTargetAudienceFromPlan(post.su_kien.ke_hoach_chi_tiet);
+
+      if (audienceFilter.startsWith('role:')) {
+        const role = audienceFilter.replace('role:', '');
+        return (ta.roles || []).includes(role);
+      }
+
+      if (audienceFilter.startsWith('khoa:')) {
+        const id = Number(audienceFilter.replace('khoa:', ''));
+        return (ta.khoa_ids || []).includes(id);
+      }
+
+      return true;
+    });
+  }, [posts, audienceFilter]);
+
   const handleOpenModal = (postId, commentId = null) => {
     scrollPositionRef.current = window.scrollY;
     setSelectedPostId(postId);
@@ -80,6 +139,14 @@ const Feed = ({ currentUser }) => {
     });
   };
 
+  const roleFilterOptions = useMemo(() => ([
+    { value: 'role:dieu_phoi_vien', label: 'Cán bộ, nhân viên trong trường' },
+    { value: 'role:giao_vien', label: 'Giảng viên' },
+    { value: 'role:sinh_vien', label: 'Sinh viên' },
+    { value: 'role:doanh_nghiep', label: 'Doanh nghiệp' },
+    { value: 'role:quan_tri_vien', label: 'Quản trị viên' }
+  ]), []);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
@@ -94,6 +161,40 @@ const Feed = ({ currentUser }) => {
         </div>
       </div>
 
+      {/* Thanh lọc */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="text-sm font-semibold text-gray-800">Lọc Feed theo đối tượng sự kiện</div>
+
+          <select
+            value={audienceFilter}
+            onChange={(e) => setAudienceFilter(e.target.value)}
+            className="w-full sm:w-auto bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="all">Tất cả bài viết</option>
+            <optgroup label="Theo vai trò">
+              {roleFilterOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Theo khoa">
+              {khoaList.map((k) => (
+                <option key={k.id} value={`khoa:${k.id}`}>{k.ten_khoa}</option>
+              ))}
+            </optgroup>
+          </select>
+
+          <div className="text-xs text-gray-500 sm:ml-auto">
+            Đang hiển thị: <span className="font-semibold">{filteredPosts.length}</span> bài
+          </div>
+        </div>
+        {audienceFilter !== 'all' && (
+          <div className="mt-2 text-xs text-gray-500">
+            Gợi ý: khi chọn bộ lọc, hệ thống chỉ hiển thị bài viết <strong>sự kiện</strong> phù hợp.
+          </div>
+        )}
+      </div>
+
       <PostComposer onCreatePost={fetchPosts} 
         currentUserId={currentUser?.id}
         currentUser={currentUser} 
@@ -104,12 +205,12 @@ const Feed = ({ currentUser }) => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-500 mt-4">Đang tải bài viết...</p>
         </div>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <div className="text-center py-8 bg-white rounded-xl">
-          <p className="text-gray-500">Chưa có bài viết nào</p>
+          <p className="text-gray-500">Không có bài viết phù hợp bộ lọc</p>
         </div>
       ) : (
-        posts.map(post => (
+        filteredPosts.map(post => (
           <div key={post.id} className="mb-4">
             {/* ✅ Kiểm tra chặt chẽ hơn: post.su_kien phải là một object và có id */}
             {post.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
@@ -117,6 +218,7 @@ const Feed = ({ currentUser }) => {
                 post={post}
                 currentUserId={currentUserId}
                 userRole={userRole}
+                currentUser={currentUser}
                 onRefresh={fetchPosts}
                 onOpenModal={handleOpenModal}
               />
@@ -146,6 +248,7 @@ const Feed = ({ currentUser }) => {
               {...props}
               currentUserId={currentUserId}
               userRole={userRole}
+              currentUser={currentUser}
               isInModal={true}
             />
           ) : (

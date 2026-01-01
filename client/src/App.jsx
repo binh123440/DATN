@@ -69,7 +69,11 @@ function App() {
           avatar: user.ho_ten ? user.ho_ten.substring(0, 2).toUpperCase() : 'ND',
           points: user.tong_diem || 0,
           email: user.email,
-          vai_tro: user.vai_tro
+          vai_tro: user.vai_tro,
+          // ✅ Dùng cho logic đối tượng nhắm đến (khoa)
+          nganh: user.nganh || null,
+          khoa: user.nganh?.khoa || null,
+          id_khoa: user.nganh?.khoa?.id ?? null
         });
         
         // Connect socket when user logged in

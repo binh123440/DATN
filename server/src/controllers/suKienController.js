@@ -1275,6 +1275,7 @@ export const layNhiemVuCuaToi = async (req, res) => {
               deadline: task.deadline,
               trang_thai: trangThai,
               ket_qua: task.result || null,
+              tep_dinh_kem: task.attachments || task.tep_dinh_kem || [],
               ngay_nop: task.completed_at || task.submitted_at || null,
               feedback: task.feedback || null
             });
@@ -1304,10 +1305,21 @@ export const submitNhiemVu = async (req, res) => {
     console.log('Params:', req.params);
     console.log('Body:', req.body);
     console.log('User:', req.user?.id, req.user?.ho_ten);
+    console.log(
+      'Files:',
+      (req.files || []).map((f) => ({
+        originalname: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        path: f.path,
+        filename: f.filename
+      }))
+    );
 
     const { id_su_kien, task_index } = req.params;
     const { ket_qua } = req.body;
     const id_nguoi_dung = req.user?.id;
+    const files = req.files || [];
 
     if (!id_nguoi_dung) {
       console.log('❌ Không có user ID');
@@ -1317,11 +1329,13 @@ export const submitNhiemVu = async (req, res) => {
       });
     }
 
-    if (!ket_qua || ket_qua.trim() === '') {
-      console.log('❌ Không có kết quả');
+    const hasKetQuaText = !!(ket_qua && ket_qua.trim() !== '');
+
+    if (!hasKetQuaText && files.length === 0) {
+      console.log('❌ Không có kết quả và không có file');
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập kết quả nhiệm vụ'
+        message: 'Vui lòng nhập kết quả hoặc đính kèm ít nhất 1 file'
       });
     }
 
@@ -1375,11 +1389,14 @@ export const submitNhiemVu = async (req, res) => {
 
     console.log('✅ Người dùng có quyền submit');
 
+    const attachments = buildAttachmentsFromFiles(files);
+
     // Cập nhật trạng thái và kết quả
     keHoach.tasks[taskIdx] = {
       ...task,
       status: 'done',
-      result: ket_qua,
+      result: hasKetQuaText ? ket_qua : (task.result || ''),
+      attachments,
       submitted_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
       approved: null, // Reset approval status (dùng null thay vì undefined)
@@ -1466,6 +1483,26 @@ const buildMediaFromFiles = (files) => {
     public_id: file.filename,
     resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image'
   }));
+};
+
+const buildAttachmentsFromFiles = (files) => {
+  return (files || []).map((file) => {
+    const mimetype = file.mimetype || '';
+    const resource_type = mimetype.startsWith('video/')
+      ? 'video'
+      : mimetype.startsWith('image/')
+        ? 'image'
+        : 'raw';
+
+    return {
+      url: file.path,
+      public_id: file.filename,
+      originalname: file.originalname,
+      mimetype,
+      size: file.size,
+      resource_type
+    };
+  });
 };
 
 const detectMediaType = (mediaArray) => {

@@ -88,13 +88,32 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
                   </div>
 
                   {/* Kết quả đã submit */}
-                  {task.result && (
+                  {(task.result || (Array.isArray(task.attachments) && task.attachments.length > 0)) && (
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-start gap-2 mb-1">
                         <FileText size={14} className="text-blue-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-blue-900 mb-1">Kết quả đã nộp:</p>
-                          <p className="text-xs text-gray-700">{task.result}</p>
+                          {task.result && <p className="text-xs text-gray-700">{task.result}</p>}
+
+                          {Array.isArray(task.attachments) && task.attachments.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Tệp đính kèm:</p>
+                              <div className="space-y-1">
+                                {task.attachments.map((f, idx) => (
+                                  <a
+                                    key={f?.public_id || `${idx}`}
+                                    href={f?.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block text-xs text-blue-600 hover:text-blue-700 underline break-all"
+                                  >
+                                    {f?.originalname || f?.url}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {task.submitted_at && (
                             <p className="text-xs text-gray-500 mt-1">
                               📅 {new Date(task.submitted_at).toLocaleString('vi-VN')}

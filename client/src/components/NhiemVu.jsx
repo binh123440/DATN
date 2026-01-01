@@ -12,6 +12,7 @@ const NhiemVu = () => {
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [ketQuaSubmit, setKetQuaSubmit] = useState({});
+  const [tepDinhKemSubmit, setTepDinhKemSubmit] = useState({});
 
   const fetchData = async () => {
     try {
@@ -35,12 +36,15 @@ const NhiemVu = () => {
   }, []);
 
   const handleSubmit = async (idSuKien, taskIndex) => {
-    const ketQua = ketQuaSubmit[`${idSuKien}-${taskIndex}`];
+    const key = `${idSuKien}-${taskIndex}`;
+    const ketQua = ketQuaSubmit[key];
+    const tepDinhKem = tepDinhKemSubmit[key] || [];
     
-    console.log('🚀 handleSubmit called:', { idSuKien, taskIndex, ketQua });
+    console.log('🚀 handleSubmit called:', { idSuKien, taskIndex, ketQua, tepDinhKemCount: tepDinhKem.length });
     
-    if (!ketQua || ketQua.trim() === '') {
-      alert('Vui lòng nhập kết quả nhiệm vụ');
+    const hasText = !!(ketQua && ketQua.trim() !== '');
+    if (!hasText && tepDinhKem.length === 0) {
+      alert('Vui lòng nhập kết quả hoặc đính kèm ít nhất 1 file');
       return;
     }
 
@@ -48,14 +52,19 @@ const NhiemVu = () => {
 
     try {
       console.log('📤 Gọi API submitNhiemVu...');
-      const response = await submitNhiemVu(idSuKien, taskIndex, ketQua);
+      const response = await submitNhiemVu(idSuKien, taskIndex, ketQua, tepDinhKem);
       console.log('✅ Response:', response);
       
       alert('✅ Đã gửi kết quả thành công!');
       fetchData(); // Reload dữ liệu
       setKetQuaSubmit(prev => {
         const newState = { ...prev };
-        delete newState[`${idSuKien}-${taskIndex}`];
+        delete newState[key];
+        return newState;
+      });
+      setTepDinhKemSubmit(prev => {
+        const newState = { ...prev };
+        delete newState[key];
         return newState;
       });
     } catch (err) {
@@ -190,7 +199,7 @@ const NhiemVu = () => {
                   )}
 
                   {/* Kết quả đã submit */}
-                  {nv.ket_qua && (
+                  {(nv.ket_qua || (Array.isArray(nv.tep_dinh_kem) && nv.tep_dinh_kem.length > 0)) && (
                     <div className="mb-4">
                       <button
                         onClick={() => toggleExpand(`${nv.id_su_kien}-${nv.task_index}`)}
@@ -203,7 +212,29 @@ const NhiemVu = () => {
                       
                       {isExpanded && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 animate-fadeIn">
-                          <p className="text-gray-700 whitespace-pre-wrap">{nv.ket_qua}</p>
+                          {nv.ket_qua && (
+                            <p className="text-gray-700 whitespace-pre-wrap">{nv.ket_qua}</p>
+                          )}
+
+                              {Array.isArray(nv.tep_dinh_kem) && nv.tep_dinh_kem.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium text-gray-700 mb-2">Tệp đính kèm:</p>
+                                  <div className="space-y-1">
+                                    {nv.tep_dinh_kem.map((f, idx) => (
+                                      <a
+                                        key={f?.public_id || `${idx}`}
+                                        href={f?.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="block text-sm text-blue-600 hover:text-blue-700 underline break-all"
+                                      >
+                                        {f?.originalname || f?.url}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                           {nv.ngay_nop && (
                             <p className="text-xs text-gray-500 mt-2">
                               Đã gửi lúc: {new Date(nv.ngay_nop).toLocaleString('vi-VN')}
@@ -230,6 +261,31 @@ const NhiemVu = () => {
                         rows={4}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none resize-none mb-3"
                       />
+
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tệp đính kèm (Word/PDF/Excel/Ảnh/Video)
+                      </label>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*,video/*"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setTepDinhKemSubmit((prev) => ({
+                            ...prev,
+                            [`${nv.id_su_kien}-${nv.task_index}`]: files
+                          }));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none mb-2"
+                      />
+
+                      {Array.isArray(tepDinhKemSubmit[`${nv.id_su_kien}-${nv.task_index}`]) &&
+                        tepDinhKemSubmit[`${nv.id_su_kien}-${nv.task_index}`].length > 0 && (
+                          <div className="text-xs text-gray-600 mb-3">
+                            Đã chọn: {tepDinhKemSubmit[`${nv.id_su_kien}-${nv.task_index}`].map((f) => f.name).join(', ')}
+                          </div>
+                        )}
+
                       <button
                         onClick={() => handleSubmit(nv.id_su_kien, nv.task_index)}
                         className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm"

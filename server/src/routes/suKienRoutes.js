@@ -23,8 +23,23 @@ import {
 } from '../controllers/suKienController.js';
 import { xacThucToken, kiemTraVaiTro } from '../middleware/dangNhapMiddleware.js';
 import upload from '../middleware/upload.js';
+import taskUpload from '../middleware/taskUpload.js';
 
 const router = Router();
+
+// ✅ Wrapper để bắt lỗi multer/cloudinary (tránh 500 mù khi upload fail)
+const uploadTepDinhKemNhiemVu = (req, res, next) => {
+  taskUpload.array('tep_dinh_kem', 10)(req, res, (err) => {
+    if (!err) return next();
+
+    console.error('❌ Lỗi upload tệp đính kèm nhiệm vụ:', err);
+    const status = err?.http_code ? Number(err.http_code) : 400;
+    return res.status(status >= 400 && status <= 599 ? status : 400).json({
+      success: false,
+      message: err?.message || 'Upload tệp đính kèm thất bại'
+    });
+  });
+};
 
 // ⚠️ QUAN TRỌNG: Routes cụ thể phải đặt TRƯỚC routes có params động
 
@@ -33,7 +48,12 @@ router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
 
 // ✅ Nhiệm vụ cá nhân - đặt trước các route động khác
 router.get('/nhiem-vu/cua-toi', xacThucToken, layNhiemVuCuaToi);
-router.post('/nhiem-vu/:id_su_kien/:task_index/submit', xacThucToken, submitNhiemVu);
+router.post(
+  '/nhiem-vu/:id_su_kien/:task_index/submit',
+  xacThucToken,
+  uploadTepDinhKemNhiemVu,
+  submitNhiemVu
+);
 
 // Admin routes
 router.get('/duyet', xacThucToken, kiemTraVaiTro('kiem_duyet_vien', 'quan_tri_vien'), layDanhSachChoDuyet);

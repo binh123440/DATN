@@ -419,6 +419,10 @@ export const layNoiDungChoDuyet = () => apiClient.get('/admin/pending-content');
 export const duyetNoiDung = (id, loai, trang_thai_moi) => 
   apiClient.post('/admin/approve-content', { id, loai, trang_thai_moi });
 
+export const taoNguoiDungAdmin = (payload) => apiClient.post('/admin/users', payload);
+
+export const xoaNguoiDungAdmin = (userId) => apiClient.delete(`/admin/users/${userId}`);
+
 // ========== NGƯỜI DÙNG ==========
 export const layThongTinNguoiDung = (id) => apiClient.get(`/nguoi-dung/${id}`);
 
@@ -508,13 +512,19 @@ export const layNhiemVuCuaToi = async () => {
   return response.data;
 };
 
-export const submitNhiemVu = async (idSuKien, taskIndex, ketQua) => {
+export const submitNhiemVu = async (idSuKien, taskIndex, ketQua, tepDinhKem = []) => {
   const url = `/su-kien/nhiem-vu/${idSuKien}/${taskIndex}/submit`;
   console.log('📤 Gọi API: POST', url);
-  console.log('📦 Payload:', { ket_qua: ketQua });
-  
-  const response = await apiClient.post(url, {
-    ket_qua: ketQua
+  console.log('📦 Payload:', { ket_qua: ketQua, tep_dinh_kem_count: (tepDinhKem || []).length });
+
+  const formData = new FormData();
+  formData.append('ket_qua', ketQua || '');
+  (tepDinhKem || []).forEach((file) => {
+    formData.append('tep_dinh_kem', file);
+  });
+
+  const response = await apiClient.post(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
   });
   
   console.log('✅ Response submitNhiemVu:', response.data);
@@ -545,5 +555,10 @@ export const laySuKienTheoKhoang = async ({ startISO, endISO, id_phong } = {}) =
 
 export const chiaSeBaiViet = (postId, payload) =>
   apiClient.post(`/bai-viet/${postId}/chia-se`, payload);
+
+export const layDanhSachKhoa = async () => {
+  const response = await apiClient.get('/khoa');
+  return response.data;
+};
 
 export default apiClient;

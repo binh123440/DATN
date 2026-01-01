@@ -104,10 +104,23 @@ export const layDanhSachBaiViet = async (req, res) => {
         },
         { 
           model: db.SuKien, 
-          as: 'su_kien', 
-          // ✅ Chỉ join với sự kiện đã duyệt, ----------------------------------- todo
+          as: 'su_kien',
+          attributes: [
+            'id',
+            'id_nguoi_tao',
+            'id_bai_viet',
+            'ten_su_kien',
+            'dia_diem',
+            'thoi_gian_bat_dau',
+            'thoi_gian_ket_thuc',
+            'so_luong_toi_da',
+            'diem_thuong',
+            'id_phong',
+            'ke_hoach_chi_tiet',
+            'trang_thai'
+          ],
           where: { trang_thai: { [Op.in]: ['da_dang'] } },
-          required: false // LEFT JOIN để vẫn lấy bài viết không có sự kiện
+          required: false
         },
         {
           model: BaiViet,
@@ -120,6 +133,20 @@ export const layDanhSachBaiViet = async (req, res) => {
             {
               model: db.SuKien,
               as: 'su_kien',
+              attributes: [
+                'id',
+                'id_nguoi_tao',
+                'id_bai_viet',
+                'ten_su_kien',
+                'dia_diem',
+                'thoi_gian_bat_dau',
+                'thoi_gian_ket_thuc',
+                'so_luong_toi_da',
+                'diem_thuong',
+                'id_phong',
+                'ke_hoach_chi_tiet',
+                'trang_thai'
+              ],
               where: { trang_thai: { [Op.in]: ['da_dang'] } },
               required: false
             }

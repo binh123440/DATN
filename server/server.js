@@ -22,6 +22,7 @@ import tinNhanRoutes from './src/routes/tinNhanRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import nguoiDungRoutes from './src/routes/nguoiDungRoutes.js';
 import phongRoutes from './src/routes/phongRoutes.js';
+import khoaRoutes from './src/routes/khoaRoutes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +66,7 @@ app.get('/favicon.ico', (req, res) => res.sendStatus(204));
 app.use('/api/auth', dangNhapRoutes);
 app.use('/api/bai-viet', baiVietRoutes);
 app.use('/api/su-kien', suKienRoutes);
+app.use('/api/khoa', khoaRoutes);
 app.use('/api/binh-luan', binhLuanRoutes);
 app.use('/api/diem-ren-luyen', diemRenLuyenRoutes);
 app.use('/api/thong-bao', thongBaoRoutes);

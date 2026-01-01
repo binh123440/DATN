@@ -1,31 +1,49 @@
 import db from '../models/index.js';
-const { NguoiDung } = db;
 import bcrypt from 'bcryptjs';
 
-const taoMatKhauTam = (ngaySinh) => {
-  // Mật khẩu tạm = ngày sinh người dùng theo format dd/mm/yyyy
-  // ngaySinh (DATEONLY) thường là 'yyyy-mm-dd'
-  if (!ngaySinh) return null;
+const { NguoiDung, sequelize } = db;
 
-  const s = String(ngaySinh);
+const normalizeRoles = (vai_tro) => {
+  if (!vai_tro) return [];
+  if (Array.isArray(vai_tro)) return vai_tro;
+  if (typeof vai_tro === 'string') return [vai_tro];
+  return [];
+};
 
-  // Nếu đã là dd/mm/yyyy thì trả thẳng
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+const ALLOWED_ROLES = ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'];
 
-  // Parse từ yyyy-mm-dd
-  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    const [, yyyy, mm, dd] = match;
-    return `${dd}/${mm}/${yyyy}`;
+// Mật khẩu tạm dựa theo ngày sinh: ddMMyyyy
+// Ví dụ: 2003-09-01 => 01092003
+const taoMatKhauTam = (ngaySinhInput) => {
+  if (!ngaySinhInput) return null;
+
+  // DateONLY thường về dạng 'YYYY-MM-DD'
+  if (typeof ngaySinhInput === 'string') {
+    const m = ngaySinhInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      const yyyy = m[1];
+      const mm = m[2];
+      const dd = m[3];
+      return `${dd}${mm}${yyyy}`;
+    }
+
+    const d = new Date(ngaySinhInput);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      return `${dd}${mm}${yyyy}`;
+    }
+
+    return null;
   }
 
-  // Trường hợp là Date string khác: cố gắng parse bằng Date
-  const date = new Date(s);
-  if (!Number.isNaN(date.getTime())) {
-    const dd = String(date.getDate()).padStart(2, '0');
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const yyyy = String(date.getFullYear());
-    return `${dd}/${mm}/${yyyy}`;
+  // Date object
+  if (ngaySinhInput instanceof Date && !Number.isNaN(ngaySinhInput.getTime())) {
+    const dd = String(ngaySinhInput.getDate()).padStart(2, '0');
+    const mm = String(ngaySinhInput.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(ngaySinhInput.getFullYear());
+    return `${dd}${mm}${yyyy}`;
   }
 
   return null;
@@ -65,12 +83,19 @@ export const capNhatVaiTroNguoiDung = async (req, res) => {
     const { id } = req.params;
     const { vai_tro } = req.body;
 
-    // Validate vai trò
-    const validRoles = ['quan_tri_vien'];
-    if (!validRoles.includes(vai_tro)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vai trò không hợp lệ. Chỉ chấp nhận: quan_tri_vien' 
+    const roles = normalizeRoles(vai_tro);
+    if (!roles.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu vai_tro'
+      });
+    }
+
+    const invalid = roles.filter(r => !ALLOWED_ROLES.includes(r));
+    if (invalid.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Vai trò không hợp lệ: ${invalid.join(', ')}`
       });
     }
 
@@ -82,8 +107,8 @@ export const capNhatVaiTroNguoiDung = async (req, res) => {
       });
     }
 
-    // Cập nhật vai trò
-    user.vai_tro = vai_tro;
+    // Cập nhật vai trò (DB đang lưu dạng ARRAY)
+    user.vai_tro = roles;
     await user.save();
 
     res.json({ 
@@ -93,6 +118,7 @@ export const capNhatVaiTroNguoiDung = async (req, res) => {
         id: user.id,
         ho_ten: user.ho_ten,
         email: user.email,
+        ma_sinh_vien: user.ma_sinh_vien,
         vai_tro: user.vai_tro
       }
     });
@@ -148,6 +174,149 @@ export const resetMatKhauNguoiDung = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi server'
+    });
+  }
+};
+
+// ✅ POST /api/admin/users
+export const taoNguoiDungAdmin = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const {
+      ho_ten,
+      email,
+      ma_sinh_vien,
+      ngay_sinh,
+      mat_khau,
+      vai_tro
+    } = req.body;
+
+    if (!ho_ten?.trim() || !email?.trim()) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu họ tên hoặc email'
+      });
+    }
+
+    const roles = normalizeRoles(vai_tro);
+    const vaiTroFinal = roles.length ? roles : ['sinh_vien'];
+
+    const existedEmail = await NguoiDung.findOne({ where: { email }, transaction: t });
+    if (existedEmail) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã tồn tại'
+      });
+    }
+
+    if (ma_sinh_vien) {
+      const existedMSV = await NguoiDung.findOne({ where: { ma_sinh_vien }, transaction: t });
+      if (existedMSV) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Mã sinh viên đã tồn tại'
+        });
+      }
+    }
+
+    const tempPassword = mat_khau?.trim() || taoMatKhauTam(ngay_sinh);
+    if (!tempPassword) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Nếu không nhập mật khẩu thì cần cung cấp ngày sinh hợp lệ (YYYY-MM-DD) để tạo mật khẩu tự động'
+      });
+    }
+    const mat_khau_bam = await bcrypt.hash(tempPassword, 10);
+
+    const created = await NguoiDung.create(
+      {
+        ho_ten: ho_ten.trim(),
+        email: email.trim(),
+        ma_sinh_vien: ma_sinh_vien?.trim() || null,
+        ngay_sinh: ngay_sinh || null,
+        mat_khau_bam,
+        vai_tro: vaiTroFinal
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Tạo người dùng thành công',
+      data: {
+        user: {
+          id: created.id,
+          ho_ten: created.ho_ten,
+          email: created.email,
+          ma_sinh_vien: created.ma_sinh_vien,
+          vai_tro: created.vai_tro
+        },
+        temp_password: mat_khau?.trim() ? null : tempPassword
+      }
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error('❌ taoNguoiDungAdmin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
+  }
+};
+
+// ✅ DELETE /api/admin/users/:id
+export const xoaNguoiDungAdmin = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu id người dùng'
+      });
+    }
+
+    const user = await NguoiDung.findByPk(id, { transaction: t });
+    if (!user) {
+      await t.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    // Chặn tự xóa chính mình (an toàn)
+    if (Number(req.user?.id) === Number(id)) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn không thể tự xóa tài khoản của mình'
+      });
+    }
+
+    await user.destroy({ transaction: t });
+    await t.commit();
+
+    return res.json({
+      success: true,
+      message: 'Xóa người dùng thành công'
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error('❌ xoaNguoiDungAdmin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
     });
   }
 };

@@ -236,6 +236,7 @@ const Events = ({ currentUser }) => {
                 event={event}
                 currentUserId={currentUserId}
                 userRole={userRole}
+                currentUser={currentUser}
                 onRefresh={handleRefresh}
               />
             ))}
