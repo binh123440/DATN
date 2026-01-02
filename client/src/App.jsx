@@ -13,6 +13,7 @@ import DuyetBai from './components/DuyetBai';
 import GroupDetail from './components/GroupDetail';
 import socketService from './services/tinNhanService';
 import AdminDashboard from './components/AdminDashboard';
+import ThongKeVangMat from './components/ThongKeVangMat';
 import UserProfile from './components/UserProfile';
 import NhiemVu from './components/NhiemVu';
 import QuanLyBaiViet from './components/QuanLyBaiViet';
@@ -133,7 +134,10 @@ function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                   
                   {currentUser?.vai_tro.includes('quan_tri_vien') && (
-                    <Route path="/admin" element={<AdminDashboard />} />
+                    <>
+                      <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/admin/thong-ke-vang-mat" element={<ThongKeVangMat />} />
+                    </>
                   )}
                 </Routes>
               </MainLayout>

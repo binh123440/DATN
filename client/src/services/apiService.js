@@ -423,6 +423,8 @@ export const taoNguoiDungAdmin = (payload) => apiClient.post('/admin/users', pay
 
 export const xoaNguoiDungAdmin = (userId) => apiClient.delete(`/admin/users/${userId}`);
 
+export const layThongKeVangMatTongHop = (params) => apiClient.get('/admin/thong-ke-vang-mat', { params });
+
 // ========== NGƯỜI DÙNG ==========
 export const layThongTinNguoiDung = (id) => apiClient.get(`/nguoi-dung/${id}`);
 

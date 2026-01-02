@@ -56,6 +56,123 @@ const taoMatKhauTam = (ngaySinhInput) => {
   return null;
 };
 
+// ✅ GET /api/admin/thong-ke-vang-mat
+// Thống kê: đăng ký nhưng vắng (chưa điểm danh) cho các sự kiện đã kết thúc.
+export const thongKeVangMatTongHop = async (req, res) => {
+  try {
+    const { from, to, limit = 20 } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
+
+    // Lọc theo khoảng thời gian (tùy chọn)
+    const timeWhereParts = [];
+    const replacements = { limit: parsedLimit };
+
+    if (from) {
+      timeWhereParts.push('sk."thoi_gian_bat_dau" >= :from');
+      replacements.from = from;
+    }
+    if (to) {
+      timeWhereParts.push('sk."thoi_gian_bat_dau" <= :to');
+      replacements.to = to;
+    }
+
+    const timeWhereSql = timeWhereParts.length ? ` AND ${timeWhereParts.join(' AND ')}` : '';
+
+    const summarySql = `
+      SELECT
+        COUNT(*)::int AS tong_dang_ky,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NOT NULL THEN 1 ELSE 0 END)::int AS tong_tham_gia,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NULL THEN 1 ELSE 0 END)::int AS tong_vang
+      FROM "DangKySuKien" dk
+      JOIN "SuKien" sk ON sk.id = dk."id_su_kien"
+      WHERE dk."trang_thai" = 'da_dang_ky'
+        AND COALESCE(sk."thoi_gian_ket_thuc", sk."thoi_gian_bat_dau") < NOW()
+        ${timeWhereSql}
+    `;
+
+    const perEventSql = `
+      SELECT
+        sk.id::int AS id_su_kien,
+        sk."ten_su_kien" AS ten_su_kien,
+        sk."thoi_gian_bat_dau" AS thoi_gian_bat_dau,
+        sk."thoi_gian_ket_thuc" AS thoi_gian_ket_thuc,
+        COUNT(dk.id)::int AS tong_dang_ky,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NOT NULL THEN 1 ELSE 0 END)::int AS tong_tham_gia,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NULL THEN 1 ELSE 0 END)::int AS tong_vang
+      FROM "SuKien" sk
+      JOIN "DangKySuKien" dk
+        ON dk."id_su_kien" = sk.id
+       AND dk."trang_thai" = 'da_dang_ky'
+      WHERE COALESCE(sk."thoi_gian_ket_thuc", sk."thoi_gian_bat_dau") < NOW()
+        ${timeWhereSql}
+      GROUP BY sk.id
+      ORDER BY tong_vang DESC, tong_dang_ky DESC
+      LIMIT :limit
+    `;
+
+    const perStudentSql = `
+      SELECT
+        nd.id::int AS id_nguoi_dung,
+        nd."ho_ten" AS ho_ten,
+        nd.email AS email,
+        nd."ma_sinh_vien" AS ma_sinh_vien,
+        COUNT(dk.id)::int AS tong_dang_ky,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NOT NULL THEN 1 ELSE 0 END)::int AS tong_tham_gia,
+        SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NULL THEN 1 ELSE 0 END)::int AS tong_vang
+      FROM "NguoiDung" nd
+      JOIN "DangKySuKien" dk
+        ON dk."id_nguoi_dung" = nd.id
+       AND dk."trang_thai" = 'da_dang_ky'
+      JOIN "SuKien" sk ON sk.id = dk."id_su_kien"
+      WHERE COALESCE(sk."thoi_gian_ket_thuc", sk."thoi_gian_bat_dau") < NOW()
+        ${timeWhereSql}
+        AND nd."ma_sinh_vien" IS NOT NULL
+      GROUP BY nd.id
+      HAVING SUM(CASE WHEN dk."ngay_gio_diem_danh" IS NULL THEN 1 ELSE 0 END) > 0
+      ORDER BY tong_vang DESC, tong_dang_ky DESC
+      LIMIT :limit
+    `;
+
+    const [summaryRows] = await sequelize.query(summarySql, { replacements });
+    const [eventRows] = await sequelize.query(perEventSql, { replacements });
+    const [studentRows] = await sequelize.query(perStudentSql, { replacements });
+
+    const summary = summaryRows?.[0] || { tong_dang_ky: 0, tong_tham_gia: 0, tong_vang: 0 };
+    const tongDangKy = Number(summary.tong_dang_ky) || 0;
+    const tongThamGia = Number(summary.tong_tham_gia) || 0;
+    const tongVang = Number(summary.tong_vang) || 0;
+    const tiLeThamGia = tongDangKy > 0 ? Math.round((tongThamGia / tongDangKy) * 10000) / 100 : 0;
+
+    res.json({
+      success: true,
+      message: 'Lấy thống kê vắng mặt thành công',
+      data: {
+        tong_hop: {
+          tong_dang_ky: tongDangKy,
+          tong_tham_gia: tongThamGia,
+          tong_vang: tongVang,
+          ti_le_tham_gia: tiLeThamGia
+        },
+        theo_su_kien: eventRows.map(r => ({
+          ...r,
+          ti_le_tham_gia: r.tong_dang_ky > 0 ? Math.round((r.tong_tham_gia / r.tong_dang_ky) * 10000) / 100 : 0
+        })),
+        theo_sinh_vien: studentRows.map(r => ({
+          ...r,
+          ti_le_tham_gia: r.tong_dang_ky > 0 ? Math.round((r.tong_tham_gia / r.tong_dang_ky) * 10000) / 100 : 0
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Lỗi khi lấy thống kê vắng mặt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message
+    });
+  }
+};
+
 /**
  * Lấy danh sách tất cả người dùng
  */

@@ -28,6 +28,12 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const userRole = currentUser?.vai_tro;
   console.log('User Role :', userRole);
+
+  const hasRole = (role) => {
+    if (!userRole) return false;
+    if (Array.isArray(userRole)) return userRole.includes(role);
+    return userRole === role;
+  };
   useEffect(() => {
     if (isOpen) {
       setIsAnimating(true);
@@ -79,7 +85,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             ))}
 
             {/* ✅ Link Quản trị cho Admin */}
-            {userRole.includes('quan_tri_vien') && (
+            {hasRole('quan_tri_vien') && (
               <li>
                 <Link
                   to="/admin"
@@ -95,8 +101,24 @@ const Sidebar = ({ isOpen, onClose }) => {
               </li>
             )}
 
+            {hasRole('quan_tri_vien') && (
+              <li>
+                <Link
+                  to="/admin/thong-ke-vang-mat"
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                    location.pathname === '/admin/thong-ke-vang-mat'
+                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                  }`}
+                >
+                  <ShieldCheck size={20} className="mr-3" />
+                  <span className="flex-1 font-medium">Thống kê vắng</span>
+                </Link>
+              </li>
+            )}
+
             {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên */}
-            {(userRole.includes('quan_tri_vien') || userRole.includes('kiem_duyet_vien')) && (
+            {(hasRole('quan_tri_vien') || hasRole('kiem_duyet_vien')) && (
               <li>
                 <Link
                   to="/duyet-bai"
@@ -165,7 +187,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 ))}
 
                 {/* ✅ Link Quản trị cho Admin - Mobile */}
-                {userRole === 'quan_tri_vien' && (
+                {hasRole('quan_tri_vien') && (
                   <li>
                     <Link
                       to="/admin"
@@ -181,9 +203,26 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </Link>
                   </li>
                 )}
+
+                {hasRole('quan_tri_vien') && (
+                  <li>
+                    <Link
+                      to="/admin/thong-ke-vang-mat"
+                      onClick={handleClose}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                        location.pathname === '/admin/thong-ke-vang-mat'
+                          ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                      }`}
+                    >
+                      <ShieldCheck size={20} className="mr-3" />
+                      <span className="flex-1 font-medium">Thống kê vắng</span>
+                    </Link>
+                  </li>
+                )}
                 
                 {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên - Mobile */}
-                {(userRole === 'quan_tri_vien' || userRole === 'kiem_duyet_vien') && (
+                {(hasRole('quan_tri_vien') || hasRole('kiem_duyet_vien')) && (
                   <li>
                     <Link
                       to="/duyet-bai"

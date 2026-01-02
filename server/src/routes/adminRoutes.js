@@ -5,7 +5,8 @@ import {
   capNhatVaiTroNguoiDung,
   resetMatKhauNguoiDung,
   taoNguoiDungAdmin,
-  xoaNguoiDungAdmin
+  xoaNguoiDungAdmin,
+  thongKeVangMatTongHop
 } from '../controllers/adminController.js';
 import {
   layDanhSachChoDuyet,
@@ -23,6 +24,9 @@ router.put('/users/:id/role', capNhatVaiTroNguoiDung);
 router.post('/users/:id/reset-password', resetMatKhauNguoiDung);
 router.post('/users', taoNguoiDungAdmin);
 router.delete('/users/:id', xoaNguoiDungAdmin);
+
+// ==================== THỐNG KÊ ====================
+router.get('/thong-ke-vang-mat', thongKeVangMatTongHop);
 
 // ==================== DUYỆT NỘI DUNG ====================
 router.get('/pending-content', layDanhSachChoDuyet);
