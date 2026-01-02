@@ -53,6 +53,31 @@ const parseKeHoachChiTiet = (raw) => {
   };
 };
 
+// ✅ Khi chọn sự kiện có sẵn để làm mẫu: chỉ lấy title/description/assignee,
+// còn lại reset để kế hoạch phải làm & duyệt lại từ đầu.
+const sanitizeKeHoachTemplate = (raw) => {
+  const parsed = parseKeHoachChiTiet(raw);
+  const now = Date.now();
+
+  return {
+    ...parsed,
+    tasks: (parsed.tasks || []).map((t, idx) => ({
+      id: `t${now}_${idx}`,
+      title: t.title || '',
+      description: t.description || '',
+      assignee: t.assignee || null,
+      order: t.order ?? (idx + 1),
+      deadline: '',
+      status: 'todo',
+      attachments: [],
+      result: null,
+      completed_at: null,
+      approved: null,
+      feedback: null
+    }))
+  };
+};
+
 const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
   const [activeType, setActiveType] = useState(null);
   const [content, setContent] = useState('');
@@ -229,7 +254,8 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
       };
     });
 
-    setEventPlan(parseKeHoachChiTiet(su_kien?.ke_hoach_chi_tiet));
+    // ✅ Chỉ copy khung nhiệm vụ (title/description/assignee), không copy trạng thái/đính kèm/feedback...
+    setEventPlan(sanitizeKeHoachTemplate(su_kien?.ke_hoach_chi_tiet));
 
     setTemplateQuery(su_kien?.ten_su_kien || '');
     setTemplateOpen(false);

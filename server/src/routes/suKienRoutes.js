@@ -41,9 +41,9 @@ const uploadTepDinhKemNhiemVu = (req, res, next) => {
   });
 };
 
-// ⚠️ QUAN TRỌNG: Routes cụ thể phải đặt TRƯỚC routes có params động
+// QUAN TRỌNG: Routes cụ thể phải đặt TRƯỚC routes có params động
 
-// ✅ Utilities - đặt đầu tiên
+// Utilities - đặt đầu tiên
 router.get('/users-for-assignment', xacThucToken, layDanhSachNguoiPhanCong);
 
 // ✅ Nhiệm vụ cá nhân - đặt trước các route động khác

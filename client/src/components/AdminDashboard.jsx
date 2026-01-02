@@ -244,8 +244,9 @@ const AdminDashboard = () => {
                     <option value="sinh_vien">Sinh viên</option>
                     <option value="giao_vien">Giảng viên</option>
                     <option value="doanh_nghiep">Doanh nghiệp</option>
-                    <option value="dieu_phoi_vien">Điều phối viên</option>
-                    <option value="quan_tri_vien">Quản trị viên</option>
+                    {/* <option value="dieu_phoi_vien">Điều phối viên</option> */}
+                    <option value="kiem_duyet_vien">Ban giám hiệu</option>
+                    <option value="quan_tri_vien">Trưởng phòng CTSV</option>
                   </select>
                 </div>
 
@@ -347,7 +348,7 @@ const AdminDashboard = () => {
                           <option value="sinh_vien">Sinh viên</option>
                           <option value="giao_vien">Giảng viên</option>
                           <option value="doanh_nghiep">Doanh nghiệp</option>
-                          <option value="dieu_phoi_vien">Điều phối viên</option>
+                          <option value="kiem_duyet_vien">Kiểm duyệt viên</option>
                           <option value="quan_tri_vien">Quản trị viên</option>
                         </select>
                       </td>

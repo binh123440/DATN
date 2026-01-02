@@ -476,18 +476,18 @@ const Chat = () => {
             {/* Nhập tin nhắn */}
             <form onSubmit={handleSendMessage} className="bg-white border-t border-gray-200 p-3">
               <div className="flex items-end gap-2">
-                <button
+                {/* <button
                   type="button"
                   className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <ImageIcon size={20} />
-                </button>
-                <button
+                </button> */}
+                {/* <button
                   type="button"
                   className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <Paperclip size={20} />
-                </button>
+                </button> */}
                 <div className="flex-1 relative">
                   <textarea
                     value={messageInput}
@@ -505,12 +505,12 @@ const Chat = () => {
                     className="w-full px-4 py-2 pr-10 text-sm border border-gray-300 rounded-full resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none max-h-24"
                     rows="1"
                   />
-                  <button
+                  {/* <button
                     type="button"
                     className="absolute right-3 bottom-2 p-1 text-gray-600 hover:text-gray-900 transition-colors"
                   >
                     <Smile size={18} />
-                  </button>
+                  </button> */}
                 </div>
                 <button
                   type="submit"

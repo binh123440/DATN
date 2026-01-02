@@ -10,7 +10,14 @@ const normalizeRoles = (vai_tro) => {
   return [];
 };
 
-const ALLOWED_ROLES = ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'];
+const ALLOWED_ROLES = [
+  'sinh_vien',
+  'giao_vien',
+  'doanh_nghiep',
+  'quan_tri_vien',
+  'dieu_phoi_vien',
+  'kiem_duyet_vien'
+];
 
 // Mật khẩu tạm dựa theo ngày sinh: ddMMyyyy
 // Ví dụ: 2003-09-01 => 01092003

@@ -4,6 +4,19 @@ import { taoThongBao } from './thongBaoController.js';
 import { Op } from 'sequelize';
 const { SuKien, BaiViet, NguoiDung, DangKySuKien, sequelize, ThongBao, Khoa } = db;
 
+const toRoleArray = (vaiTro) => {
+  if (!vaiTro) return [];
+  if (Array.isArray(vaiTro)) return vaiTro.filter(Boolean);
+  if (typeof vaiTro === 'string') return [vaiTro];
+  return [];
+};
+
+const hasAnyRole = (vaiTro, allowedRoles) => {
+  const roles = toRoleArray(vaiTro);
+  return roles.some((r) => allowedRoles.includes(r));
+};
+
+
 // Lấy danh sách sự kiện
 export const layDanhSachSuKien = async (req, res) => {
   try {
@@ -672,7 +685,7 @@ export const capNhatKeHoachSuKien = async (req, res) => {
 
     // Quyền: chủ tạo hoặc admin/kiểm duyệt viên
     const isOwner = suKien.id_nguoi_tao === userId;
-    const isAuthorized = ['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro);
+    const isAuthorized = hasAnyRole(req.user?.vai_tro, ['quan_tri_vien', 'kiem_duyet_vien']);
     
     if (!isOwner && !isAuthorized) {
       return res.status(403).json({ success: false, message: 'Không có quyền chỉnh sửa kế hoạch' });
@@ -733,7 +746,7 @@ export const ganTaskChoNguoi = async (req, res) => {
     }
 
     const isOwner = suKien.id_nguoi_tao === userId;
-    const isAuthorized = ['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro);
+    const isAuthorized = hasAnyRole(req.user?.vai_tro, ['quan_tri_vien', 'kiem_duyet_vien']);
     
     if (!isOwner && !isAuthorized) {
       return res.status(403).json({ success: false, message: 'Không có quyền phân công' });
@@ -855,7 +868,7 @@ export const duyetKetQuaTask = async (req, res) => {
     }
 
     // Chỉ người tạo hoặc admin mới được duyệt
-    if (suKien.id_nguoi_tao !== userId && !['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro)) {
+    if (suKien.id_nguoi_tao !== userId && !hasAnyRole(req.user?.vai_tro, ['quan_tri_vien', 'kiem_duyet_vien'])) {
       return res.status(403).json({ success: false, message: 'Không có quyền duyệt kết quả' });
     }
 
@@ -995,7 +1008,7 @@ export const duyetSuKien = async (req, res) => {
     const { action, phan_hoi } = req.body; // 'duyet' | 'tu_choi'
     const userId = req.user?.id;
 
-    if (!['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro)) {
+    if (!hasAnyRole(req.user?.vai_tro, ['quan_tri_vien', 'kiem_duyet_vien'])) {
       await transaction.rollback();
       return res.status(403).json({ success: false, message: 'Không có quyền duyệt' });
     }
@@ -1115,7 +1128,7 @@ export const dangSuKienCongKhai = async (req, res) => {
     }
 
     const isOwner = suKien.id_nguoi_tao === userId;
-    const isReviewer = ['quan_tri_vien', 'kiem_duyet_vien'].includes(req.user?.vai_tro);
+    const isReviewer = hasAnyRole(req.user?.vai_tro, ['quan_tri_vien', 'kiem_duyet_vien']);
     
     if (!isOwner && !isReviewer) {
       await transaction.rollback();

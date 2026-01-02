@@ -31,7 +31,7 @@ const NguoiDung = sequelize.define('NguoiDung', {
   },
   vai_tro: {
     type: DataTypes.ARRAY(DataTypes.ENUM({
-      values: ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien'],
+      values: ['sinh_vien', 'giao_vien', 'doanh_nghiep', 'quan_tri_vien', 'dieu_phoi_vien', 'kiem_duyet_vien'],
       name: 'vai_tro_nguoi_dung_enum' // Tên ENUM type trong database
     })),
     allowNull: false,
