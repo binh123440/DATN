@@ -104,7 +104,7 @@ const Login = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="example@student.ute.edu.vn"
+                  placeholder="example@sv.ute.udn.vn"
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
                   disabled={isLoading}
                 />

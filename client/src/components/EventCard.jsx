@@ -169,12 +169,12 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
             setHasAttended(true);  // Cập nhật UI sang "Đã điểm danh"
             alert('Điểm danh thành công!'); // Thông báo cho sinh viên
             
-            // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+            //  BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
             setEvent(prevEvent => ({
               ...prevEvent,
               so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
             }));
-            // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+            //  BƯỚC 3: Xóa bỏ onRefresh()
             // if (onRefresh) onRefresh(); 
           }
         } catch (error) {
@@ -229,12 +229,12 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
         setIsRegistered(true);
         alert('Đăng ký sự kiện thành công!');
         
-        // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+        //  BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
         setEvent(prevEvent => ({
           ...prevEvent,
           so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
         }));
-        // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+        //  BƯỚC 3: Xóa bỏ onRefresh()
         // if (onRefresh) onRefresh();
       }
     } catch (error) {
@@ -308,12 +308,12 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
           const response = await diemDanhSuKien(event.id, decodedText, scannerCoords);
           setScanResult({ success: true, message: response.message });
           
-          // ✅ BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
+          // BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
           setEvent(prevEvent => ({
             ...prevEvent,
             so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
           }));
-          // ❌ BƯỚC 3: Xóa bỏ onRefresh()
+          //  BƯỚC 3: Xóa bỏ onRefresh()
           // if (onRefresh) onRefresh();
         } catch (error) {
           // Hiển thị lỗi từ server cho người quét

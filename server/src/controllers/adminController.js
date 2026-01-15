@@ -93,6 +93,7 @@ export const thongKeVangMatTongHop = async (req, res) => {
     const perEventSql = `
       SELECT
         sk.id::int AS id_su_kien,
+        sk."id_bai_viet"::int AS id_bai_viet,
         sk."ten_su_kien" AS ten_su_kien,
         sk."thoi_gian_bat_dau" AS thoi_gian_bat_dau,
         sk."thoi_gian_ket_thuc" AS thoi_gian_ket_thuc,

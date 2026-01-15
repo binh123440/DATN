@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CalendarDays, Percent, UserX } from 'lucide-react';
 import { layThongKeVangMatTongHop } from '../services/apiService';
+import PostModal from './PostModal';
+import PostCard from './PostCard';
+import EventPostCard from './EventPostCard';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -30,6 +34,10 @@ const ThongKeVangMat = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [modalPostId, setModalPostId] = useState(null);
+
+  const navigate = useNavigate();
 
   const currentUser = useMemo(() => {
     try {
@@ -93,6 +101,22 @@ const ThongKeVangMat = () => {
   const theoSuKien = data?.theo_su_kien || [];
   const theoSinhVien = data?.theo_sinh_vien || [];
 
+  const handleOpenEventModal = (idBaiViet) => {
+    if (!idBaiViet) return;
+    setModalPostId(idBaiViet);
+    setIsPostModalOpen(true);
+  };
+
+  const handleClosePostModal = () => {
+    setIsPostModalOpen(false);
+    setModalPostId(null);
+  };
+
+  const handleGoToProfile = (userId) => {
+    if (!userId) return;
+    navigate(`/profile/${userId}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -136,7 +160,21 @@ const ThongKeVangMat = () => {
               ) : (
                 theoSuKien.map((item) => (
                   <tr key={item.id_su_kien} className="hover:bg-gray-50">
-                    <td className="px-5 py-4 text-sm text-gray-900 font-medium">{item.ten_su_kien}</td>
+                    <td className="px-5 py-4 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEventModal(item.id_bai_viet)}
+                        disabled={!item.id_bai_viet}
+                        className={`font-medium text-left ${
+                          item.id_bai_viet
+                            ? 'text-blue-600 hover:text-blue-700 hover:underline'
+                            : 'text-gray-900 cursor-not-allowed'
+                        }`}
+                        title={item.id_bai_viet ? 'Xem chi tiết sự kiện' : 'Không có bài viết sự kiện để mở'}
+                      >
+                        {item.ten_su_kien}
+                      </button>
+                    </td>
                     <td className="px-5 py-4 text-sm text-gray-600">
                       <div>BĐ: {formatDateTime(item.thoi_gian_bat_dau)}</div>
                       <div>KT: {formatDateTime(item.thoi_gian_ket_thuc)}</div>
@@ -182,7 +220,14 @@ const ThongKeVangMat = () => {
                 theoSinhVien.map((item) => (
                   <tr key={item.id_nguoi_dung} className="hover:bg-gray-50">
                     <td className="px-5 py-4 text-sm text-gray-900">
-                      <div className="font-medium">{item.ho_ten}</div>
+                      <button
+                        type="button"
+                        onClick={() => handleGoToProfile(item.id_nguoi_dung)}
+                        className="font-medium text-left text-blue-600 hover:text-blue-700 hover:underline"
+                        title="Xem trang cá nhân"
+                      >
+                        {item.ho_ten}
+                      </button>
                       <div className="text-xs text-gray-500">{item.email}</div>
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-700">{item.ma_sinh_vien || 'N/A'}</td>
@@ -197,6 +242,32 @@ const ThongKeVangMat = () => {
           </table>
         </div>
       </div>
+
+      <PostModal
+        postId={modalPostId}
+        isOpen={isPostModalOpen}
+        onClose={handleClosePostModal}
+        currentUser={currentUser}
+        PostCardComponent={({ post, ...props }) => {
+          return post?.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
+            <EventPostCard
+              post={post}
+              {...props}
+              currentUserId={currentUser?.id}
+              userRole={currentUser?.vai_tro}
+              currentUser={currentUser}
+              isInModal={true}
+            />
+          ) : (
+            <PostCard
+              post={post}
+              {...props}
+              currentUserId={currentUser?.id}
+              isInModal={true}
+            />
+          );
+        }}
+      />
     </div>
   );
 };

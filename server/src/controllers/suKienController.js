@@ -294,11 +294,21 @@ export const dangKySuKien = async (req, res) => {
   try {
     const { id } = req.params;
     const { id_nguoi_dung } = req.body;
+    const userIdFromToken = req.user?.id;
+    const userId = userIdFromToken ?? id_nguoi_dung;
 
-    if (!id_nguoi_dung) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu id_nguoi_dung'
+        message: 'Thiếu thông tin người dùng'
+      });
+    }
+
+    // Nếu client gửi id_nguoi_dung khác token -> chặn
+    if (userIdFromToken && id_nguoi_dung && Number(id_nguoi_dung) !== Number(userIdFromToken)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không hợp lệ: id_nguoi_dung không khớp tài khoản đăng nhập'
       });
     }
 
@@ -313,7 +323,7 @@ export const dangKySuKien = async (req, res) => {
     // Kiểm tra đã đăng ký chưa
     const dangKyCu = await DangKySuKien.findOne({
       where: {
-        id_nguoi_dung,
+        id_nguoi_dung: userId,
         id_su_kien: id
       }
     });
@@ -323,6 +333,50 @@ export const dangKySuKien = async (req, res) => {
         success: false,
         message: 'Bạn đã đăng ký sự kiện này rồi'
       });
+    }
+
+    // ✅ Kiểm tra trùng lịch với các sự kiện đã đăng ký khác
+    const start = suKien.thoi_gian_bat_dau ? new Date(suKien.thoi_gian_bat_dau) : null;
+    const endRaw = suKien.thoi_gian_ket_thuc || suKien.thoi_gian_bat_dau;
+    const end = endRaw ? new Date(endRaw) : null;
+
+    if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      const conflictSql = `
+        SELECT
+          sk.id::int AS id_su_kien,
+          sk."id_bai_viet"::int AS id_bai_viet,
+          sk."ten_su_kien" AS ten_su_kien,
+          sk."thoi_gian_bat_dau" AS thoi_gian_bat_dau,
+          sk."thoi_gian_ket_thuc" AS thoi_gian_ket_thuc
+        FROM "DangKySuKien" dk
+        JOIN "SuKien" sk ON sk.id = dk."id_su_kien"
+        WHERE dk."id_nguoi_dung" = :userId
+          AND dk."trang_thai" = 'da_dang_ky'
+          AND sk.id <> :currentEventId
+          AND sk."thoi_gian_bat_dau" < :newEnd
+          AND COALESCE(sk."thoi_gian_ket_thuc", sk."thoi_gian_bat_dau") > :newStart
+        ORDER BY sk."thoi_gian_bat_dau" ASC
+        LIMIT 10
+      `;
+
+      const [conflicts] = await sequelize.query(conflictSql, {
+        replacements: {
+          userId: Number(userId),
+          currentEventId: Number(id),
+          newStart: start,
+          newEnd: end
+        }
+      });
+
+      if (conflicts.length) {
+        return res.status(409).json({
+          success: false,
+          message: 'Sự kiện bị trùng lịch với một sự kiện bạn đã đăng ký. Vui lòng hủy đăng ký sự kiện trùng hoặc chọn sự kiện khác.',
+          data: {
+            conflicts
+          }
+        });
+      }
     }
 
     // Kiểm tra còn chỗ không
@@ -342,7 +396,7 @@ export const dangKySuKien = async (req, res) => {
 
     // Đăng ký
     const dangKy = await DangKySuKien.create({
-      id_nguoi_dung,
+      id_nguoi_dung: userId,
       id_su_kien: id,
       trang_thai: 'da_dang_ky'
     });
