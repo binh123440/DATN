@@ -13,6 +13,30 @@ const useDebounce = (value, delay = 250) => {
   return debouncedValue;
 };
 
+// ✅ Helpers: datetime-local <-> Date (local time), tránh lệch giờ do toISOString()
+const pad2 = (n) => String(n).padStart(2, '0');
+
+const formatDateTimeLocal = (value) => {
+  if (!value) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+const parseDateTimeLocal = (value) => {
+  if (!value) return null;
+  // value format: YYYY-MM-DDTHH:mm
+  const m = String(value).match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(m[4]);
+  const minute = Number(m[5]);
+  const d = new Date(year, month - 1, day, hour, minute, 0, 0);
+  return Number.isFinite(d.getTime()) ? d : null;
+};
+
 const parseKeHoachChiTiet = (raw) => {
   if (!raw) return { tasks: [], targetAudience: { voluntary: true, mandatory: [], roles: [], khoa_ids: [] } };
 
@@ -284,7 +308,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
 
   // ✅ Fallback chọn lịch khi địa điểm ngoài trường (không có phòng/roomId)
   const handleOutsideDateChange = (key, value) => {
-    const dt = value ? new Date(value) : null;
+    const dt = parseDateTimeLocal(value);
     setEventDetails((prev) => {
       const next = { ...prev, [key]: dt };
 
@@ -633,7 +657,7 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
                     <label className="block text-xs font-medium text-gray-600 mb-1">Thời gian bắt đầu</label>
                     <input
                       type="datetime-local"
-                      value={eventDetails.start ? new Date(eventDetails.start).toISOString().slice(0, 16) : ''}
+                      value={formatDateTimeLocal(eventDetails.start)}
                       onChange={(e) => handleOutsideDateChange('start', e.target.value)}
                       className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
@@ -642,8 +666,8 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
                     <label className="block text-xs font-medium text-gray-600 mb-1">Thời gian kết thúc (tuỳ chọn)</label>
                     <input
                       type="datetime-local"
-                      value={eventDetails.end ? new Date(eventDetails.end).toISOString().slice(0, 16) : ''}
-                      min={eventDetails.start ? new Date(eventDetails.start).toISOString().slice(0, 16) : undefined}
+                      value={formatDateTimeLocal(eventDetails.end)}
+                      min={eventDetails.start ? formatDateTimeLocal(eventDetails.start) : undefined}
                       onChange={(e) => handleOutsideDateChange('end', e.target.value)}
                       className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
@@ -758,8 +782,11 @@ const PostComposer = ({ onCreatePost, currentUserId, currentUser }) => {
                       <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                       <input 
                         type="datetime-local" 
-                        value={task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ''} 
-                        onChange={(e) => updateTask(index, 'deadline', e.target.value)} 
+                        value={formatDateTimeLocal(task.deadline)} 
+                        onChange={(e) => {
+                          const dt = parseDateTimeLocal(e.target.value);
+                          updateTask(index, 'deadline', dt ? dt.toISOString() : '');
+                        }} 
                         className="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-400 outline-none transition-colors"
                       />
                     </div>

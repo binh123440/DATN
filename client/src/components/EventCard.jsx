@@ -56,11 +56,28 @@ const QrCodeScanner = ({ onScanSuccess, onScanFailure }) => {
   return <div id="reader" className="w-full min-h-[300px] bg-gray-100 rounded-xl"></div>;
 };
 
+// ✅ Fallback đúng dữ liệu số người đã đăng ký/điểm danh tùy payload trả về
+const getSoDaDangKy = (ev) => {
+  const direct =
+    ev?.so_da_dang_ky ??
+    ev?.so_luong_da_dang_ky ??
+    ev?.so_dang_ky ??
+    null;
+
+  if (Number.isFinite(Number(direct))) return Number(direct);
+
+  if (Array.isArray(ev?.luot_dang_ky)) return ev.luot_dang_ky.length;
+  if (Array.isArray(ev?.dang_ky_su_kien)) return ev.dang_ky_su_kien.length;
+
+  return 0;
+};
 
 // --- Component chính: EventCard ---
 const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, onRefresh }) => {
   // ✅ BƯỚC 1: Tạo state cục bộ cho dữ liệu sự kiện
   const [event, setEvent] = useState(initialEvent);
+
+  const soDaDangKy = useMemo(() => getSoDaDangKy(event), [event]);
 
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrValue, setQrValue] = useState('');
@@ -77,17 +94,33 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
   const [isRegistering, setIsRegistering] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
 
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000); // cập nhật mỗi 30s
+    return () => clearInterval(t);
+  }, []);
+
+  const startMs = event?.thoi_gian_bat_dau ? new Date(event.thoi_gian_bat_dau).getTime() : NaN;
+  const isEventExpired = Number.isFinite(startMs) && now > startMs + 2 * 60 * 60 * 1000;
+
   const toNumberOrNull = (v) => {
     if (v === null || v === undefined || v === '') return null;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
 
-  const hasRole = (roleKey) => {
-    if (!userRole) return false;
-    if (Array.isArray(userRole)) return userRole.includes(roleKey);
-    return String(userRole) === roleKey;
+  const toRoleArray = (vaiTro) => {
+    if (!vaiTro) return [];
+    if (Array.isArray(vaiTro)) return vaiTro.map((r) => String(r));
+    return [String(vaiTro)];
   };
+
+  const currentUserRoles = useMemo(() => {
+    return toRoleArray(currentUser?.vai_tro ?? userRole);
+  }, [currentUser?.vai_tro, userRole]);
+
+  const hasRole = (roleKey) => currentUserRoles.includes(roleKey);
 
   // ✅ Fix: xác định đúng "người tổ chức"
   const isEventOrganizer = useMemo(() => {
@@ -109,7 +142,8 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
     return isCreator || isPrivileged;
   }, [event, currentUserId, userRole]);
 
-  const currentUserRole = currentUser?.vai_tro || userRole;
+  // const currentUserRole = currentUser?.vai_tro || userRole;
+
   const currentUserKhoaId =
     currentUser?.id_khoa ??
     currentUser?.khoa?.id ??
@@ -121,7 +155,7 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
   }, [event?.ke_hoach_chi_tiet]);
 
   const { canRegisterByAudience, audienceBlockReason } = useMemo(() => {
-    const roles = targetAudience?.roles || [];
+    const roles = (targetAudience?.roles || []).map((r) => String(r));
     const khoaIds = (targetAudience?.khoa_ids || []).map((x) => Number(x)).filter((x) => Number.isFinite(x));
 
     const hasRoleRule = roles.length > 0;
@@ -131,8 +165,11 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
       return { canRegisterByAudience: true, audienceBlockReason: '' };
     }
 
-    if (hasRoleRule && !roles.includes(currentUserRole)) {
-      return { canRegisterByAudience: false, audienceBlockReason: 'Không thuộc đối tượng (vai trò)' };
+    if (hasRoleRule) {
+      const isMatched = roles.some((r) => currentUserRoles.includes(r));
+      if (!isMatched) {
+        return { canRegisterByAudience: false, audienceBlockReason: 'Không thuộc đối tượng (vai trò)' };
+      }
     }
 
     if (hasKhoaRule) {
@@ -143,7 +180,7 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
     }
 
     return { canRegisterByAudience: true, audienceBlockReason: '' };
-  }, [targetAudience, currentUserRole, currentUserKhoaId]);
+  }, [targetAudience, currentUserRoles, currentUserKhoaId]);
   // // Giả sử bạn có thông tin vai trò từ context hoặc props
   // const isAdmin = userRole === 'admin'; 
 
@@ -169,6 +206,10 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
             setHasAttended(true);  // Cập nhật UI sang "Đã điểm danh"
             alert('Điểm danh thành công!'); // Thông báo cho sinh viên
             
+            setEvent((prevEvent) => {
+              const nextCount = getSoDaDangKy(prevEvent) + 1;
+              return { ...prevEvent, so_da_dang_ky: nextCount };
+            });
             //  BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
             setEvent(prevEvent => ({
               ...prevEvent,
@@ -229,6 +270,10 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
         setIsRegistered(true);
         alert('Đăng ký sự kiện thành công!');
         
+        setEvent((prevEvent) => {
+          const nextCount = getSoDaDangKy(prevEvent) + 1;
+          return { ...prevEvent, so_da_dang_ky: nextCount };
+        });
         //  BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
         setEvent(prevEvent => ({
           ...prevEvent,
@@ -308,13 +353,10 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
           const response = await diemDanhSuKien(event.id, decodedText, scannerCoords);
           setScanResult({ success: true, message: response.message });
           
-          // BƯỚC 2: Cập nhật số lượng người đăng ký cục bộ
-          setEvent(prevEvent => ({
-            ...prevEvent,
-            so_da_dang_ky: (prevEvent.so_da_dang_ky || 0) + 1
-          }));
-          //  BƯỚC 3: Xóa bỏ onRefresh()
-          // if (onRefresh) onRefresh();
+          setEvent((prevEvent) => {
+            const nextCount = getSoDaDangKy(prevEvent) + 1;
+            return { ...prevEvent, so_da_dang_ky: nextCount };
+          });
         } catch (error) {
           // Hiển thị lỗi từ server cho người quét
           setScanResult({ success: false, message: error.response?.data?.message || 'Điểm danh thất bại. Đã xảy ra lỗi không xác định.' });
@@ -334,7 +376,7 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
 
   const handleScanFailure = (error) => { /* Bỏ qua lỗi khi không tìm thấy QR */ };
 
-  const slotsRemaining = event.so_luong_toi_da - (event.so_da_dang_ky || 0);
+  const slotsRemaining = event.so_luong_toi_da - soDaDangKy;
   const isFull = slotsRemaining <= 0;
 
   return (
@@ -359,7 +401,12 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="flex items-center text-gray-600"><div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3"><Calendar size={16} className="text-blue-600" /></div><span className="text-sm">{new Date(event.thoi_gian_bat_dau).toLocaleString('vi-VN')}</span></div>
           <div className="flex items-center text-gray-600"><div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3"><MapPin size={16} className="text-purple-600" /></div><span className="text-sm">{event.dia_diem}</span></div>
-          <div className="flex items-center text-gray-600"><div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3"><Users size={16} className="text-green-600" /></div><span className="text-sm">{event.so_da_dang_ky || 0}/{event.so_luong_toi_da} người</span></div>
+          <div className="flex items-center text-gray-600">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+              <Users size={16} className="text-green-600" />
+            </div>
+            <span className="text-sm">{soDaDangKy}/{event.so_luong_toi_da} người</span>
+          </div>
           <div className="flex items-center text-orange-600"><div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3"><Gift size={16} className="text-orange-600" /></div><span className="text-sm font-medium">+{event.diem_thuong} điểm</span></div>
         </div>
         
@@ -368,10 +415,15 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
             <>
               <button
                 onClick={handleOpenScanner}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg font-medium"
+                disabled={isEventExpired}
+                className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-all shadow-lg font-medium
+                  ${isEventExpired
+                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed '
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                  }`}
               >
                 <ScanLine size={18} />
-                <span>Quét mã</span>
+                <span>{isEventExpired ? 'Sự kiện đã diễn ra' : 'Quét mã'}</span>
               </button>
 
               <Link to={`/events/${event.id}/thong-ke`} className="bg-gray-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:bg-gray-700 transition-all shadow-lg font-medium">
@@ -380,16 +432,22 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
             </>
           ) : (
             <>
-              {isRegistered ? (
+              {isEventExpired ? (
+                <div className="flex-1 text-center bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium border border-gray-200">
+                  Sự kiện đã diễn ra
+                </div>
+              ) : isRegistered ? (
                 hasAttended ? (
-                  // Hiển thị khi đã điểm danh thành công
                   <div className="flex-1 text-center bg-green-100 text-green-800 py-3 px-4 rounded-lg font-medium border border-green-200 flex items-center justify-center gap-2">
                     <Check size={18} />
                     <span>Đã điểm danh</span>
                   </div>
                 ) : (
-                  // Hiển thị nút lấy mã khi chưa điểm danh
-                  <button onClick={handleGenerateQrCode} disabled={isGeneratingQr} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-60">
+                  <button
+                    onClick={handleGenerateQrCode}
+                    disabled={isGeneratingQr}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-lg flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg font-medium disabled:opacity-60"
+                  >
                     <QrCodeIcon size={18} />
                     <span>{isGeneratingQr ? 'Đang tạo mã...' : 'Lấy mã điểm danh'}</span>
                   </button>
@@ -459,7 +517,7 @@ const EventCard = ({ event: initialEvent, currentUserId, userRole, currentUser, 
               <div className="text-center">
                 <p className="text-gray-600 text-sm mb-4">📱 Di chuyển camera đến mã QR của sinh viên</p>
                 <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-200">
-                  <div className="flex items-center gap-2"><div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><Users size={18} className="text-blue-600" /></div><div className="text-left"><p className="text-xs text-gray-500">Đã điểm danh</p><p className="text-base font-bold text-gray-800">{event.so_da_dang_ky || 0}/{event.so_luong_toi_da}</p></div></div>
+                  <div className="flex items-center gap-2"><div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><Users size={18} className="text-blue-600" /></div><div className="text-left"><p className="text-xs text-gray-500">Đã điểm danh</p><p className="text-base font-bold text-gray-800">{soDaDangKy}/{event.so_luong_toi_da}</p></div></div>
                   <div className="w-px h-10 bg-gray-300"></div>
                   <div className="flex items-center gap-2"><div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center"><Gift size={18} className="text-green-600" /></div><div className="text-left"><p className="text-xs text-gray-500">Điểm thưởng</p><p className="text-base font-bold text-green-600">+{event.diem_thuong}</p></div></div>
                 </div>

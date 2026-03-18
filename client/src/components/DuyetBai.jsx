@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { layDanhSachChoDuyet, capNhatTrangThaiNoiDung, duyetSuKien, duyetKetQuaTask } from '../services/apiService';
 import { Check, X, Clock, FileText, Calendar, AlertCircle, MapPin, Users, Target, ChevronDown, ChevronUp, User, List, Eye } from 'lucide-react';
 
+
+const getInitials = (name) => {
+  const parts = String(name || '').trim().split(' ').filter(Boolean);
+  return (parts.map((n) => n[0]).join('').slice(0, 2) || 'U').toUpperCase();
+};
 // Component con để hiển thị chi tiết kế hoạch
 const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, loai, onTaskAction }) => {
   if (!keHoach) {
@@ -82,7 +87,7 @@ const KeHoachChiTiet = ({ keHoach, phanHoi, onPhanHoiChange, onAction, itemId, l
                     {task.deadline && (
                       <div className="flex items-center gap-1">
                         <Clock size={14} className="text-orange-500" />
-                        <span>{new Date(task.deadline).toLocaleString('vi-VN')}</span>
+                        <span>{new Date(task.deadline).toLocaleString('vi-VN')} Deadline</span>
                       </div>
                     )}
                   </div>
@@ -407,12 +412,15 @@ const DuyetBai = () => {
                     />
 
                     <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <img 
+                      {/* <img 
                         src={item.tac_gia?.anh_dai_dien_url || '/default-avatar.png'} 
                         alt={item.tac_gia?.ho_ten || 'User'} 
                         className="w-8 h-8 rounded-full object-cover"
                         onError={(e) => { e.target.src = '/default-avatar.png'; }}
-                      />
+                      /> */}
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        {getInitials(item.tac_gia?.ho_ten || 'Ẩn danh')}
+                      </div>
                       <span className="font-medium text-gray-700">{item.tac_gia?.ho_ten || 'Ẩn danh'}</span>
                       <span className="flex items-center gap-1">
                         <Clock size={14} /> 

@@ -30,6 +30,53 @@ const StatCard = ({ icon: Icon, title, value, subtitle }) => {
   );
 };
 
+const RatioBar = ({ attended = 0, absent = 0 }) => {
+  const total = Math.max(1, Number(attended) + Number(absent));
+  const attendedPct = Math.round((Number(attended) / total) * 100);
+  const absentPct = 100 - attendedPct;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+        <span>Tham gia: <span className="font-semibold text-green-700">{attended}</span></span>
+        <span>Vắng: <span className="font-semibold text-red-700">{absent}</span></span>
+      </div>
+      <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200">
+        <div className="h-full bg-green-500" style={{ width: `${attendedPct}%` }} />
+        <div className="h-full bg-red-500" style={{ width: `${absentPct}%` }} />
+      </div>
+    </div>
+  );
+};
+
+const MiniBarList = ({ title, items = [] }) => {
+  const maxValue = Math.max(1, ...items.map((x) => Number(x.value) || 0));
+
+  return (
+    <div>
+      <div className="text-sm font-semibold text-gray-900 mb-3">{title}</div>
+      <div className="space-y-2">
+        {items.map((it) => {
+          const v = Number(it.value) || 0;
+          const w = Math.round((v / maxValue) * 100);
+          return (
+            <div key={it.key} className="flex items-center gap-3">
+              <div className="w-40 text-xs text-gray-700 truncate" title={it.label}>
+                {it.label}
+              </div>
+              <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
+                <div className="h-full bg-blue-500" style={{ width: `${w}%` }} />
+              </div>
+              <div className="w-10 text-right text-xs font-semibold text-gray-800">{v}</div>
+            </div>
+          );
+        })}
+        {items.length === 0 ? <div className="text-sm text-gray-500">Chưa có dữ liệu.</div> : null}
+      </div>
+    </div>
+  );
+};
+
 const ThongKeVangMat = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -130,6 +177,25 @@ const ThongKeVangMat = () => {
         <StatCard icon={CalendarDays} title="Tổng lượt đăng ký" value={tongHop.tong_dang_ky} />
         <StatCard icon={UserX} title="Tổng lượt vắng" value={tongHop.tong_vang} subtitle="Đăng ký nhưng chưa điểm danh" />
         <StatCard icon={Percent} title="Tỉ lệ tham gia" value={`${tongHop.ti_le_tham_gia}%`} subtitle="Tham gia / Đăng ký" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="font-semibold text-gray-900 mb-1">Tổng quan tham gia</div>
+          <div className="text-sm text-gray-600 mb-4">So sánh tham gia và vắng (tính trên lượt đăng ký)</div>
+          <RatioBar attended={tongHop.tong_tham_gia} absent={tongHop.tong_vang} />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <MiniBarList
+            title="Top sự kiện nhiều lượt vắng"
+            items={(theoSuKien || []).slice(0, 8).map((x) => ({
+              key: x.id_su_kien,
+              label: x.ten_su_kien,
+              value: x.tong_vang
+            }))}
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

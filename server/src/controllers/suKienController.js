@@ -509,8 +509,20 @@ export const diemDanhSuKien = async (req, res) => {
       });
     }
 
+    // Lấy tên người được điểm danh để trả về UI
+    const nguoiDuocDiemDanh = await NguoiDung.findByPk(qrData.userId, {
+      attributes: ['id', 'ho_ten', 'ma_sinh_vien'],
+      transaction
+    });
+    const nguoiDungData = nguoiDuocDiemDanh ? nguoiDuocDiemDanh.toJSON() : null;
+
     await transaction.commit();
-    res.json({ success: true, message: `Điểm danh thành công cho User ID: ${qrData.userId}.` });
+
+    res.json({
+      success: true,
+      message: `Điểm danh thành công cho ${nguoiDungData?.ho_ten || 'người dùng'}.`,
+      data: { nguoi_dung: nguoiDungData }
+    });
 
   } catch (error) {
     await transaction.rollback();
