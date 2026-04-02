@@ -6,11 +6,11 @@ export const authService = {
    * @param {string} email - Email người dùng
    * @param {string} mat_khau - Mật khẩu
    */
-  dangNhap: async (email, mat_khau) => {
+  dangNhap: async (email, mat_khau, ghi_nho = false) => {
     try {
-      console.log('📤 Gửi request đăng nhập:', { email }); // Debug
+      console.log('📤 Gửi request đăng nhập:', { email, ghi_nho }); // Debug
       
-      const response = await apiClient.post('/auth/dang-nhap', { email, mat_khau });
+      const response = await apiClient.post('/auth/dang-nhap', { email, mat_khau, ghi_nho });
       
       console.log('📥 Response từ server:', response); // Debug
       

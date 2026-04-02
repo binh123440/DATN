@@ -19,7 +19,7 @@ const parseTargetAudienceFromPlan = (raw) => {
   const ta = obj.targetAudience || obj.target_audience || {};
   const khoaIds =
     Array.isArray(ta.khoa_ids) ? ta.khoa_ids :
-    Array.isArray(ta.khoaIds) ? ta.khoaIds : [];
+      Array.isArray(ta.khoaIds) ? ta.khoaIds : [];
 
   return {
     voluntary: ta.voluntary !== false,
@@ -75,7 +75,7 @@ const Feed = ({ currentUser }) => {
   useEffect(() => {
     const postId = searchParams.get('postId');
     const commentId = searchParams.get('commentId');
-    
+
     if (postId) {
       handleOpenModal(parseInt(postId), commentId ? parseInt(commentId) : null);
       searchParams.delete('postId');
@@ -161,7 +161,7 @@ const Feed = ({ currentUser }) => {
         </div>
       </div>
 
-      {/* Thanh lọc */}
+      {/* Lọc */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="text-sm font-semibold text-gray-800">Lọc Feed theo đối tượng sự kiện</div>
@@ -195,9 +195,9 @@ const Feed = ({ currentUser }) => {
         )}
       </div>
 
-      <PostComposer onCreatePost={fetchPosts} 
+      <PostComposer onCreatePost={fetchPosts}
         currentUserId={currentUser?.id}
-        currentUser={currentUser} 
+        currentUser={currentUser}
       />
 
       {isLoading ? (
@@ -214,7 +214,7 @@ const Feed = ({ currentUser }) => {
           <div key={post.id} className="mb-4">
             {/* ✅ Kiểm tra chặt chẽ hơn: post.su_kien phải là một object và có id */}
             {post.su_kien && typeof post.su_kien === 'object' && post.su_kien.id ? (
-              <EventPostCard 
+              <EventPostCard
                 post={post}
                 currentUserId={currentUserId}
                 userRole={userRole}
@@ -223,9 +223,9 @@ const Feed = ({ currentUser }) => {
                 onOpenModal={handleOpenModal}
               />
             ) : (
-              <PostCard 
-                post={post} 
-                currentUserId={currentUserId} 
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
                 onPostDeleted={fetchPosts}
                 onOpenModal={handleOpenModal}
               />

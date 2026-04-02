@@ -10,6 +10,7 @@ import {
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +28,14 @@ const NotificationDropdown = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen) setIsMounted(true);
+    else if (isMounted) {
+      const t = setTimeout(() => setIsMounted(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, isMounted]);
 
   // Load thông báo
   const loadNotifications = async () => {
@@ -151,8 +160,8 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[600px] flex flex-col">
+      {isMounted && (
+        <div className={`absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[600px] flex flex-col ${isOpen ? 'animate-dropdown-in' : 'animate-dropdown-out'}`}>
           {/* Header */}
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="text-lg font-bold text-gray-900">Thông báo</h3>

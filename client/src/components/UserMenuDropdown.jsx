@@ -5,9 +5,18 @@ import { authService } from '../services/authService';
 
 const UserMenuDropdown = ({ currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [userInfo, setUserInfo] = useState(currentUser || null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isOpen) setIsMounted(true);
+    else if (isMounted) {
+      const t = setTimeout(() => setIsMounted(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, isMounted]);
 
   useEffect(() => {
     if (currentUser) {
@@ -70,8 +79,8 @@ const UserMenuDropdown = ({ currentUser }) => {
         <span className="hidden md:block font-medium">{userName}</span>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+      {isMounted && (
+        <div className={`absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50 ${isOpen ? 'animate-dropdown-in' : 'animate-dropdown-out'}`}>
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="font-semibold text-gray-900">{userName}</p>
             <p className="text-sm text-gray-500">{userEmail}</p>

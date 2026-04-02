@@ -9,7 +9,7 @@ const { NguoiDung, Nganh, Khoa } = db;
  */
 export const dangNhap = async (req, res) => {
   try {
-    const { email, mat_khau } = req.body;
+    const { email, mat_khau, ghi_nho } = req.body;
 
     // Validation
     if (!email || !mat_khau) {
@@ -20,7 +20,7 @@ export const dangNhap = async (req, res) => {
     }
 
     // Tìm user theo email
-    const nguoiDung = await NguoiDung.findOne({ 
+    const nguoiDung = await NguoiDung.findOne({
       where: { email },
       include: [
         {
@@ -40,7 +40,7 @@ export const dangNhap = async (req, res) => {
 
     // Kiểm tra mật khẩu
     const isPasswordValid = await bcrypt.compare(mat_khau, nguoiDung.mat_khau_bam);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -50,13 +50,13 @@ export const dangNhap = async (req, res) => {
 
     // Tạo JWT token
     const token = jwt.sign(
-      { 
-        id: nguoiDung.id, 
+      {
+        id: nguoiDung.id,
         email: nguoiDung.email,
-        vai_tro: nguoiDung.vai_tro 
+        vai_tro: nguoiDung.vai_tro
       },
-      process.env.JWT_SECRET || 'ute-social-secret-key-2024',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET,
+      { expiresIn: ghi_nho ? '30d' : '1d' }
     );
 
     // Trả về thông tin user (không bao gồm mật khẩu)
@@ -156,7 +156,7 @@ export const doiMatKhau = async (req, res) => {
 
     // Tìm user
     const nguoiDung = await NguoiDung.findByPk(userId);
-    
+
     if (!nguoiDung) {
       return res.status(404).json({
         success: false,
@@ -166,7 +166,7 @@ export const doiMatKhau = async (req, res) => {
 
     // Kiểm tra mật khẩu cũ
     const isPasswordValid = await bcrypt.compare(mat_khau_cu, nguoiDung.mat_khau_bam);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,

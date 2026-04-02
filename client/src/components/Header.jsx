@@ -16,7 +16,22 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
 
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState(null);
+  const [displayResults, setDisplayResults] = useState(null);
+  const [isSearchMounted, setIsSearchMounted] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchResults) {
+      setDisplayResults(searchResults);
+      setIsSearchMounted(true);
+    } else if (isSearchMounted) {
+      const t = setTimeout(() => {
+        setIsSearchMounted(false);
+        setDisplayResults(null);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [searchResults, isSearchMounted]);
   const searchTimeout = useRef(null);
   const searchWrapperRef = useRef(null);
   const navigate = useNavigate();
@@ -135,26 +150,26 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
   return (
     <header className="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-20">
       <div className="px-2 sm:px-4 xl:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 flex-nowrap">
           {/* Left Section: Mobile Menu & Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center flex-shrink-0">
             <div className="xl:hidden">
-              <button 
+              <button
                 onClick={handleMobileMenuToggle}
                 className="p-2 rounded-md text-white hover:bg-blue-700 transition-colors"
                 aria-label="Toggle mobile menu"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d={isSidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={isSidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
                   />
                 </svg>
               </button>
             </div>
-            
+
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="w-8 h-8 bg-white text-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
                 U
@@ -164,7 +179,7 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
           </div>
 
           {/* Center Section: Search Bar (for md and up) */}
-          <div className="w-full max-w-2xl mx-auto md:block px-4" ref={searchWrapperRef}>
+          <div className="flex-1 min-w-0 max-w-2xl mx-auto px-2 sm:px-4" ref={searchWrapperRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -181,10 +196,10 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
               )}
             </div>
 
-            {searchResults && (
-              <div className="absolute mt-2 w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 z-40 max-h-96 overflow-y-auto">
+            {(isSearchMounted && displayResults) && (
+              <div className={`absolute mt-2 w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-gray-200 z-40 max-h-96 overflow-y-auto ${searchResults ? 'animate-dropdown-in' : 'animate-dropdown-out'}`}>
                 {['users', 'groups', 'posts', 'events'].map((section) => {
-                  const data = searchResults[section];
+                  const data = displayResults[section];
                   if (!data || data.length === 0) return null;
 
                   const sectionTitle = {
@@ -233,7 +248,7 @@ const Header = ({ onToggleSidebar, isSidebarOpen, currentUser }) => {
           </div>
 
           {/* Right Section: Icons */}
-          <div className="flex items-center justify-end space-x-1 sm:space-x-4">
+          <div className="flex items-center justify-end flex-shrink-0 space-x-1 sm:space-x-4">
             {/* ✅ Thông báo */}
             <NotificationDropdown />
 

@@ -32,6 +32,7 @@ const toMs = (value) => {
 
 const MessageDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -78,6 +79,14 @@ const MessageDropdown = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isOpen) setIsMounted(true);
+    else if (isMounted) {
+      const t = setTimeout(() => setIsMounted(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, isMounted]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -202,8 +211,8 @@ const MessageDropdown = () => {
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-2 sm:right-0 mt-2 w-[calc(100vw-1rem)] max-w-sm sm:w-96 bg-white rounded-lg shadow-2xl z-40 overflow-hidden">
+      {isMounted && (
+        <div className={`absolute right-2 sm:right-0 mt-2 w-[calc(100vw-1rem)] max-w-sm sm:w-96 bg-white rounded-lg shadow-2xl z-40 overflow-hidden ${isOpen ? 'animate-dropdown-in' : 'animate-dropdown-out'}`}>
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-2xl font-bold text-gray-900">Chats</h2>

@@ -12,6 +12,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [ghiNho, setGhiNho] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,10 +39,10 @@ const Login = () => {
 
     try {
       console.log('🔐 Đang gửi request đăng nhập...'); // ← Thêm log
-      const response = await authService.dangNhap(formData.email, formData.mat_khau);
-      
+      const response = await authService.dangNhap(formData.email, formData.mat_khau, ghiNho);
+
       console.log('✅ Response từ API:', response); // ← Thêm log
-      
+
       if (response.data.success) {
         console.log('🎉 Đăng nhập thành công, chuyển trang...'); // ← Thêm log
         navigate('/');
@@ -150,6 +151,8 @@ const Login = () => {
               <label className="flex items-center">
                 <input
                   type="checkbox"
+                  checked={ghiNho}
+                  onChange={(e) => setGhiNho(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <span className="ml-2 text-sm text-gray-600">Ghi nhớ đăng nhập</span>
@@ -181,49 +184,6 @@ const Login = () => {
               )}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="mt-6 mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">Hoặc</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Đăng nhập nhanh cho testing */}
-          <div className="space-y-2">
-            <p className="text-sm text-gray-600 text-center mb-3">Đăng nhập nhanh (Demo):</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData({
-                    email: 'lehabinh@student.ute.edu.vn',
-                    mat_khau: 'demo123'
-                  });
-                }}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Sinh viên
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData({
-                    email: 'admin@ute.edu.vn',
-                    mat_khau: 'admin123'
-                  });
-                }}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Quản trị
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
-import { 
-  Home, 
-  Calendar, 
-  Users, 
-  MessageCircle, 
-  Bell, 
+import {
+  Home,
+  Calendar,
+  Users,
+  MessageCircle,
+  Bell,
   User,
   ShieldCheck,
   Shield,
@@ -67,11 +67,10 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li key={item.label}>
                 <Link
                   to={item.path}
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                    location.pathname === item.path 
-                      ? 'bg-blue-500 text-white shadow-lg transform scale-105' 
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                  }`}
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === item.path
+                    ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                    }`}
                 >
                   <item.icon size={20} className="mr-3" />
                   <span className="flex-1 font-medium">{item.label}</span>
@@ -89,11 +88,10 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li>
                 <Link
                   to="/admin"
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                    location.pathname === '/admin'
-                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                  }`}
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/admin'
+                    ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                    }`}
                 >
                   <Shield size={20} className="mr-3" />
                   <span className="flex-1 font-medium">Quản trị</span>
@@ -105,11 +103,10 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li>
                 <Link
                   to="/admin/thong-ke-vang-mat"
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                    location.pathname === '/admin/thong-ke-vang-mat'
-                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                  }`}
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/admin/thong-ke-vang-mat'
+                    ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                    }`}
                 >
                   <ShieldCheck size={20} className="mr-3" />
                   <span className="flex-1 font-medium">Thống kê vắng</span>
@@ -122,11 +119,10 @@ const Sidebar = ({ isOpen, onClose }) => {
               <li>
                 <Link
                   to="/duyet-bai"
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                    location.pathname === '/duyet-bai'
-                      ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                  }`}
+                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/duyet-bai'
+                    ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                    }`}
                 >
                   <ShieldCheck size={20} className="mr-3" />
                   <span className="flex-1 font-medium">Kiểm duyệt</span>
@@ -140,20 +136,26 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Mobile Sidebar Overlay */}
       {isOpen && (
         <div className="xl:hidden">
-          {/* Backdrop */}
-          <div 
-            className={`fixed inset-0 z-40 transition-opacity duration-300 ease-in-out ${
-              isAnimating ? 'bg-black bg-opacity-50' : 'bg-opacity-0'
-            }`}
+          {/* Backdrop - transparent click-catcher (no dark overlay) */}
+          <div
+            className="fixed inset-0 z-40"
             onClick={handleClose}
           ></div>
-          
+
           {/* Mobile Sidebar */}
-          <div className={`fixed left-0 top-0 bottom-0 w-64 bg-white bg-opacity-95 backdrop-blur-md shadow-xl z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out custom-scrollbar-blue ${
-            isAnimating ? 'translate-x-0' : '-translate-x-full'
-          }`}>
+          <div className={`fixed left-0 top-0 bottom-0 w-64 bg-white bg-opacity-95 backdrop-blur-md shadow-xl z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out custom-scrollbar-blue ${isAnimating ? 'translate-x-0' : '-translate-x-full'
+            }`}>
             {/* Header Space */}
             <div className="h-16 bg-blue-600 bg-opacity-95 flex items-center px-4">
+              <button
+                onClick={handleClose}
+                className="p-2 rounded-md text-white hover:bg-blue-700 transition-colors mr-2"
+                aria-label="Đóng sidebar"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-white text-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
                   U
@@ -161,7 +163,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <h1 className="text-xl font-bold text-white">UTE Social</h1>
               </div>
             </div>
-            
+
             <nav className="p-3 flex-1">
               <ul className="space-y-1">
                 {menuItems.map((item) => (
@@ -169,11 +171,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <Link
                       to={item.path}
                       onClick={handleClose}
-                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        location.pathname === item.path 
-                          ? 'bg-blue-500 text-white shadow-lg transform scale-105' 
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                      }`}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === item.path
+                        ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                        }`}
                     >
                       <item.icon size={20} className="mr-3" />
                       <span className="flex-1 font-medium">{item.label}</span>
@@ -192,11 +193,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <Link
                       to="/admin"
                       onClick={handleClose}
-                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        location.pathname === '/admin'
-                          ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg transform scale-105'
-                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 hover:text-purple-600'
-                      }`}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/admin'
+                        ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg transform scale-105'
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50 hover:text-purple-600'
+                        }`}
                     >
                       <Shield size={20} className="mr-3" />
                       <span className="flex-1 font-medium">Quản trị</span>
@@ -209,29 +209,27 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <Link
                       to="/admin/thong-ke-vang-mat"
                       onClick={handleClose}
-                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        location.pathname === '/admin/thong-ke-vang-mat'
-                          ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                      }`}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/admin/thong-ke-vang-mat'
+                        ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                        }`}
                     >
                       <ShieldCheck size={20} className="mr-3" />
                       <span className="flex-1 font-medium">Thống kê vắng</span>
                     </Link>
                   </li>
                 )}
-                
+
                 {/* ✅ Link Kiểm duyệt cho Admin và Điều phối viên - Mobile */}
                 {(hasRole('quan_tri_vien') || hasRole('kiem_duyet_vien')) && (
                   <li>
                     <Link
                       to="/duyet-bai"
                       onClick={handleClose}
-                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                        location.pathname === '/duyet-bai'
-                          ? 'bg-blue-500 text-white shadow-lg transform scale-105'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                      }`}
+                      className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === '/duyet-bai'
+                        ? 'bg-blue-500 text-white shadow-lg transform scale-105'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                        }`}
                     >
                       <ShieldCheck size={20} className="mr-3" />
                       <span className="flex-1 font-medium">Kiểm duyệt</span>
@@ -251,7 +249,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   </div>
                   <span className="text-xs text-gray-600 font-medium">Điểm thưởng của bạn</span>
                 </div>
-                
+
                 <div className="text-center mb-3">
                   <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
                     1,250
@@ -263,7 +261,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg px-2 py-2 text-center">
                     <span className="text-green-600 text-xs font-medium">☕ Có thể mua 83 ly cà phê</span>
                   </div>
-                  
+
                   <div className="text-center py-1">
                     <p className="text-xs text-gray-600 mb-1">Mức độ tích cực</p>
                     <div className="flex items-center justify-center space-x-1">
@@ -282,7 +280,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   </div>
                   <h3 className="font-semibold text-gray-800 text-sm">Hoạt động gần đây</h3>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -294,7 +292,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     </div>
                     <span className="text-green-600 font-semibold text-xs">+50</span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className="text-green-500 text-sm">🔥</span>
@@ -306,7 +304,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                     <span className="text-green-600 font-semibold text-xs">+50</span>
                   </div>
                 </div>
-                
+
                 <button className="w-full mt-3 text-blue-500 text-center py-2 hover:bg-blue-50 rounded-lg transition-colors text-xs font-medium">
                   Xem lịch sử đầy đủ
                 </button>
@@ -315,7 +313,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               {/* Sự kiện sắp tới */}
               <div className="bg-gray-50 bg-opacity-80 rounded-xl p-3 shadow-sm border border-gray-200">
                 <h3 className="font-semibold text-gray-800 mb-3 text-sm">Sự kiện sắp tới</h3>
-                
+
                 <div className="space-y-2">
                   <div className="border-l-4 border-blue-500 pl-2 py-1">
                     <p className="text-xs font-medium text-gray-800">Hội thảo AI trong giáo dục</p>
@@ -331,7 +329,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="border-l-4 border-purple-500 pl-2 py-1">
                     <p className="text-xs font-medium text-gray-800">Workshop định hướng du học Nhật Bản</p>
                     <div className="flex items-center space-x-1 text-xs text-gray-500 mt-1">
